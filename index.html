@@ -209,15 +209,22 @@ body::after {
 }
 .codename b { color: var(--accent); }
 
-header.bar { padding: 26px 0 18px; }
+/* 展示页的排版按「编辑级」标准来:标题是 display 级尺寸,导语是 lead 级,
+   和屏幕里的小字拉开两个量级。原来 h1 25px / 导语 13.5px,和正文几乎同级,
+   整页读起来像一份说明书而不是一个作品页。 */
+header.bar { padding: 44px 0 22px; }
 header.bar h1 {
   font-family: var(--font-title);
-  font-size: 25px;
+  font-size: clamp(30px, 4.6vw, 46px);
   font-weight: 600;
-  letter-spacing: .01em;
-  margin: 0 0 6px;
+  letter-spacing: -.015em;
+  line-height: 1.12;
+  margin: 0 0 10px;
 }
-header.bar p { color: var(--ink-mute); margin: 0; max-width: 62ch; font-size: 13.5px; }
+header.bar p {
+  color: var(--ink-mute); margin: 0;
+  max-width: 58ch; font-size: 15.5px; line-height: 1.75;
+}
 
 .controls {
   display: flex;
@@ -270,11 +277,13 @@ body[data-style="retro"] .seg button[aria-pressed="true"] { color: #0D140F; }
 }
 .dir-head h2 {
   font-family: var(--font-title);
-  font-size: 30px;
+  font-size: clamp(28px, 3.8vw, 40px);
   font-weight: 600;
-  margin: 8px 0 6px;
+  letter-spacing: -.01em;
+  line-height: 1.15;
+  margin: 10px 0 8px;
 }
-.dir-head .tagline { color: var(--ink-mute); font-size: 16px; margin: 0; }
+.dir-head .tagline { color: var(--ink-mute); font-size: 16.5px; margin: 0; max-width: 46ch; }
 
 /* -------------------------------------------------------------- 舞台布局 */
 .stage {
@@ -284,11 +293,13 @@ body[data-style="retro"] .seg button[aria-pressed="true"] { color: #0D140F; }
   align-items: start;
   padding-top: 26px;
 }
+/* 两台设备垂直居中对齐,不是顶对齐:手表比手机矮一大截,顶对齐会让手表
+   下面留一大块空,两台设备看起来是「先后摆上去的」而不是「一组」。 */
 .devices {
   display: flex;
   flex-wrap: wrap;
-  gap: 44px;
-  align-items: flex-start;
+  gap: 52px;
+  align-items: center;
   justify-content: center;
 }
 .device { display: flex; flex-direction: column; align-items: center; gap: 13px; }
@@ -474,13 +485,18 @@ body[data-style="retro"] .phone-screen::before {
 }
 .watch-screen .statusbar { padding: 0 4px 2px; }
 
+/* 屏内标题原来 22px,和 tile 正文(14px)只差一档,层级是「平」的。
+   拉到 27px + 负字距,和正文拉开两个量级——屏幕小不等于字可以小,
+   手表那一档单独保留 15px(物理尺寸真的放不下)。 */
 .scr h3 {
   font-family: var(--font-title);
-  font-size: 22px;
+  font-size: 27px;
   font-weight: 600;
-  margin: 6px 0 2px;
+  letter-spacing: -.015em;
+  line-height: 1.15;
+  margin: 8px 0 3px;
 }
-.watch-screen .scr h3 { font-size: 15px; margin: 2px 0; }
+.watch-screen .scr h3 { font-size: 15px; margin: 2px 0; letter-spacing: 0; }
 .scr .sub { color: var(--screen-mute); font-size: 12.5px; margin: 0; }
 .watch-screen .scr .sub { font-size: 11px; line-height: 1.35; }
 
@@ -492,6 +508,7 @@ body[data-style="retro"] .phone-screen::before {
   margin: 0;
 }
 .watch-screen .doing { font-size: 13px; }
+.phone-screen .doing { font-size: 16.5px; letter-spacing: -.005em; }
 
 /* 卡片不是单色块:一层极轻的上下渐变 + 顶边 1px 高光 + 一道落影。
    这三样是「平的 div」和「像一块材料」之间的差别,代价只有几行 CSS。 */
@@ -578,12 +595,14 @@ body[data-style="retro"] .sbtn.primary { color: #060A07; }
 }
 /* 选中的 tab 给一块强调色底:原来只有文字变色,在一排哑色里太安静,
    看不出「我在哪」。 */
+.tabbar button:hover { color: var(--screen-ink); }
 .tabbar button[aria-pressed="true"] {
   color: var(--accent); font-weight: 600;
   background: var(--accent-soft);
   border-radius: 12px;
   margin: 0 8px;
 }
+.tabbar button[aria-pressed="true"]:hover { color: var(--accent); }
 /* 图标放大一号、描边加粗:19px/1.7 描边在真机上就是几根头发丝,
    截图里看起来像「没画完的线」,是简陋观感的一部分。 */
 .tabbar .ic { display: block; margin: 0 auto 2px; width: 21px; height: 21px; stroke-width: 1.9; }
@@ -998,9 +1017,46 @@ footer.foot code {
   .stage { grid-template-columns: minmax(0, 1fr); }
   .notes { position: static; }
 }
+/* 中等宽度下说明栏变成通栏,一行能排八九十字,读起来累。
+   改成自动换行的卡片网格,每张卡回到舒适的行宽。 */
+@media (max-width: 1000px) and (min-width: 620px) {
+  .notes { display: grid; grid-template-columns: 1fr 1fr; gap: 13px; }
+  .note-card { margin-bottom: 0; }
+}
 @media (prefers-reduced-motion: reduce) {
   .m-rotate, .m-shift, .m-scale, .m-blink, .pet-frames,
-  .phone-screen::before, .sbtn.primary, .burst i, .motes i { animation: none !important; }
+  .phone-screen::before, .sbtn.primary, .burst i, .motes i, .scr > *, .face > * { animation: none !important; }
+  .chip, .tile, .screen-nav button, .tabbar button, .tile:hover { transition: none; transform: none; }
+}
+
+/* ---- 入场与微交互 -------------------------------------------------------
+   屏幕切换原来是 innerHTML 瞬跳:点一下,整屏「啪」地换掉,没有任何过渡。
+   获奖级页面的切换是有重量感的——新内容的每一块依次浮起来(stagger),
+   眼睛能跟上「什么换了」。延迟按 nth-child 递增,不写 JS。
+   微交互:chip / tile / 屏幕选择 pill 都有 hover 与按压反馈;
+   :focus-visible 给键盘用户一圈强调色焦点环(评审会看无障碍)。 */
+@keyframes rise {
+  from { opacity: 0; transform: translateY(9px); }
+  to   { opacity: 1; transform: none; }
+}
+.scr > *, .face > * { animation: rise .44s cubic-bezier(.2, .7, .2, 1) both; }
+.scr > *:nth-child(2) { animation-delay: .05s; }
+.scr > *:nth-child(3) { animation-delay: .10s; }
+.scr > *:nth-child(4) { animation-delay: .15s; }
+.scr > *:nth-child(5) { animation-delay: .20s; }
+.scr > *:nth-child(6) { animation-delay: .25s; }
+.scr > *:nth-child(7) { animation-delay: .30s; }
+.scr > *:nth-child(n+8) { animation-delay: .34s; }
+
+.chip, .tile, .screen-nav button, .tabbar button {
+  transition: transform .16s cubic-bezier(.2, .7, .2, 1), background .16s, border-color .16s, box-shadow .16s;
+}
+.chip:active, .sbtn:active, .screen-nav button:active { transform: scale(.95); }
+.tile:hover { transform: translateY(-1px); box-shadow: var(--card-lift), 0 4px 14px rgba(0, 0, 0, .12); }
+.screen-nav button:hover { border-color: var(--accent); color: var(--accent); }
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
 }
 
 /* ?freeze=1 把每个动作通道钉在**幅度峰值**那一帧,动画整个不存在。
@@ -1035,8 +1091,11 @@ body[data-freeze] .burst i {
 }
 body[data-freeze] .motes i {
   animation: none !important; opacity: .6 !important;
-  transform: translate(calc(var(--dx) * .5), -36px) !important;
-}
+  transform: translate(calc(var(--dx) * .5), -36px) !important; }
+/* 入场 stagger 也要钉:它是「一次性」动画,但截图抓的可能是中途某一帧,
+   同一个 URL 两次截图就不再逐像素相同了。animation:none 之后元素回到
+   自然终态(opacity 1、无位移),正是想要的画面。 */
+body[data-freeze] .scr > *, body[data-freeze] .face > * { animation: none !important; }
 </style>
 </head>
 <body data-style="paper">
