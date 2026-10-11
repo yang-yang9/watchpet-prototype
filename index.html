@@ -568,8 +568,9 @@ body[data-style="retro"] .cell { border-radius: 0; }
   font-size: 11px;
   letter-spacing: .04em;
 }
-/* 图标按格子的比例给,不写死 px:同一段 CSS 要同时服务手表和手机两种格子尺寸。 */
-.slot svg { width: 48%; height: 48%; }
+/* 图标按格子的比例给,不写死 px:同一段 CSS 要同时服务手表和手机两种格子尺寸。
+   换成插画之后比线条图标占的面积要大一截,不然"实物感"的质感看不出来。 */
+.item-art { width: 72%; height: 72%; object-fit: contain; filter: var(--pet-filter); }
 body[data-style="retro"] .slot { border-radius: 3px; }
 
 .diary {
@@ -675,6 +676,22 @@ body[data-style="retro"] .slot { border-radius: 3px; }
   min-height: 188px;
   margin: 4px -20px 2px;
   background: radial-gradient(58% 68% at 50% 46%, var(--accent-soft), transparent 72%);
+}
+
+/* 方向 C 的「出门/回来」拿插画场景当底,不是纯 CSS 渐变——这是整个原型第一处
+   有具象画面感的屏幕背景。filter 不写在 .pet-stage 本身上:那样会连同里面的
+   宠物一起吃两遍滤镜(宠物自己的 <img> 已经在吃 --pet-filter 了)。所以场景图
+   单独放 ::before,宠物还是正常的子元素,各自过各自的滤镜。 */
+.pet-stage.scene-burrow { position: relative; overflow: hidden; border-radius: 20px; }
+.pet-stage.scene-burrow::before {
+  content: ""; position: absolute; inset: 0;
+  background-image: url('art/scene-burrow.jpg');
+  background-size: cover; background-position: center 38%;
+  filter: var(--pet-filter);
+}
+.pet-stage.scene-burrow::after {
+  content: ""; position: absolute; inset: 0;
+  background: linear-gradient(180deg, transparent 45%, rgba(0,0,0,.3) 100%);
 }
 
 /* 尺寸给的是**上限**,不是硬值:手表屏那么小,方向 B 多一条进度条 + 两行说明,
@@ -1007,22 +1024,14 @@ const icon = (k) =>
   `<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"
         stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICON[k] || ''}</svg>`;
 
-/* 收集物。方向 C 整个卖点就是「它带回来的东西」,所以这些格子是那一屏的主角,
-   原来放的是 ✿ ☀ ❄ ♪ 这类字符——和 tabbar 当初一样的占位味。
-   每件东西还带一个名字:看着是「一颗果子」,不是「一个图标」。 */
+/* 收集物。方向 C 整个卖点就是「它带回来的东西」,所以这些格子是那一屏的主角。
+   原来是我自己写的线条 SVG——几何、没质感,是「原型太像纯 CSS demo」这条反馈
+   最直接的证据之一:宠物是一张插画,收藏品却是我画的几何图形,两者不是同一套语言。
+   换成 art/items/ 下用同一个生图流程做的软粘土渲染插画(见 make-items.py),
+   和宠物的渲染质感对上。每件东西还带一个名字:看着是「一颗果子」,不是「一个图标」。 */
 const ITEM = {
-  berry:   ['一颗果子', '<circle cx="9.6" cy="15" r="4.2"/><circle cx="15.6" cy="12.6" r="3.4"/><path d="M9.6 10.8V5.4M9.6 6.6c2.4-.6 3.6-1.8 4.2-3"/>'],
-  leaf:    ['一片叶子', '<path d="M19 5C9.4 5.6 5 10 5 15.6c0 2 .8 3.4.8 3.4C11 19 19 15.2 19 5Z"/><path d="M6.6 18 15 8.6"/>'],
-  /* 石头要有个平底,否则在 20px 的格子里就是个椭圆,和「一枚蛋」分不开。
-     再加一条断面线,让它看起来是硬的。 */
-  stone:   ['一块石头', '<path d="M4.4 15.4c0-4.2 3.4-7.8 8-7.8 4 0 7.2 2.8 7.2 5.8 0 2.4-1.6 4-4.4 4H7.8c-2.1 0-3.4-.8-3.4-2Z"/><path d="M8.6 11.4 11.4 14l-1.2 2"/>'],
-  feather: ['一根羽毛', '<path d="M17.6 5.4c2 4.8-.6 10.2-4.8 12.6l-2.6 1.4-1.4-1.4 1.6-2.6C13 11.2 13.6 7 17.6 5.4Z"/><path d="M15.8 7.2 10.4 15.6M15.2 10.2l-2.8-.6M13.6 13l-2.8-.6M6.4 20.6 9.8 17.2"/>'],
-  /* 扇贝要从底下那个合页点张开,顶上是弧。第一版画成「平底半圆 + 放射线」,
-     在 20px 的格子里看起来是顶王冠。 */
-  shell:   ['一枚贝壳', '<path d="M12 19.2 5.2 11.8a7.6 7.6 0 0 1 13.6 0Z"/><path d="M12 19.2V7M12 19.2 8 9.2M12 19.2l4-10"/>'],
-  flower:  ['一朵花', '<circle cx="12" cy="9.6" r="1.9"/><circle cx="12" cy="5.7" r="2.1"/><circle cx="15.7" cy="8.4" r="2.1"/><circle cx="14.3" cy="12.8" r="2.1"/><circle cx="9.7" cy="12.8" r="2.1"/><circle cx="8.3" cy="8.4" r="2.1"/><path d="M12 14.9v4.7"/>'],
-  bottle:  ['一个小瓶子', '<path d="M10.2 4.6h3.6v3l2 2.4v8.4a1.4 1.4 0 0 1-1.4 1.4H9.6a1.4 1.4 0 0 1-1.4-1.4V10l2-2.4v-3Z"/><path d="M8.2 14.2h7.6"/>'],
-  note:    ['一张纸片', '<path d="M6.4 4.8h8.4l3.8 3.8v10.6H6.4z"/><path d="M14.8 4.8v3.8h3.8M9.4 12.4h5.2M9.4 15.4h3.4"/>']
+  berry: '一颗果子', leaf: '一片叶子', stone: '一块石头', feather: '一根羽毛',
+  shell: '一枚贝壳', flower: '一朵花', bottle: '一个小瓶子', note: '一张纸片'
 };
 /* 合照本里每一格就是**那天的一帧**,所以放真的宠物图,不是一个 ◉。
    姿态按下标轮,不随机——原型要能逐像素比对,随机会让两次截图不一样。 */
@@ -1030,10 +1039,8 @@ const thumb = (i) =>
   `<img class="cell-art" src="art/${TINTS[state.style] || 'warm'}-${POSES[i % POSES.length]}.png" alt="">`;
 
 const item = (k) => {
-  const [name, path] = ITEM[k] || ['', ''];
-  return `<div class="slot" title="${name}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
-      stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-label="${name}"
-      role="img">${path}</svg></div>`;
+  const name = ITEM[k] || '';
+  return `<div class="slot" title="${name}"><img class="item-art" src="art/items/${k}.png" alt="${name}"></div>`;
 };
 
 /* ================================================================ 三个方向 */
@@ -1306,7 +1313,7 @@ c: {
     { key: 'out', label: '它出门了', render: () => `
       <div class="scr">
         ${statusbar()}
-        <div class="pet-stage" style="min-height:84px">
+        <div class="pet-stage scene-burrow" style="min-height:84px">
           <div style="opacity:.3">${pet('idle', 'none', 72)}</div>
         </div>
         <p class="doing">它出门了</p>
@@ -1318,7 +1325,7 @@ c: {
     { key: 'back', label: '它回来了', render: () => `
       <div class="scr">
         ${statusbar()}
-        <div class="pet-stage">${pet('playful', 'tiltHead', 104)}</div>
+        <div class="pet-stage scene-burrow">${pet('playful', 'tiltHead', 104)}</div>
         <p class="doing">它回来了</p>
         <p class="sub" style="text-align:center">带回一颗果子</p>
         <div class="btn-row">
