@@ -73,6 +73,15 @@ body[data-style="paper"] {
   --pet-filter: none;
   --pet-aura: radial-gradient(circle, rgba(255, 186, 112, .34), rgba(255, 186, 112, 0) 68%);
   --card-lift: inset 0 1px 0 rgba(255, 255, 255, .5), 0 1px 2px rgba(42, 36, 28, .08);
+  /* 屏幕深处的三团极光 + 四角暗角 + 粒子色 + 宠物轮廓光。
+     「不够炫酷」这条反馈的落点:之前屏幕里只有纯色底 + 一团顶光,
+     没有纵深,宠物像贴在设置页上。这几组变量给屏幕一个「空间」。 */
+  --aurora-1: rgba(255, 196, 128, .14);
+  --aurora-2: rgba(214, 120, 60, .10);
+  --aurora-3: rgba(255, 214, 158, .08);
+  --vignette: rgba(0, 0, 0, .38);
+  --spark: #FFD9A0;
+  --pet-shadow: rgba(255, 186, 112, .35);
 }
 
 /* 夜色：深色、OLED 友好。手表上最省电的方向。 */
@@ -88,6 +97,13 @@ body[data-style="paper"] .phone-screen {
   --line: rgba(42, 36, 28, 0.13);
   --screen-glow: radial-gradient(120% 70% at 50% 12%, rgba(255, 214, 158, .45), transparent 70%);
   --pet-ground: radial-gradient(ellipse, rgba(42, 36, 28, .20), rgba(42, 36, 28, 0) 70%);
+  /* 亮屏上的暗角要轻:深色屏上暗角是「空间」,亮屏上重了就是「脏」。 */
+  --aurora-1: rgba(255, 196, 128, .38);
+  --aurora-2: rgba(255, 158, 158, .22);
+  --aurora-3: rgba(178, 86, 30, .10);
+  --vignette: rgba(42, 36, 28, .10);
+  --spark: #E8A25C;
+  --pet-shadow: rgba(178, 86, 30, .28);
 }
 
 body[data-style="ink"] {
@@ -113,6 +129,12 @@ body[data-style="ink"] {
   --pet-filter: hue-rotate(178deg) saturate(.72) brightness(1.04);
   --pet-aura: radial-gradient(circle, rgba(127, 200, 255, .26), rgba(127, 200, 255, 0) 68%);
   --card-lift: inset 0 1px 0 rgba(255, 255, 255, .06), 0 1px 3px rgba(0, 0, 0, .5);
+  --aurora-1: rgba(127, 200, 255, .15);
+  --aurora-2: rgba(147, 127, 255, .12);
+  --aurora-3: rgba(64, 180, 220, .10);
+  --vignette: rgba(0, 0, 0, .48);
+  --spark: #BFE4FF;
+  --pet-shadow: rgba(127, 200, 255, .40);
 }
 
 /* 点阵：单色强调、等宽、硬边。最省资源,也最不像「宠物 App」。 */
@@ -137,6 +159,14 @@ body[data-style="retro"] {
   --pet-filter: saturate(1.15) contrast(1.06);
   --pet-aura: radial-gradient(circle, rgba(123, 216, 143, .24), rgba(123, 216, 143, 0) 68%);
   --card-lift: none;
+  /* 点阵风格的极光压到几乎看不见:这套的身份是硬边单色,
+     纵深靠暗角和扫描线给,不靠柔光。给多了就不像点阵了。 */
+  --aurora-1: rgba(123, 216, 143, .07);
+  --aurora-2: rgba(242, 233, 78, .05);
+  --aurora-3: rgba(123, 216, 143, .04);
+  --vignette: rgba(0, 0, 0, .52);
+  --spark: #F2E94E;
+  --pet-shadow: rgba(123, 216, 143, .35);
 }
 
 /* ---------------------------------------------------------------- 页面骨架 */
@@ -379,6 +409,33 @@ body[data-style="retro"] .phone-screen::before {
   color: var(--screen-ink);
   isolation: isolate;
 }
+/* 手机屏的纵深层。之前只有手表屏有 --screen-glow,手机屏是**纯平的一块底色**,
+   宠物和卡片都像贴在上面——「纯 CSS、没有特点」观感的一大半来自这里。
+   三团不同色的极光慢慢漂(16s alternate),加一层四角暗角把中间的内容托出来。
+   暗角在内容**上面**(z-index 25),所以是「镜头感」而不是背景色;pointer-events 关掉。 */
+.phone-screen::before {
+  content: "";
+  position: absolute; inset: -6%;
+  z-index: 0;
+  background:
+    radial-gradient(58% 32% at 16% 6%, var(--aurora-1), transparent 70%),
+    radial-gradient(50% 28% at 86% 20%, var(--aurora-2), transparent 72%),
+    radial-gradient(72% 38% at 50% 100%, var(--aurora-3), transparent 70%),
+    var(--screen-glow);
+  animation: aurora 16s ease-in-out infinite alternate;
+  pointer-events: none;
+}
+.phone-screen::after {
+  content: "";
+  position: absolute; inset: 0;
+  z-index: 25;
+  background: radial-gradient(118% 88% at 50% 42%, transparent 58%, var(--vignette) 100%);
+  pointer-events: none;
+}
+@keyframes aurora {
+  from { transform: translate3d(-2.2%, -1.2%, 0) scale(1.05); }
+  to   { transform: translate3d(2.2%, 1.6%, 0) scale(1.1); }
+}
 .phone-screen .island {
   position: absolute; top: 9px; left: 50%;
   transform: translateX(-50%);
@@ -481,8 +538,18 @@ body[data-style="retro"] .tile {
 }
 .watch-screen .sbtn { font-size: 11.5px; padding: 8px 4px; border-radius: 10px; }
 .sbtn:hover { background: var(--accent-soft); border-color: var(--accent); }
-.sbtn.primary { background: var(--accent); color: var(--screen-bg); font-weight: 600; }
+.sbtn.primary {
+  background: var(--accent); color: var(--screen-bg); font-weight: 600;
+  /* 主按钮缓慢呼吸一圈光:告诉眼睛「这里是该点的地方」。
+     2.6s 足够慢,不像促销弹窗;freeze 下钉成常亮一圈。 */
+  animation: cta 2.6s ease-in-out infinite;
+}
 .sbtn.primary:hover { filter: brightness(1.08); }
+.sbtn:active { transform: scale(.96); }
+@keyframes cta {
+  0%, 100% { box-shadow: 0 0 0 0 var(--accent-soft); }
+  50%      { box-shadow: 0 0 16px 2px var(--accent-soft); }
+}
 body[data-style="retro"] .sbtn { border-radius: 3px; border-color: var(--line); }
 body[data-style="retro"] .sbtn.primary { color: #060A07; }
 
@@ -515,6 +582,9 @@ body[data-style="retro"] .sbtn.primary { color: #060A07; }
 }
 .chip:hover { border-color: var(--accent); }
 .chip[aria-pressed="true"] { background: var(--accent); color: var(--screen-bg); }
+/* 还没发现的偏好:虚线 + 问号。和图鉴的 locked 格子是同一种语言——
+   「还有东西等你发现」,而不是「你还没完成」。 */
+.chip.locked { border-style: dashed; color: var(--screen-mute); background: none; }
 body[data-style="retro"] .chip { border-radius: 3px; }
 
 /* 进度：刻意不给数字。产品原则里「不把内部数值显示给用户」,所以这里只有形状和词。 */
@@ -548,6 +618,7 @@ body[data-style="retro"] .cell { border-radius: 0; }
    原来是纯色方块加一个字符,看起来像没做完的占位。 */
 .slot {
   aspect-ratio: 1;
+  position: relative;
   background:
     radial-gradient(circle at 50% 42%, var(--accent-soft), transparent 62%),
     linear-gradient(180deg, rgba(255, 255, 255, .06), rgba(255, 255, 255, 0)),
@@ -558,6 +629,14 @@ body[data-style="retro"] .cell { border-radius: 0; }
   color: var(--accent);
   box-shadow: var(--card-lift);
 }
+/* 稀有度:右上角一颗点。普通的点是哑的,稀有的点带一圈光——
+   收集欲靠「这格和那格不一样」养出来,不靠数字。 */
+.slot .rar {
+  position: absolute; top: 7px; right: 7px;
+  width: 6px; height: 6px; border-radius: 50%;
+  background: var(--screen-mute);
+}
+.slot .rar.rare { background: var(--spark); box-shadow: 0 0 7px var(--spark); }
 /* 还没拿到的格子用虚线,而不是实心块——空着是「还没见过」,不是「失败」。
    这条是产品原则(不惩罚用户)在视觉上的落点,所以虚线不是随便挑的。 */
 .slot.locked {
@@ -727,13 +806,53 @@ body[data-style="retro"] .slot { border-radius: 3px; }
 }
 /* 跳起来的那张脚离地,影子就得小一圈、淡一截——不然看起来是踩在影子上。 */
 .pet.is-air .pet-ground { bottom: 3%; width: 38%; left: 31%; opacity: .5; }
+
+/* ---- 粒子:奖励时刻的迸溅 + 场景里的浮尘 -------------------------------
+   「不够炫酷」的另一半落点:奖励时刻(摸它 / 它回来了)之前只有文字,
+   没有任何「发生了好事」的视觉信号。Peak-end 规则里 peak 就是这一刻。
+   纯 CSS:8 个点从宠物中心飞出去,各自的方向/延迟写在行内变量里。
+   浮尘(motes)给洞穴场景用,慢慢往上飘,让背景是「活的」。
+   两套都在 freeze 下钉住(见文件尾 body[data-freeze]),否则截图不逐像素相同。 */
+.burst, .motes { position: absolute; inset: 0; pointer-events: none; z-index: 2; }
+.burst i, .motes i {
+  position: absolute;
+  border-radius: 50%;
+  background: var(--spark);
+  opacity: 0;
+}
+.burst i {
+  left: 50%; top: 46%;
+  width: 5px; height: 5px;
+  box-shadow: 0 0 6px var(--spark);
+  animation: spark 1.7s cubic-bezier(.2, .7, .3, 1) infinite;
+}
+@keyframes spark {
+  0%   { transform: translate(0, 0) scale(.3); opacity: 0; }
+  16%  { opacity: 1; }
+  100% { transform: translate(var(--dx), var(--dy)) scale(1); opacity: 0; }
+}
+.motes i {
+  left: var(--lx); top: var(--ly);
+  width: 3px; height: 3px;
+  background: rgba(255, 236, 190, .85);
+  animation: mote 6s linear infinite;
+}
+@keyframes mote {
+  0%   { transform: translate(0, 0); opacity: 0; }
+  14%  { opacity: .8; }
+  85%  { opacity: .45; }
+  100% { transform: translate(var(--dx), -74px); opacity: 0; }
+}
 .pet-motion { position: absolute; inset: 0; transform-origin: 50% 86%; }
 .pet-frames { position: absolute; inset: 0; transform-origin: 50% 88%; }
 .pet-art {
   position: absolute; inset: 0;
   width: 100%; height: 100%;
   object-fit: contain;
-  filter: var(--pet-filter);
+  /* 轮廓光:drop-shadow 跟着 alpha 走,所以是「宠物边缘渗出一圈光」,
+     不是方块投影。深色屏上这一圈光就是宠物和背景之间的过渡,
+     没有它,位图边缘和黑底之间是硬切。 */
+  filter: var(--pet-filter) drop-shadow(0 4px 16px var(--pet-shadow));
 }
 .pet-closed { opacity: 0; }
 
@@ -839,7 +958,8 @@ footer.foot code {
   .notes { position: static; }
 }
 @media (prefers-reduced-motion: reduce) {
-  .m-rotate, .m-shift, .m-scale, .m-blink, .pet-frames { animation: none !important; }
+  .m-rotate, .m-shift, .m-scale, .m-blink, .pet-frames,
+  .phone-screen::before, .sbtn.primary, .burst i, .motes i { animation: none !important; }
 }
 
 /* ?freeze=1 把每个动作通道钉在**幅度峰值**那一帧,动画整个不存在。
@@ -863,6 +983,19 @@ body[data-freeze] .m-scale  { animation: none !important; scale: calc(1 + var(--
 body[data-freeze] .m-blink  { animation: none !important; opacity: 0 !important; }
 /* 呼吸也要停,否则同一个 URL 两次截图不会逐像素相同——冻结的全部用处就是这个。 */
 body[data-freeze] .pet-frames { animation: none !important; }
+/* 新加的几组无限动画(极光 / 主按钮呼吸 / 粒子 / 浮尘)也一样要钉住。
+   粒子钉在飞行约七成处:起点和终点都是全透明,只有中段截出来才看得见
+   「这里刚发生过一件好事」——冻结帧要能回答「这个效果接上没有」。 */
+body[data-freeze] .phone-screen::before { animation: none !important; }
+body[data-freeze] .sbtn.primary { animation: none !important; box-shadow: 0 0 12px 1px var(--accent-soft) !important; }
+body[data-freeze] .burst i {
+  animation: none !important; opacity: .95 !important;
+  transform: translate(calc(var(--dx) * .72), calc(var(--dy) * .72)) scale(1) !important;
+}
+body[data-freeze] .motes i {
+  animation: none !important; opacity: .6 !important;
+  transform: translate(calc(var(--dx) * .5), -36px) !important;
+}
 </style>
 </head>
 <body data-style="paper">
@@ -1038,10 +1171,31 @@ const ITEM = {
 const thumb = (i) =>
   `<img class="cell-art" src="art/${TINTS[state.style] || 'warm'}-${POSES[i % POSES.length]}.png" alt="">`;
 
+/* 稀有度只有两档(普通 / 稀有),刻意不做数值:收集欲靠「这格和那格不一样」养出来。
+   哪几件稀有是写死的,不随机——原型要能逐像素比对。 */
+const RARE = { feather: 1, shell: 1, bottle: 1 };
 const item = (k) => {
   const name = ITEM[k] || '';
-  return `<div class="slot" title="${name}"><img class="item-art" src="art/items/${k}.png" alt="${name}"></div>`;
+  return `<div class="slot" title="${name}"><img class="item-art" src="art/items/${k}.png" alt="${name}"><span class="rar${RARE[k] ? ' rare' : ''}"></span></div>`;
 };
+
+/* 粒子。方向和延迟全部写死在这里:截图必须可复现,随机数会让同一个 URL
+   两次截出不一样的图,freeze 就白做了。 */
+const BURST = [
+  [-46, -38, 0], [-30, -54, .12], [8, -60, .06], [42, -46, .18],
+  [54, -14, .1], [-40, 12, .22], [28, 30, .15], [-6, 44, .08]
+];
+const burst = () =>
+  `<div class="burst" aria-hidden="true">${BURST.map(([x, y, d]) =>
+    `<i style="--dx:${x}px;--dy:${y}px;animation-delay:${d}s"></i>`).join('')}</div>`;
+
+const MOTES = [
+  ['18%', '78%', '6px', 0], ['34%', '86%', '-8px', 1.1], ['52%', '80%', '10px', 2.3],
+  ['66%', '88%', '-6px', 3.4], ['78%', '76%', '8px', 4.6], ['44%', '70%', '-10px', 5.2]
+];
+const motes = () =>
+  `<div class="motes" aria-hidden="true">${MOTES.map(([x, y, dx, d]) =>
+    `<i style="--lx:${x};--ly:${y};--dx:${dx};animation-delay:${d}s"></i>`).join('')}</div>`;
 
 /* ================================================================ 三个方向 */
 /* 每个方向:手表几屏 + 手机几屏 + 四段说明(玩法循环 / 为什么会回来 / 技术前提 / 风险)。
@@ -1072,8 +1226,8 @@ a: {
   notes: {
     loop: '抬腕 → 看它今天在干什么 → 摸它 / 给点心 → 它的反应有时不一样 → 慢慢摸出它的脾气和它偷偷喜欢的东西。',
     why: '好奇。姿态由你的健康数据决定,但「在这个姿态下它具体做什么」由它出生时抽定的天性决定——所以别人的小团不会和你的一样。秘密偏好要靠试才能发现。',
-    tech: ['HealthKit 步数与睡眠(已有权限)', '姿态规则 + 天性/微事件/秘密偏好的规则层已经写完并有测试', '美术只要四张姿态图(原型里用的就是现有那四张)——动作靠整图的位移/旋转/缩放,眨眼靠睁眼/闭眼两帧切换,不用按耳朵眼睛切图'],
-    risk: ['姿态只有四种,看三天容易「又是这个」', '个性的表达很细微,用户可能完全感知不到', '没有明确的「今天完成了什么」,缺少收尾感']
+    tech: ['HealthKit 步数与睡眠(已有权限)', '心情信号改成心率/HRV 自动推测,不用手动签到(2026-10-11 定,见 CLAUDE.md 产品原则)——HealthKit 要再加一条心率权限', '姿态规则 + 天性/微事件/秘密偏好的规则层已经写完并有测试', '美术只要四张姿态图(原型里用的就是现有那四张)——动作靠整图的位移/旋转/缩放,眨眼靠睁眼/闭眼两帧切换,不用按耳朵眼睛切图'],
+    risk: ['姿态只有四种,看三天容易「又是这个」', 'HRV 推情绪本身噪声大(运动完的心率和真的紧张长得很像),文案已经弱化成「猜的」,但猜错次数多了还是会让人觉得不准', '个性的表达很细微,用户可能完全感知不到', '没有明确的「今天完成了什么」,缺少收尾感']
   },
   watch: [
     { key: 'home', label: '主页', render: () => `
@@ -1082,33 +1236,39 @@ a: {
         <div class="pet-stage">${pet('playful', 'chaseTail', 108)}</div>
         <p class="doing">在追自己的尾巴</p>
         <div class="btn-row">
-          <button class="sbtn" data-screen="mood" data-side="watch">心情</button>
+          <button class="sbtn" data-screen="mood" data-side="watch">它感觉你</button>
           <button class="sbtn primary" data-screen="touch" data-side="watch">摸摸</button>
         </div>
       </div>` },
     { key: 'touch', label: '摸它', render: () => `
       <div class="scr">
         ${statusbar()}
-        <div class="pet-stage">${pet('playful', 'tiltHead', 108)}</div>
+        <div class="pet-stage">${pet('playful', 'tiltHead', 108)}${burst()}</div>
         <p class="doing">它歪头看你</p>
         <p class="sub" style="text-align:center;margin-top:4px">这次好像特别高兴</p>
         <div class="btn-row">
           <button class="sbtn" data-screen="home" data-side="watch">回去</button>
         </div>
       </div>` },
-    { key: 'mood', label: '心情签到', render: () => `
+    /* 原来这屏是手动签到(四个心情按钮点一个)。改成心率/HRV 自动推测,
+       不再要用户点——这正是用户要求的"不用手动选心情"。
+       但措辞刻意弱:"心跳比平时快一点"而不是"检测到你很焦虑"。
+       HRV 推情绪本身噪声大(运动完的心率和真的紧张长得很像),写成确定语气,
+       猜错了会很明显;写成「猜的」,猜错也只是「这次没猜中」,不是「系统误诊」。
+       见 CLAUDE.md 产品原则(2026-10-11 改)。 */
+    { key: 'mood', label: '它感觉你', render: () => `
       <div class="scr">
         ${statusbar()}
-        <h3>今天怎么样</h3>
-        <p class="sub">说给它听,不记分</p>
-        <div class="chips" style="margin-top:12px">
-          <button class="chip">很好</button>
-          <button class="chip" aria-pressed="true">还行</button>
-          <button class="chip">有点累</button>
-          <button class="chip">不太好</button>
+        <h3>它感觉你...</h3>
+        <p class="sub">心跳比平时快一点 · 猜的,不是诊断</p>
+        <div class="pet-stage">${pet('idle', 'stare', 100)}</div>
+        <p class="doing">它也跟着紧张了一下</p>
+        <div class="tile">
+          <div class="k">心率信号</div>
+          <div class="v">92 bpm <small>· 比你平时的区间高一些</small></div>
         </div>
         <div class="btn-row">
-          <button class="sbtn primary" data-screen="home" data-side="watch">好</button>
+          <button class="sbtn primary" data-screen="home" data-side="watch">知道了</button>
         </div>
       </div>` },
     { key: 'alwayson', label: '息屏常亮', render: () => `
@@ -1131,6 +1291,8 @@ a: {
       </div>` }
   ],
   phone: [
+    /* 「摸出来的」那块 tile + 虚线 chip 是一层可发现的收集:和图鉴同构,
+       但收集的是「它喜欢什么」。不显示总数、不扣分——和「缺席不惩罚」同一条原则。 */
     { key: 'pet', label: '它', render: (d) => `
       <div class="scr">
         ${statusbar()}
@@ -1142,10 +1304,15 @@ a: {
           <div class="k">这次的反应</div>
           <div class="v">它特别高兴 <small>· 你好像找对了什么</small></div>
         </div>
+        <div class="tile">
+          <div class="k">摸出来的</div>
+          <div class="v">喜欢被摸头、下巴要轻 <small>· 还有没摸出来的</small></div>
+        </div>
         <div class="chips">
           <button class="chip" aria-pressed="true">摸头</button>
           <button class="chip">摸下巴</button>
           <button class="chip">摸肚子</button>
+          <button class="chip locked">？？？</button>
         </div>
         <div class="btn-row">
           <button class="sbtn">给点心</button>
@@ -1315,6 +1482,7 @@ c: {
         ${statusbar()}
         <div class="pet-stage scene-burrow" style="min-height:84px">
           <div style="opacity:.3">${pet('idle', 'none', 72)}</div>
+          ${motes()}
         </div>
         <p class="doing">它出门了</p>
         <p class="sub" style="text-align:center">大概傍晚回来</p>
@@ -1325,7 +1493,7 @@ c: {
     { key: 'back', label: '它回来了', render: () => `
       <div class="scr">
         ${statusbar()}
-        <div class="pet-stage scene-burrow">${pet('playful', 'tiltHead', 104)}</div>
+        <div class="pet-stage scene-burrow">${pet('playful', 'tiltHead', 104)}${motes()}${burst()}</div>
         <p class="doing">它回来了</p>
         <p class="sub" style="text-align:center">带回一颗果子</p>
         <div class="btn-row">
@@ -1345,6 +1513,8 @@ c: {
       </div>` }
   ],
   phone: [
+    /* 套装 tile 是一条横向目标线:收集不再只是「格子填满」,而是「凑齐一条线
+       解锁一件新事」。缺的那两样写明在哪,给「它明天会去哪」一个期待的理由。 */
     { key: 'codex', label: '图鉴', render: () => `
       <div class="scr">
         ${statusbar()}
@@ -1354,6 +1524,10 @@ c: {
           ${item('berry')}${item('leaf')}${item('stone')}
           ${item('feather')}${item('shell')}${item('flower')}
           ${item('bottle')}<div class="slot locked">?</div><div class="slot locked">?</div>
+        </div>
+        <div class="tile">
+          <div class="k">套装 · 林线</div>
+          <div class="v">4 / 6 <small>· 集齐解锁新的散步路线,缺的两样在湖边</small></div>
         </div>
         <div class="tile">
           <div class="k">刚收到</div>
