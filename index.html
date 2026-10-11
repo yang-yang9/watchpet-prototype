@@ -497,14 +497,24 @@ body[data-style="retro"] .phone-screen::before {
    这三样是「平的 div」和「像一块材料」之间的差别,代价只有几行 CSS。 */
 .tile {
   background:
+    radial-gradient(130% 95% at 10% 0%, var(--accent-soft), transparent 56%),
     linear-gradient(180deg, rgba(255, 255, 255, .055), rgba(255, 255, 255, 0)),
     var(--screen-card);
   border-radius: 14px;
-  padding: 11px 13px;
+  padding: 11px 13px 11px 16px;
   margin-top: 9px;
   box-shadow: var(--card-lift);
   position: relative;
   z-index: 1;
+}
+/* 左侧一道强调色竖条:把「一块灰盒子」变成「一条有归属的信息」。
+   截图里那两块灰 rect 是「简陋」观感的另一半来源——没有材质也没有归属色。 */
+.tile::before {
+  content: "";
+  position: absolute; left: 0; top: 11px; bottom: 11px;
+  width: 3px; border-radius: 0 3px 3px 0;
+  background: var(--accent);
+  opacity: .55;
 }
 body[data-style="retro"] .tile {
   border-radius: 3px;
@@ -566,8 +576,17 @@ body[data-style="retro"] .sbtn.primary { color: #060A07; }
   font: inherit; font-size: 10.5px;
   padding: 3px 0;
 }
-.tabbar button[aria-pressed="true"] { color: var(--accent); font-weight: 600; }
-.tabbar .ic { display: block; margin: 0 auto 2px; width: 19px; height: 19px; }
+/* 选中的 tab 给一块强调色底:原来只有文字变色,在一排哑色里太安静,
+   看不出「我在哪」。 */
+.tabbar button[aria-pressed="true"] {
+  color: var(--accent); font-weight: 600;
+  background: var(--accent-soft);
+  border-radius: 12px;
+  margin: 0 8px;
+}
+/* 图标放大一号、描边加粗:19px/1.7 描边在真机上就是几根头发丝,
+   截图里看起来像「没画完的线」,是简陋观感的一部分。 */
+.tabbar .ic { display: block; margin: 0 auto 2px; width: 21px; height: 21px; stroke-width: 1.9; }
 
 .chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 9px; }
 .chip {
@@ -761,17 +780,39 @@ body[data-style="retro"] .slot { border-radius: 3px; }
    有具象画面感的屏幕背景。filter 不写在 .pet-stage 本身上:那样会连同里面的
    宠物一起吃两遍滤镜(宠物自己的 <img> 已经在吃 --pet-filter 了)。所以场景图
    单独放 ::before,宠物还是正常的子元素,各自过各自的滤镜。 */
-.pet-stage.scene-burrow { position: relative; overflow: hidden; border-radius: 20px; }
-.pet-stage.scene-burrow::before {
-  content: ""; position: absolute; inset: 0;
-  background-image: url('art/scene-burrow.jpg');
-  background-size: cover; background-position: center 38%;
+/* 场景底图:把宠物放进一个「房间」,而不是悬浮在空白里。
+   「界面太简陋」这条反馈看了截图才真正理解:宠物是一张抠出来的图,
+   底下什么都没有——竞争产品(Finch 一类)的宠物都**住在某个地方**。
+   三张场景(洞穴门口 / 洞里起居 / 晒台)都是同一套软粘土渲染,和宠物同源于
+   generate-image,所以宠物放进去不像贴上去的。构图时特意让画面中心留空。
+   滤镜不写在 .pet-stage 本身上:那样会连同里面的宠物一起吃两遍
+   (宠物自己的 <img> 已经在吃 --pet-filter 了)。场景图单独放 ::before,
+   宠物是正常子元素,各自过各自的滤镜。 */
+.pet-stage.scene { position: relative; overflow: hidden; border-radius: 20px; }
+.pet-stage.scene::before {
+  content: ""; position: absolute; inset: 0; z-index: 0;
+  background-image: var(--scene-img);
+  background-size: cover;
+  background-position: var(--scene-pos, 50% 62%);
   filter: var(--pet-filter);
 }
-.pet-stage.scene-burrow::after {
-  content: ""; position: absolute; inset: 0;
-  background: linear-gradient(180deg, transparent 45%, rgba(0,0,0,.3) 100%);
+/* 上下融进屏幕底色,不然插画是一块贴上去的方照片。深色屏上 screen-bg 是黑,
+   浅色屏上是米色,同一条渐变两种情况都对。 */
+.pet-stage.scene::after {
+  content: ""; position: absolute; inset: 0; z-index: 1;
+  background: var(--scene-fade, linear-gradient(180deg, transparent 45%, rgba(0, 0, 0, .3) 100%));
+  pointer-events: none;
 }
+.pet-stage.scene .pet { z-index: 2; }
+.pet-stage.scene > div:not([class]) { position: relative; z-index: 2; }
+.pet-stage.scene-burrow { --scene-img: url('art/scene-burrow.jpg'); --scene-pos: 50% 38%; }
+.pet-stage.scene-room, .pet-stage.scene-window {
+  --scene-fade: linear-gradient(180deg, var(--screen-bg) 0%, transparent 22%, transparent 74%, var(--screen-bg) 100%);
+}
+.pet-stage.scene-room { --scene-img: url('art/scene-room.jpg'); --scene-pos: 50% 70%; }
+.pet-stage.scene-window { --scene-img: url('art/scene-window.jpg'); --scene-pos: 50% 78%; }
+/* 有场景的那几屏,舞台要比纯悬浮的高一截:场景需要一点上下文的面积才读得出是「地方」。 */
+.phone-screen .pet-stage.scene { min-height: 252px; }
 
 /* 尺寸给的是**上限**,不是硬值:手表屏那么小,方向 B 多一条进度条 + 两行说明,
    舞台就被挤到 92px,而宠物写死 104px —— 多出来的部分压在文字上。
@@ -1298,7 +1339,7 @@ a: {
         ${statusbar()}
         <h3>小团</h3>
         <p class="sub">和你在一起 23 天</p>
-        <div class="pet-stage">${pet('playful', 'chaseTail', 186)}</div>
+        <div class="pet-stage scene scene-room">${pet('playful', 'chaseTail', 186)}</div>
         <p class="doing" style="font-size:16px">在追自己的尾巴</p>
         <div class="tile">
           <div class="k">这次的反应</div>
@@ -1416,7 +1457,7 @@ b: {
         ${statusbar()}
         <h3>今天</h3>
         <p class="sub">它想做的事,一天一件</p>
-        <div class="pet-stage" style="min-height:160px">${pet('idle', 'waiting', 160)}</div>
+        <div class="pet-stage scene scene-window" style="min-height:210px">${pet('idle', 'waiting', 160)}</div>
         <p class="doing" style="font-size:17px">想晒会儿太阳</p>
         ${bar(0.6, '快到了 · 不显示还差多少,那是数字不是陪伴')}
         <div class="tile">
@@ -1480,7 +1521,7 @@ c: {
     { key: 'out', label: '它出门了', render: () => `
       <div class="scr">
         ${statusbar()}
-        <div class="pet-stage scene-burrow" style="min-height:84px">
+        <div class="pet-stage scene scene-burrow" style="min-height:84px">
           <div style="opacity:.3">${pet('idle', 'none', 72)}</div>
           ${motes()}
         </div>
@@ -1493,7 +1534,7 @@ c: {
     { key: 'back', label: '它回来了', render: () => `
       <div class="scr">
         ${statusbar()}
-        <div class="pet-stage scene-burrow">${pet('playful', 'tiltHead', 104)}${motes()}${burst()}</div>
+        <div class="pet-stage scene scene-burrow">${pet('playful', 'tiltHead', 104)}${motes()}${burst()}</div>
         <p class="doing">它回来了</p>
         <p class="sub" style="text-align:center">带回一颗果子</p>
         <div class="btn-row">
@@ -1555,7 +1596,7 @@ c: {
         ${statusbar()}
         <h3>小团</h3>
         <p class="sub">在家 · 刚回来</p>
-        <div class="pet-stage">${pet('calm', 'stare', 180)}</div>
+        <div class="pet-stage scene scene-room">${pet('calm', 'stare', 180)}</div>
         <p class="doing" style="font-size:16px">对着什么发呆</p>
         <div class="tile">
           <div class="k">下次出门</div>
