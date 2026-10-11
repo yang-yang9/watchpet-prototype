@@ -1,0 +1,1278 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>玩法方向原型 · 手表 + 手机</title>
+<!--
+  三个玩法方向的可点击原型。手表和手机两端,同一只宠物,同一套画面语言。
+
+  这个文件刻意**不依赖任何外部资源**：没有 CDN 字体、没有图片、没有构建步骤。
+  原因有两条——
+  1. 做这份原型的机器没有外网,依赖 CDN 的话我在这里看到的是回退字体,而看原型的人
+     有网看到的是另一种排版。那等于我验的不是你要看的东西。
+  2. 发出去的原型要在飞机上、地铁里、手机浏览器里都能打开。
+
+  宠物是内联 SVG + CSS 变换,不是图片。这不是偷懒：现在没有任何美术资源,
+  用 SVG 才能诚实地回答「不加新资源能表达到什么程度」。
+  见 docs/design/pet-render-roadmap.md。
+
+  每个画面都能用 URL 直接到达,方便发链接指到具体那一屏,也方便截图自检：
+    ?dir=a&screen=home&style=paper
+    ?dir=b&screen=today&style=ink&freeze=1
+  freeze=1 把动作通道钉在幅度峰值那一帧,动画整个不存在——headless 截图只要页面上
+  还有无限循环动画就永远等不到稳定,一张图都出不来。
+-->
+<style>
+/* ---------------------------------------------------------------- 设计变量 */
+/* 三套风格只改变量,不改结构——这样换风格不会顺手改掉布局,玩法和样式能分开判断。 */
+:root {
+  --frame-bezel: #0a0a0c;
+  --radius-watch: 44px;
+  --radius-phone: 46px;
+  --sys-sans: -apple-system, "SF Pro Text", "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
+  --sys-serif: "Songti SC", "Noto Serif CJK SC", "Source Han Serif SC", Georgia, serif;
+  --sys-mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+}
+
+/* 柔纸：暖、米色、衬线。现有那版原型的方向。 */
+body[data-style="paper"] {
+  --page: #E9DFC8;
+  --page-2: #DED2B6;
+  --card: #F6EEDC;
+  --ink: #2A241C;
+  --ink-mute: #7C6E57;
+  --accent: #B2561E;
+  --accent-soft: rgba(178, 86, 30, 0.14);
+  --line: rgba(42, 36, 28, 0.14);
+  --screen-bg: #141210;
+  --screen-ink: #F2E7D0;
+  --screen-mute: #9A907C;
+  --screen-card: rgba(242, 231, 208, 0.08);
+  --pet-body: #E7A86A;
+  --pet-shade: #CE8A4E;
+  --pet-belly: #F6DCBE;
+  --font-title: var(--sys-serif);
+  --font-body: var(--sys-sans);
+  --pet-radius: 50%;
+}
+
+/* 夜色：深色、OLED 友好。手表上最省电的方向。 */
+/* 柔纸这一套,手机屏是亮的。手表屏在三套风格里都保持纯黑——那不是风格选择,是
+   平台约束(OLED 黑底省电,常亮时尤其明显)。把它也刷成米色会让这张原型在「省电」
+   这件事上撒谎。变量在 .phone-screen 上重新声明,所以屏幕里的一切自动跟着变,
+   不需要逐个元素改。 */
+body[data-style="paper"] .phone-screen {
+  --screen-bg: #FCF6E8;
+  --screen-ink: #2A241C;
+  --screen-mute: #8A7B62;
+  --screen-card: rgba(42, 36, 28, 0.055);
+  --line: rgba(42, 36, 28, 0.13);
+}
+
+body[data-style="ink"] {
+  --page: #0C0E12;
+  --page-2: #14171E;
+  --card: #171B23;
+  --ink: #E8ECF4;
+  --ink-mute: #8A93A6;
+  --accent: #7FC8FF;
+  --accent-soft: rgba(127, 200, 255, 0.14);
+  --line: rgba(232, 236, 244, 0.12);
+  --screen-bg: #000000;
+  --screen-ink: #F2F5FA;
+  --screen-mute: #7D869A;
+  --screen-card: rgba(242, 245, 250, 0.08);
+  --pet-body: #9DB8D8;
+  --pet-shade: #7C97B8;
+  --pet-belly: #DCE8F5;
+  --font-title: var(--sys-sans);
+  --font-body: var(--sys-sans);
+  --pet-radius: 50%;
+}
+
+/* 点阵：单色强调、等宽、硬边。最省资源,也最不像「宠物 App」。 */
+body[data-style="retro"] {
+  --page: #0D140F;
+  --page-2: #121C15;
+  --card: #152018;
+  --ink: #C8F5D6;
+  --ink-mute: #6E9A7C;
+  --accent: #F2E94E;
+  --accent-soft: rgba(242, 233, 78, 0.14);
+  --line: rgba(200, 245, 214, 0.16);
+  --screen-bg: #060A07;
+  --screen-ink: #BFF2D0;
+  --screen-mute: #5E8A6C;
+  --screen-card: rgba(191, 242, 208, 0.08);
+  --pet-body: #7BD88F;
+  --pet-shade: #4FA863;
+  --pet-belly: #D6F7DF;
+  --font-title: var(--sys-mono);
+  --font-body: var(--sys-mono);
+  --pet-radius: 14%;
+}
+
+/* ---------------------------------------------------------------- 页面骨架 */
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0;
+  background: var(--page);
+  color: var(--ink);
+  font-family: var(--font-body);
+  font-size: 15px;
+  line-height: 1.6;
+  transition: background .3s, color .3s;
+}
+
+.wrap { max-width: 1240px; margin: 0 auto; padding: 0 20px 72px; }
+
+/* 临时代号的提醒。放最上面是因为它会影响所有文案判断——名字还没定。 */
+.codename {
+  background: var(--accent-soft);
+  border-bottom: 1px solid var(--line);
+  color: var(--ink);
+  font-size: 12.5px;
+  padding: 9px 20px;
+  text-align: center;
+}
+.codename b { color: var(--accent); }
+
+header.bar { padding: 26px 0 18px; }
+header.bar h1 {
+  font-family: var(--font-title);
+  font-size: 25px;
+  font-weight: 600;
+  letter-spacing: .01em;
+  margin: 0 0 6px;
+}
+header.bar p { color: var(--ink-mute); margin: 0; max-width: 62ch; font-size: 13.5px; }
+
+.controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 26px;
+  align-items: flex-end;
+  padding: 20px 0 4px;
+  border-top: 1px solid var(--line);
+  margin-top: 20px;
+}
+.ctl-group { display: flex; flex-direction: column; gap: 7px; }
+.ctl-label {
+  font-family: var(--sys-mono);
+  font-size: 10.5px;
+  letter-spacing: .14em;
+  text-transform: uppercase;
+  color: var(--ink-mute);
+}
+.seg { display: flex; gap: 6px; flex-wrap: wrap; }
+.seg button {
+  appearance: none;
+  background: transparent;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  color: var(--ink-mute);
+  cursor: pointer;
+  font: inherit;
+  font-size: 13px;
+  padding: 7px 15px;
+  transition: all .18s;
+}
+.seg button:hover { border-color: var(--accent); color: var(--ink); }
+.seg button[aria-pressed="true"] {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--page);
+  font-weight: 600;
+}
+body[data-style="retro"] .seg button { border-radius: 2px; }
+body[data-style="retro"] .seg button[aria-pressed="true"] { color: #0D140F; }
+
+/* ------------------------------------------------------------ 方向标题区 */
+.dir-head { padding: 30px 0 4px; }
+.dir-head .kicker {
+  color: var(--accent);
+  font-family: var(--sys-mono);
+  font-size: 11px;
+  letter-spacing: .18em;
+  text-transform: uppercase;
+}
+.dir-head h2 {
+  font-family: var(--font-title);
+  font-size: 30px;
+  font-weight: 600;
+  margin: 8px 0 6px;
+}
+.dir-head .tagline { color: var(--ink-mute); font-size: 16px; margin: 0; }
+
+/* -------------------------------------------------------------- 舞台布局 */
+.stage {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 330px;
+  gap: 40px;
+  align-items: start;
+  padding-top: 26px;
+}
+.devices {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 44px;
+  align-items: flex-start;
+  justify-content: center;
+}
+.device { display: flex; flex-direction: column; align-items: center; gap: 13px; }
+.device-name {
+  color: var(--ink-mute);
+  font-family: var(--sys-mono);
+  font-size: 10.5px;
+  letter-spacing: .14em;
+  text-transform: uppercase;
+}
+
+/* 手表：46mm 的显示区按 pt 算是 208×248。外壳按比例画,不追求工业设计精度。 */
+.watch-shell {
+  background: linear-gradient(150deg, #3a3d44, #15171b 55%, #2a2d33);
+  border-radius: 54px;
+  padding: 13px;
+  position: relative;
+  box-shadow: 0 22px 44px rgba(0, 0, 0, .34);
+}
+.watch-shell::after {           /* 数码表冠 */
+  content: "";
+  position: absolute;
+  right: -5px; top: 72px;
+  width: 7px; height: 36px;
+  background: linear-gradient(90deg, #4a4e56, #2a2d33);
+  border-radius: 3px;
+}
+.watch-screen {
+  width: 208px; height: 248px;
+  background: var(--screen-bg);
+  border-radius: var(--radius-watch);
+  overflow: hidden;
+  position: relative;
+  color: var(--screen-ink);
+}
+
+/* 手机：iPhone 16 Pro 的逻辑分辨率 402×874 pt。原型缩到 0.82 免得翻页。 */
+.phone-shell {
+  background: linear-gradient(150deg, #42454d, #191b20 50%, #32353c);
+  border-radius: 56px;
+  padding: 11px;
+  box-shadow: 0 26px 52px rgba(0, 0, 0, .34);
+}
+.phone-screen {
+  width: 330px; height: 716px;
+  background: var(--screen-bg);
+  border-radius: var(--radius-phone);
+  overflow: hidden;
+  position: relative;
+  color: var(--screen-ink);
+}
+.phone-screen .island {
+  position: absolute; top: 9px; left: 50%;
+  transform: translateX(-50%);
+  width: 86px; height: 24px;
+  background: #000;
+  border-radius: 14px;
+  z-index: 40;
+}
+
+/* ------------------------------------------------------------ 屏幕内排版 */
+.scr {
+  position: absolute; inset: 0;
+  display: flex; flex-direction: column;
+  padding: 10px 12px;
+  overflow: hidden;
+}
+/* 整屏撑满 + 纵向 flex,这样 tabbar 能用 margin-top:auto 钉在屏幕底边。
+   不这么写的话,内容少的那几屏（方向 C 的图鉴）tabbar 会浮在屏幕中间,
+   看起来像布局塌了,而其实只是内容短——那会让人去怀疑错的东西。 */
+.phone-screen .scr {
+  padding: 42px 20px 14px;
+  box-sizing: border-box;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+.phone-screen .tabbar { margin-top: auto; }
+.scr-scroll { flex: 1; overflow: hidden; display: flex; flex-direction: column; }
+
+.statusbar {
+  display: flex; justify-content: space-between;
+  color: var(--screen-mute);
+  font-family: var(--sys-mono);
+  font-size: 10px;
+  letter-spacing: .04em;
+}
+.watch-screen .statusbar { padding: 0 4px 2px; }
+
+.scr h3 {
+  font-family: var(--font-title);
+  font-size: 22px;
+  font-weight: 600;
+  margin: 6px 0 2px;
+}
+.watch-screen .scr h3 { font-size: 15px; margin: 2px 0; }
+.scr .sub { color: var(--screen-mute); font-size: 12.5px; margin: 0; }
+.watch-screen .scr .sub { font-size: 11px; line-height: 1.35; }
+
+.doing {
+  font-family: var(--font-title);
+  font-size: 14px;
+  line-height: 1.45;
+  text-align: center;
+  margin: 0;
+}
+.watch-screen .doing { font-size: 13px; }
+
+.tile {
+  background: var(--screen-card);
+  border-radius: 13px;
+  padding: 11px 13px;
+  margin-top: 9px;
+}
+body[data-style="retro"] .tile { border-radius: 3px; border: 1px solid var(--line); }
+.tile .k {
+  color: var(--screen-mute);
+  font-family: var(--sys-mono);
+  font-size: 9.5px;
+  letter-spacing: .13em;
+  text-transform: uppercase;
+}
+.tile .v { font-size: 14px; margin-top: 3px; }
+.tile .v small { color: var(--screen-mute); font-size: 11.5px; }
+
+.btn-row { display: flex; gap: 8px; margin-top: auto; padding-top: 10px; }
+.sbtn {
+  appearance: none;
+  background: var(--screen-card);
+  border: 1px solid transparent;
+  border-radius: 12px;
+  color: var(--screen-ink);
+  cursor: pointer;
+  flex: 1;
+  font: inherit;
+  font-size: 12.5px;
+  padding: 10px 6px;
+  text-align: center;
+  transition: all .15s;
+}
+.watch-screen .sbtn { font-size: 11.5px; padding: 8px 4px; border-radius: 10px; }
+.sbtn:hover { background: var(--accent-soft); border-color: var(--accent); }
+.sbtn.primary { background: var(--accent); color: var(--screen-bg); font-weight: 600; }
+.sbtn.primary:hover { filter: brightness(1.08); }
+body[data-style="retro"] .sbtn { border-radius: 3px; border-color: var(--line); }
+body[data-style="retro"] .sbtn.primary { color: #060A07; }
+
+.tabbar {
+  display: flex;
+  border-top: 1px solid var(--line);
+  margin: 8px -20px -14px;
+  padding: 9px 0 12px;
+}
+.tabbar button {
+  appearance: none; background: none; border: 0;
+  color: var(--screen-mute);
+  cursor: pointer; flex: 1;
+  font: inherit; font-size: 10.5px;
+  padding: 3px 0;
+}
+.tabbar button[aria-pressed="true"] { color: var(--accent); font-weight: 600; }
+.tabbar .glyph { display: block; font-size: 16px; line-height: 1.1; }
+
+.chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 9px; }
+.chip {
+  appearance: none;
+  background: var(--screen-card);
+  border: 1px solid transparent;
+  border-radius: 999px;
+  color: var(--screen-ink);
+  cursor: pointer;
+  font: inherit; font-size: 11.5px;
+  padding: 5px 11px;
+}
+.chip:hover { border-color: var(--accent); }
+.chip[aria-pressed="true"] { background: var(--accent); color: var(--screen-bg); }
+body[data-style="retro"] .chip { border-radius: 3px; }
+
+/* 进度：刻意不给数字。产品原则里「不把内部数值显示给用户」,所以这里只有形状和词。 */
+.bar-wrap { background: var(--screen-card); border-radius: 999px; height: 7px; margin-top: 10px; overflow: hidden; }
+.bar-fill { background: var(--accent); height: 100%; border-radius: 999px; }
+body[data-style="retro"] .bar-wrap,
+body[data-style="retro"] .bar-fill { border-radius: 0; }
+
+.grid-cal { display: grid; grid-template-columns: repeat(7, 1fr); gap: 5px; margin-top: 10px; }
+.cell {
+  aspect-ratio: 1;
+  background: var(--screen-card);
+  border-radius: 6px;
+  display: grid;
+  place-items: center;
+  font-size: 11px;
+  color: var(--screen-mute);
+}
+.cell.on { background: var(--accent); color: var(--screen-bg); font-weight: 600; }
+.cell.soft { background: var(--accent-soft); color: var(--screen-ink); }
+body[data-style="retro"] .cell { border-radius: 0; }
+
+.codex { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 10px; }
+.slot {
+  aspect-ratio: 1;
+  background: var(--screen-card);
+  border-radius: 11px;
+  display: grid; place-items: center;
+  font-size: 21px;
+}
+.slot.locked { color: var(--screen-mute); font-size: 15px; }
+body[data-style="retro"] .slot { border-radius: 3px; }
+
+.diary {
+  border-left: 2px solid var(--accent);
+  font-family: var(--font-title);
+  font-size: 13px;
+  line-height: 1.7;
+  margin-top: 11px;
+  padding-left: 11px;
+}
+.diary .when {
+  color: var(--screen-mute);
+  font-family: var(--sys-mono);
+  font-size: 9.5px;
+  letter-spacing: .1em;
+  display: block;
+  margin-bottom: 2px;
+}
+
+/* 复杂功能：表盘上的那一小块。 */
+.face {
+  background: radial-gradient(circle at 32% 24%, #1d2128, #000 72%);
+  border-radius: var(--radius-watch);
+  inset: 0;
+  position: absolute;
+  padding: 18px 14px;
+  display: flex; flex-direction: column; justify-content: space-between;
+}
+.face .clock {
+  color: #fff;
+  font-family: var(--sys-mono);
+  font-size: 40px;
+  font-weight: 300;
+  letter-spacing: -.02em;
+  line-height: 1;
+  text-align: right;
+}
+.compl-row { display: flex; gap: 9px; align-items: center; }
+.compl-circ {
+  width: 48px; height: 48px;
+  border-radius: 50%;
+  border: 2.5px solid var(--accent);
+  display: grid; place-items: center;
+  position: relative;
+}
+.compl-rect {
+  background: rgba(255, 255, 255, .07);
+  border-radius: 9px;
+  flex: 1;
+  padding: 7px 9px;
+  font-size: 10.5px;
+  line-height: 1.35;
+}
+.compl-rect .t { color: var(--accent); font-family: var(--sys-mono); font-size: 9px; letter-spacing: .1em; }
+
+/* 息屏常亮：整屏压暗,不播动画。REQ-PERS-049 的样子。 */
+.dimmed { filter: brightness(.42) saturate(.7); }
+/* 底部那行说明是绝对定位的,屏幕内容得给它让出位置,否则时间会压在它上面
+   （第一次截图就是这样,「不播动画」被 9:41 穿了一道）。 */
+.scr.dimmed { padding-bottom: 24px; }
+.dim-note {
+  position: absolute; bottom: 7px; left: 0; right: 0;
+  color: var(--screen-mute);
+  font-family: var(--sys-mono);
+  font-size: 8.5px;
+  letter-spacing: .08em;
+  text-align: center;
+}
+
+/* ------------------------------------------------------------------ 宠物 */
+.pet-stage {
+  display: grid; place-items: center;
+  flex: 1;
+  min-height: 92px;
+  position: relative;
+}
+.phone-screen .pet-stage { min-height: 188px; }
+.pet-svg { overflow: visible; }
+.pet-svg .body-g { transform-box: fill-box; transform-origin: 50% 85%; }
+.pet-svg .ears-g { transform-box: fill-box; transform-origin: 50% 100%; }
+.pet-svg .eyes-g { transform-box: fill-box; transform-origin: 50% 50%; }
+.pet-svg .eye { transform-box: fill-box; transform-origin: 50% 50%; }
+
+/* 四个通道。每个微事件只用这四个加一个作用部位,和 MicroEventMotion 一一对应——
+   原型里就把这条约束画出来,免得后面悄悄多出一个「换张图」的通道。 */
+@keyframes ch-rotate { 0%, 100% { rotate: calc(var(--rot) * -1); } 50% { rotate: var(--rot); } }
+@keyframes ch-shift  { 0%, 100% { translate: calc(var(--tx) * -1) calc(var(--ty) * -1); } 50% { translate: var(--tx) var(--ty); } }
+@keyframes ch-scale  { 0%, 100% { scale: calc(1 - var(--amp)); } 50% { scale: calc(1 + var(--amp)); } }
+@keyframes ch-blink  { 0%, 92%, 100% { scale: 1 1; } 95% { scale: 1 .08; } }
+
+.m-rotate { animation: ch-rotate var(--cyc) ease-in-out infinite; }
+.m-shift  { animation: ch-shift  var(--cyc) ease-in-out infinite; }
+.m-scale  { animation: ch-scale  var(--cyc) ease-in-out infinite; }
+.m-blink  { animation: ch-blink  var(--cyc) ease-in-out infinite; }
+
+/* --------------------------------------------------------------- 说明面板 */
+.notes { position: sticky; top: 18px; }
+.note-card {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 15px;
+  padding: 17px 19px;
+  margin-bottom: 13px;
+}
+body[data-style="retro"] .note-card { border-radius: 3px; }
+.note-card h4 {
+  font-family: var(--sys-mono);
+  font-size: 10.5px;
+  letter-spacing: .15em;
+  text-transform: uppercase;
+  color: var(--accent);
+  margin: 0 0 8px;
+}
+.note-card p { margin: 0 0 8px; font-size: 13.5px; }
+.note-card p:last-child { margin-bottom: 0; }
+.note-card ul { margin: 0; padding-left: 17px; font-size: 13px; }
+.note-card li { margin-bottom: 5px; }
+.note-card li:last-child { margin-bottom: 0; }
+
+.screen-nav { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+.screen-nav button {
+  appearance: none; background: transparent;
+  border: 1px solid var(--line); border-radius: 999px;
+  color: var(--ink-mute); cursor: pointer;
+  font: inherit; font-size: 11.5px; padding: 4px 10px;
+}
+.screen-nav button[aria-pressed="true"] { border-color: var(--accent); color: var(--accent); }
+body[data-style="retro"] .screen-nav button { border-radius: 2px; }
+
+/* ----------------------------------------------------------------- 对照表 */
+.compare { margin-top: 56px; }
+.compare h2 {
+  font-family: var(--font-title);
+  font-size: 23px;
+  font-weight: 600;
+  margin: 0 0 4px;
+}
+.compare > p { color: var(--ink-mute); font-size: 13.5px; margin: 0 0 18px; }
+.table-scroll { overflow-x: auto; }
+table { border-collapse: collapse; min-width: 720px; width: 100%; font-size: 13.5px; }
+th, td { border-bottom: 1px solid var(--line); padding: 11px 13px; text-align: left; vertical-align: top; }
+th {
+  color: var(--ink-mute);
+  font-family: var(--sys-mono);
+  font-size: 10.5px;
+  font-weight: 500;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+td:first-child { color: var(--ink-mute); font-size: 12.5px; white-space: nowrap; }
+.pill {
+  background: var(--accent-soft);
+  border-radius: 999px;
+  color: var(--accent);
+  font-size: 11.5px;
+  padding: 2px 9px;
+  white-space: nowrap;
+}
+body[data-style="retro"] .pill { border-radius: 2px; }
+
+footer.foot {
+  border-top: 1px solid var(--line);
+  color: var(--ink-mute);
+  font-size: 12.5px;
+  margin-top: 44px;
+  padding-top: 18px;
+}
+footer.foot code {
+  background: var(--accent-soft);
+  border-radius: 4px;
+  font-family: var(--sys-mono);
+  font-size: 11.5px;
+  padding: 1px 5px;
+}
+
+@media (max-width: 1000px) {
+  .stage { grid-template-columns: minmax(0, 1fr); }
+  .notes { position: static; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .m-rotate, .m-shift, .m-scale, .m-blink { animation: none !important; }
+}
+
+/* ?freeze=1 把每个动作通道钉在**幅度峰值**那一帧,动画整个不存在。
+
+   为什么是这个做法,前面两版都不行:
+   - `chrome --headless --screenshot` 要等页面稳定,**只要页面上有无限循环动画就永远
+     等不到**,进程挂到超时、零输出。所以不能只是暂停,要让动画不存在。
+   - 试过 `animation-play-state: paused` + 负 `animation-delay`：同样截不出图。
+     Chrome 认的是「有没有动画对象」,不是「它有没有在推进」。
+   - 也试过 JS 在 load 之后去设 `currentTime` 并 pause：太晚,救不了。
+
+   冻在峰值而不是起点,是因为起点那一帧和「完全没动」长得一样——截出来没法判断
+   通道到底接上没有。峰值这一帧正好回答「这个微事件在画面上看得出来吗」。
+   眨眼例外:峰值是闭眼,那张图只会让人以为画错了,所以眨眼冻在睁眼。
+
+   要 `!important`：姿态本身是内联 style 写的（`style="rotate:…"`）,而动画在层叠里
+   本来就压得过内联 style——换成静态属性就压不过了,得自己声明。 */
+body[data-freeze] .m-rotate { animation: none !important; rotate: var(--rot) !important; }
+body[data-freeze] .m-shift  { animation: none !important; translate: var(--tx, 0) var(--ty, 0) !important; }
+body[data-freeze] .m-scale  { animation: none !important; scale: calc(1 + var(--amp)) !important; }
+body[data-freeze] .m-blink  { animation: none !important; }
+</style>
+</head>
+<body data-style="paper">
+
+<div class="codename">
+  宠物名和 App 名<b>都还没定</b>。下面出现的「小团」是临时代号,不是产品决定——看玩法和画面,别看名字。
+</div>
+
+<div class="wrap">
+  <header class="bar">
+    <h1>三个玩法方向,两端画面</h1>
+    <p>
+      先选玩法,再谈细节。三个方向结构上不一样:一个是「它反映你」,一个是「它和你一起」,
+      一个是「它自己过日子」。每个方向都给了手表和手机的核心画面,可以点。
+      风格是另一条独立的轴——换风格只换颜色和字,不动布局,这样两件事能分开判断。
+    </p>
+
+    <div class="controls">
+      <div class="ctl-group">
+        <span class="ctl-label">玩法方向</span>
+        <div class="seg" id="seg-dir"></div>
+      </div>
+      <div class="ctl-group">
+        <span class="ctl-label">风格</span>
+        <div class="seg" id="seg-style"></div>
+      </div>
+    </div>
+  </header>
+
+  <section class="dir-head">
+    <span class="kicker" id="dir-kicker"></span>
+    <h2 id="dir-title"></h2>
+    <p class="tagline" id="dir-tagline"></p>
+  </section>
+
+  <section class="stage">
+    <div class="devices">
+      <div class="device">
+        <span class="device-name">Apple Watch · 46mm</span>
+        <div class="watch-shell"><div class="watch-screen" id="watch"></div></div>
+        <div class="screen-nav" id="nav-watch"></div>
+      </div>
+      <div class="device">
+        <span class="device-name">iPhone</span>
+        <div class="phone-shell">
+          <div class="phone-screen" id="phone"><div class="island"></div></div>
+        </div>
+        <div class="screen-nav" id="nav-phone"></div>
+      </div>
+    </div>
+
+    <aside class="notes" id="notes"></aside>
+  </section>
+
+  <section class="compare">
+    <h2>选哪个</h2>
+    <p>同一行横着看。这张表是给「定方向」用的,不是给「定细节」用的。</p>
+    <div class="table-scroll"><table id="cmp"></table></div>
+  </section>
+
+  <footer class="foot">
+    <p>
+      纯静态单文件,双击就能开,也能发到手机上看。每一屏都有自己的地址:
+      <code>?dir=b&amp;screen=today&amp;style=ink</code>。
+      <code>&amp;freeze=1</code> 把动作停在幅度最大那一帧,方便截图比对。
+    </p>
+    <p>
+      画面里刻意没有任何内部数值——没有性格雷达图、没有健康评分、没有进度百分比。
+      缺席、步数低、睡得少都不扣任何东西。这是产品原则,不是这版原型的省事做法。
+    </p>
+  </footer>
+</div>
+
+<script>
+/* =============================================================== 宠物绘制 */
+/* 四种姿态 + 四个动作通道。全部是内联 SVG,没有一张图片。
+   通道和 PetCore 里的 MicroEventMotion 一一对应:位移、旋转、缩放、眨眼,
+   加一个作用部位(body / ears / eyes)。原型里就守住这条,免得后面多出
+   「再画一张图」这个通道——那正是现在做不到的事。 */
+
+const POSES = {
+  idle:    { eye: 'open',  ears: 0,   squash: 1,     mouth: 'line'  },
+  playful: { eye: 'open',  ears: -11, squash: 0.96,  mouth: 'smile' },
+  sleepy:  { eye: 'shut',  ears: 15,  squash: 1.06,  mouth: 'line'  },
+  calm:    { eye: 'half',  ears: 4,   squash: 1.01,  mouth: 'smile' }
+};
+
+/* 微事件 → 画面配方。数值照 spec 的配方表抄,这样原型和规则层说的是同一件事。 */
+const MOTIONS = {
+  none:      null,
+  chaseTail: { part: 'body', rot: 14,  cyc: 1.1 },
+  tiltHead:  { part: 'body', rot: 8,   cyc: 2.4, blink: true },
+  snore:     { part: 'body', amp: 0.05, cyc: 3.6 },
+  stare:     { part: 'eyes', tx: 0.04, cyc: 2.8 },
+  playAlone: { part: 'body', tx: 0.07, cyc: 1.6 },
+  flinch:    { part: 'body', amp: 0.09, cyc: 0.5 },
+  waiting:   { part: 'ears', rot: 10,  cyc: 1.8 },
+  missing:   { part: 'eyes', cyc: 4.2, blink: true }
+};
+
+function petSVG(pose = 'idle', motionKey = 'none', size = 120) {
+  const p = POSES[pose] || POSES.idle;
+  const m = MOTIONS[motionKey] || null;
+
+  // 动作类名挂在对应部位上。位移是相对基准尺寸的比例,所以换算成 px。
+  const cls = { body: '', ears: '', eyes: '', eye: '' };
+  const vars = [];
+  if (m) {
+    const target = m.part === 'ears' ? 'ears' : m.part === 'eyes' ? 'eyes' : 'body';
+    vars.push(`--cyc:${m.cyc}s`);
+    if (m.rot)  { cls[target] += ' m-rotate'; vars.push(`--rot:${m.rot}deg`); }
+    if (m.tx || m.ty) {
+      cls[target] += ' m-shift';
+      vars.push(`--tx:${(m.tx || 0) * size}px`, `--ty:${(m.ty || 0) * size}px`);
+    }
+    if (m.amp) { cls[target] += ' m-scale'; vars.push(`--amp:${m.amp}`); }
+    if (m.blink) cls.eye += ' m-blink';
+  }
+
+  const eyes = p.eye === 'shut'
+    ? `<path d="M34 50 q6 4 12 0" stroke="var(--pet-shade)" stroke-width="2.4" fill="none" stroke-linecap="round"/>
+       <path d="M64 50 q6 4 12 0" stroke="var(--pet-shade)" stroke-width="2.4" fill="none" stroke-linecap="round"/>`
+    : p.eye === 'half'
+    ? `<ellipse class="eye${cls.eye}" cx="40" cy="50" rx="3.6" ry="2.1" fill="#241d16"/>
+       <ellipse class="eye${cls.eye}" cx="70" cy="50" rx="3.6" ry="2.1" fill="#241d16"/>`
+    : `<ellipse class="eye${cls.eye}" cx="40" cy="49" rx="4" ry="4.6" fill="#241d16"/>
+       <ellipse class="eye${cls.eye}" cx="70" cy="49" rx="4" ry="4.6" fill="#241d16"/>
+       <circle cx="41.4" cy="47.4" r="1.3" fill="#fff" opacity=".85"/>
+       <circle cx="71.4" cy="47.4" r="1.3" fill="#fff" opacity=".85"/>`;
+
+  const mouth = p.mouth === 'smile'
+    ? `<path d="M48 60 q7 6 14 0" stroke="var(--pet-shade)" stroke-width="2.2" fill="none" stroke-linecap="round"/>`
+    : `<path d="M50 60 h10" stroke="var(--pet-shade)" stroke-width="2.2" fill="none" stroke-linecap="round"/>`;
+
+  return `
+  <svg class="pet-svg" width="${size}" height="${size}" viewBox="0 0 110 110"
+       style="${vars.join(';')}" role="img" aria-label="宠物,${pose}">
+    <ellipse cx="55" cy="99" rx="31" ry="5" fill="rgba(0,0,0,.26)"/>
+    <g class="body-g${cls.body}" style="scale: 1 ${p.squash}">
+      <g class="ears-g${cls.ears}" style="rotate:${p.ears}deg">
+        <ellipse cx="29" cy="27" rx="11" ry="15" fill="var(--pet-shade)" transform="rotate(-20 29 27)"/>
+        <ellipse cx="81" cy="27" rx="11" ry="15" fill="var(--pet-shade)" transform="rotate(20 81 27)"/>
+        <ellipse cx="30" cy="29" rx="5.4" ry="8" fill="var(--pet-belly)" transform="rotate(-20 30 29)"/>
+        <ellipse cx="80" cy="29" rx="5.4" ry="8" fill="var(--pet-belly)" transform="rotate(20 80 29)"/>
+      </g>
+      <ellipse cx="55" cy="56" rx="38" ry="36" fill="var(--pet-body)"/>
+      <ellipse cx="55" cy="70" rx="23" ry="19" fill="var(--pet-belly)" opacity=".75"/>
+      <g class="eyes-g${cls.eyes}">${eyes}</g>
+      ${mouth}
+      <ellipse cx="26" cy="58" rx="6" ry="3.6" fill="var(--pet-shade)" opacity=".5"/>
+      <ellipse cx="84" cy="58" rx="6" ry="3.6" fill="var(--pet-shade)" opacity=".5"/>
+    </g>
+  </svg>`;
+}
+
+/* ================================================================ 三个方向 */
+/* 每个方向:手表几屏 + 手机几屏 + 四段说明(玩法循环 / 为什么会回来 / 技术前提 / 风险)。
+   说明和画面放在一起,是因为「看着好看」和「能不能做、会不会腻」是两回事,
+   定方向要同时看这两件事。 */
+
+const bar = (ratio, label) => `
+  <div class="bar-wrap"><div class="bar-fill" style="width:${Math.round(ratio * 100)}%"></div></div>
+  <p class="sub" style="margin-top:6px">${label}</p>`;
+
+const statusbar = (right = '9:41') =>
+  `<div class="statusbar"><span>小团</span><span>${right}</span></div>`;
+
+const tabbar = (items, active, dir) => `
+  <div class="tabbar">${items.map(([key, glyph, name]) => `
+    <button data-screen="${key}" data-side="phone" aria-pressed="${key === active}">
+      <span class="glyph">${glyph}</span>${name}
+    </button>`).join('')}</div>`;
+
+const DIRECTIONS = {
+
+/* ----------------------------------------------------------------- 方向 A */
+a: {
+  code: 'DIRECTION A',
+  name: '镜子',
+  tagline: '它是你今天的样子 —— 你走路它就玩,你没睡好它就困',
+  notes: {
+    loop: '抬腕 → 看它今天在干什么 → 摸它 / 给点心 → 它的反应有时不一样 → 慢慢摸出它的脾气和它偷偷喜欢的东西。',
+    why: '好奇。姿态由你的健康数据决定,但「在这个姿态下它具体做什么」由它出生时抽定的天性决定——所以别人的小团不会和你的一样。秘密偏好要靠试才能发现。',
+    tech: ['HealthKit 步数与睡眠(已有权限)', '姿态规则 + 天性/微事件/秘密偏好的规则层已经写完并有测试', '不需要任何新的美术资源——微事件只用四种姿态加位移/旋转/缩放/眨眼合成'],
+    risk: ['姿态只有四种,看三天容易「又是这个」', '个性的表达很细微,用户可能完全感知不到', '没有明确的「今天完成了什么」,缺少收尾感']
+  },
+  watch: [
+    { key: 'home', label: '主页', render: () => `
+      <div class="scr">
+        ${statusbar()}
+        <div class="pet-stage">${petSVG('playful', 'chaseTail', 108)}</div>
+        <p class="doing">在追自己的尾巴</p>
+        <div class="btn-row">
+          <button class="sbtn" data-screen="mood" data-side="watch">心情</button>
+          <button class="sbtn primary" data-screen="touch" data-side="watch">摸摸</button>
+        </div>
+      </div>` },
+    { key: 'touch', label: '摸它', render: () => `
+      <div class="scr">
+        ${statusbar()}
+        <div class="pet-stage">${petSVG('playful', 'tiltHead', 108)}</div>
+        <p class="doing">它歪头看你</p>
+        <p class="sub" style="text-align:center;margin-top:4px">这次好像特别高兴</p>
+        <div class="btn-row">
+          <button class="sbtn" data-screen="home" data-side="watch">回去</button>
+        </div>
+      </div>` },
+    { key: 'mood', label: '心情签到', render: () => `
+      <div class="scr">
+        ${statusbar()}
+        <h3>今天怎么样</h3>
+        <p class="sub">说给它听,不记分</p>
+        <div class="chips" style="margin-top:12px">
+          <button class="chip">很好</button>
+          <button class="chip" aria-pressed="true">还行</button>
+          <button class="chip">有点累</button>
+          <button class="chip">不太好</button>
+        </div>
+        <div class="btn-row">
+          <button class="sbtn primary" data-screen="home" data-side="watch">好</button>
+        </div>
+      </div>` },
+    { key: 'alwayson', label: '息屏常亮', render: () => `
+      <div class="scr dimmed">
+        ${statusbar()}
+        <div class="pet-stage">${petSVG('calm', 'none', 100)}</div>
+        <p class="doing">9:41</p>
+      </div>
+      <p class="dim-note">常亮 · 不播动画 · 静态姿态</p>` },
+    { key: 'face', label: '复杂功能', render: () => `
+      <div class="face">
+        <div class="clock">9:41</div>
+        <div class="compl-row">
+          <div class="compl-circ">${petSVG('idle', 'none', 30)}</div>
+          <div class="compl-rect">
+            <div class="t">小团</div>
+            在追自己的尾巴
+          </div>
+        </div>
+      </div>` }
+  ],
+  phone: [
+    { key: 'pet', label: '它', render: (d) => `
+      <div class="scr">
+        ${statusbar()}
+        <h3>小团</h3>
+        <p class="sub">和你在一起 23 天</p>
+        <div class="pet-stage">${petSVG('playful', 'chaseTail', 186)}</div>
+        <p class="doing" style="font-size:16px">在追自己的尾巴</p>
+        <div class="tile">
+          <div class="k">这次的反应</div>
+          <div class="v">它特别高兴 <small>· 你好像找对了什么</small></div>
+        </div>
+        <div class="chips">
+          <button class="chip" aria-pressed="true">摸头</button>
+          <button class="chip">摸下巴</button>
+          <button class="chip">摸肚子</button>
+        </div>
+        <div class="btn-row">
+          <button class="sbtn">给点心</button>
+          <button class="sbtn primary">摸摸</button>
+        </div>
+        ${tabbar([['pet', '●', '它'], ['trends', '◴', '这几天'], ['wardrobe', '◇', '装扮']], 'pet')}
+      </div>` },
+    { key: 'trends', label: '这几天', render: () => `
+      <div class="scr">
+        ${statusbar()}
+        <h3>这几天</h3>
+        <p class="sub">它看到的你,不是健康报告</p>
+        <div class="tile">
+          <div class="k">这周</div>
+          <div class="v">它玩耍的日子比上周多 <small>· 你走得多了</small></div>
+        </div>
+        <div class="tile">
+          <div class="k">它常在的时候</div>
+          <div class="v">晚上八点前后 <small>· 那时候它会等你</small></div>
+        </div>
+        <div class="grid-cal">
+          ${['一', '二', '三', '四', '五', '六', '日'].map(d => `<div class="cell">${d}</div>`).join('')}
+          ${['on', 'on', 'soft', 'on', 'on', 'soft', ''].map(c => `<div class="cell ${c}">${c === 'on' ? '玩' : c === 'soft' ? '闲' : '困'}</div>`).join('')}
+        </div>
+        <p class="sub" style="margin-top:12px">没有评分,没有达标率。缺的那天不扣任何东西。</p>
+        ${tabbar([['pet', '●', '它'], ['trends', '◴', '这几天'], ['wardrobe', '◇', '装扮']], 'trends')}
+      </div>` },
+    { key: 'wardrobe', label: '装扮', render: () => `
+      <div class="scr">
+        ${statusbar()}
+        <h3>装扮</h3>
+        <p class="sub">陪它够久就会多一件</p>
+        <div class="pet-stage" style="min-height:140px">${petSVG('idle', 'tiltHead', 140)}</div>
+        <div class="codex">
+          <div class="slot">◇</div><div class="slot">✿</div>
+          <div class="slot locked">第 21 天</div>
+        </div>
+        ${tabbar([['pet', '●', '它'], ['trends', '◴', '这几天'], ['wardrobe', '◇', '装扮']], 'wardrobe')}
+      </div>` }
+  ]
+},
+
+/* ----------------------------------------------------------------- 方向 B */
+b: {
+  code: 'DIRECTION B',
+  name: '同行',
+  tagline: '每天它想做一件事 —— 做到了,你们一起记下来',
+  notes: {
+    loop: '早上它提一件今天想做的事(晒太阳 / 走一段 / 早点睡)→ 这件事和一个健康行为绑着 → 做到了,一起留下一帧 → 没做到,这件事留到明天,什么都不扣。',
+    why: '一天一个闭环,很清楚。而且合照本是攒出来的,空着的格子只是没有照片,不是失败记录。',
+    tech: ['HealthKit 步数 / 睡眠 / 站立', '「今天想做什么」的生成规则可以复用天性加权,规则层已有一半', '要通知(早上提一次、做到了提一次)', '合照只是「当天的姿态 + 一句话」,仍然不需要新美术'],
+    risk: ['最容易变成习惯打卡 App ——一旦有任务感,陪伴就没了', '「不惩罚」要做得真:空格子本身就可能被读成惩罚,得非常小心地设计空格子长什么样', '每天一件事,事情种类不够多就会重复']
+  },
+  watch: [
+    { key: 'today', label: '今天', render: () => `
+      <div class="scr">
+        ${statusbar()}
+        <div class="pet-stage" style="min-height:76px">${petSVG('idle', 'waiting', 84)}</div>
+        <p class="doing">今天它想<br>晒会儿太阳</p>
+        ${bar(0.6, '快到了')}
+        <div class="btn-row">
+          <button class="sbtn" data-screen="later" data-side="watch">晚点</button>
+          <button class="sbtn primary" data-screen="done" data-side="watch">去了</button>
+        </div>
+      </div>` },
+    { key: 'done', label: '做到了', render: () => `
+      <div class="scr">
+        ${statusbar()}
+        <div class="pet-stage">${petSVG('playful', 'chaseTail', 104)}</div>
+        <p class="doing">记下来了</p>
+        <p class="sub" style="text-align:center">今天的那一帧收进本子</p>
+        <div class="btn-row">
+          <button class="sbtn" data-screen="today" data-side="watch">好</button>
+        </div>
+      </div>` },
+    { key: 'later', label: '晚点再说', render: () => `
+      <div class="scr">
+        ${statusbar()}
+        <div class="pet-stage">${petSVG('calm', 'missing', 104)}</div>
+        <p class="doing">那就明天</p>
+        <p class="sub" style="text-align:center">它把这件事留着,没有不高兴</p>
+        <div class="btn-row">
+          <button class="sbtn" data-screen="today" data-side="watch">好</button>
+        </div>
+      </div>` },
+    { key: 'face', label: '复杂功能', render: () => `
+      <div class="face">
+        <div class="clock">9:41</div>
+        <div class="compl-row">
+          <div class="compl-circ">${petSVG('idle', 'none', 30)}</div>
+          <div class="compl-rect">
+            <div class="t">今天</div>
+            想晒会儿太阳 · 快到了
+          </div>
+        </div>
+      </div>` }
+  ],
+  phone: [
+    { key: 'today', label: '今天', render: () => `
+      <div class="scr">
+        ${statusbar()}
+        <h3>今天</h3>
+        <p class="sub">它想做的事,一天一件</p>
+        <div class="pet-stage" style="min-height:160px">${petSVG('idle', 'waiting', 160)}</div>
+        <p class="doing" style="font-size:17px">想晒会儿太阳</p>
+        ${bar(0.6, '快到了 · 不显示还差多少,那是数字不是陪伴')}
+        <div class="tile">
+          <div class="k">做到了会怎样</div>
+          <div class="v">一起留下今天的一帧 <small>· 收进合照本</small></div>
+        </div>
+        <div class="btn-row">
+          <button class="sbtn">晚点再说</button>
+          <button class="sbtn primary">我去了</button>
+        </div>
+        ${tabbar([['today', '◉', '今天'], ['album', '▦', '本子'], ['things', '◇', '小物件']], 'today')}
+      </div>` },
+    { key: 'album', label: '本子', render: () => `
+      <div class="scr">
+        ${statusbar()}
+        <h3>本子</h3>
+        <p class="sub">攒下来的那些天</p>
+        <div class="grid-cal">
+          ${['on', 'on', '', 'on', 'soft', 'on', 'on', '', 'on', 'on', 'on', '', 'soft', 'on',
+             'on', '', 'on', 'on', 'soft', 'on', 'on'].map(c =>
+            `<div class="cell ${c}">${c === 'on' ? '◉' : c === 'soft' ? '◌' : ''}</div>`).join('')}
+        </div>
+        <div class="tile">
+          <div class="k">10 月 9 日</div>
+          <div class="v">一起晒了太阳 <small>· 它在窗台上躺了很久</small></div>
+        </div>
+        <div class="tile">
+          <div class="k">空着的那些天</div>
+          <div class="v"><small>只是没有照片。不是没做到,也不扣任何东西。</small></div>
+        </div>
+        ${tabbar([['today', '◉', '今天'], ['album', '▦', '本子'], ['things', '◇', '小物件']], 'album')}
+      </div>` },
+    { key: 'things', label: '小物件', render: () => `
+      <div class="scr">
+        ${statusbar()}
+        <h3>小物件</h3>
+        <p class="sub">一起做完事情之后它带回来的</p>
+        <div class="pet-stage" style="min-height:130px">${petSVG('playful', 'playAlone', 130)}</div>
+        <div class="codex">
+          <div class="slot">☀</div><div class="slot">✿</div><div class="slot">◇</div>
+          <div class="slot locked">?</div><div class="slot locked">?</div><div class="slot locked">?</div>
+        </div>
+        <p class="sub" style="margin-top:10px">没有稀有度,没有抽卡。做的事不一样,带回来的就不一样。</p>
+        ${tabbar([['today', '◉', '今天'], ['album', '▦', '本子'], ['things', '◇', '小物件']], 'things')}
+      </div>` }
+  ]
+},
+
+/* ----------------------------------------------------------------- 方向 C */
+c: {
+  code: 'DIRECTION C',
+  name: '它自己的生活',
+  tagline: '它会出门 —— 过一阵子带点东西回来,顺手写几行',
+  notes: {
+    loop: '它有自己的日程,会出门一段时间 → 回来时带一样东西和几行日记 → 东西进图鉴,日记进本子 → 你今天走得多/睡得好,会影响它去哪、带回什么,但它不等你。',
+    why: '收集,加上「它刚回来了」这种值得点开的通知。它不在的时候你也不用操心——这是三个方向里最不黏人的一个。',
+    tech: ['要能离线推进时间:它必须在 App 没打开的时候也「出门过」,所以得算得出任意两个时刻之间发生了什么', '掉落表 + 图鉴', '通知', '<strong>美术量最大</strong>:图鉴里每一样东西都要有图,而现在一张都没有'],
+    risk: ['和现在的瓶颈正面冲突:没有美术资源,图鉴就是一堆空格子(见 docs/design/pet-render-roadmap.md)', '「它不等你」很容易变成挂机游戏,陪伴感最弱', '日记要是模板拼的,看三篇就会发现,比不写更糟']
+  },
+  watch: [
+    { key: 'out', label: '它出门了', render: () => `
+      <div class="scr">
+        ${statusbar()}
+        <div class="pet-stage" style="min-height:84px">
+          <div style="opacity:.3">${petSVG('idle', 'none', 72)}</div>
+        </div>
+        <p class="doing">它出门了</p>
+        <p class="sub" style="text-align:center">大概傍晚回来</p>
+        <div class="btn-row">
+          <button class="sbtn" data-screen="back" data-side="watch">看看它</button>
+        </div>
+      </div>` },
+    { key: 'back', label: '它回来了', render: () => `
+      <div class="scr">
+        ${statusbar()}
+        <div class="pet-stage">${petSVG('playful', 'tiltHead', 104)}</div>
+        <p class="doing">它回来了</p>
+        <p class="sub" style="text-align:center">带回一颗果子</p>
+        <div class="btn-row">
+          <button class="sbtn" data-screen="out" data-side="watch">收下</button>
+        </div>
+      </div>` },
+    { key: 'face', label: '复杂功能', render: () => `
+      <div class="face">
+        <div class="clock">9:41</div>
+        <div class="compl-row">
+          <div class="compl-circ" style="opacity:.55">${petSVG('idle', 'none', 30)}</div>
+          <div class="compl-rect">
+            <div class="t">出门中</div>
+            傍晚回来
+          </div>
+        </div>
+      </div>` }
+  ],
+  phone: [
+    { key: 'codex', label: '图鉴', render: () => `
+      <div class="scr">
+        ${statusbar()}
+        <h3>它带回来的</h3>
+        <p class="sub">7 样 · 还有很多没见过</p>
+        <div class="codex">
+          <div class="slot">✿</div><div class="slot">☀</div><div class="slot">◇</div>
+          <div class="slot">❄</div><div class="slot">♪</div><div class="slot">◉</div>
+          <div class="slot">✦</div><div class="slot locked">?</div><div class="slot locked">?</div>
+        </div>
+        <div class="tile">
+          <div class="k">刚收到</div>
+          <div class="v">一颗果子 <small>· 它说路边捡的,不太确定能不能吃</small></div>
+        </div>
+        ${tabbar([['codex', '▦', '图鉴'], ['diary', '✎', '日记'], ['pet', '●', '它']], 'codex')}
+      </div>` },
+    { key: 'diary', label: '日记', render: () => `
+      <div class="scr">
+        ${statusbar()}
+        <h3>它写的</h3>
+        <p class="sub">它自己的视角,不是你的记录</p>
+        <div class="diary">
+          <span class="when">10 月 11 日 · 傍晚</span>
+          今天走得比平常远。你好像也走了不少,我们大概错过了。<br>带了一颗果子回来。
+        </div>
+        <div class="diary">
+          <span class="when">10 月 10 日 · 下午</span>
+          窗台那边太阳很好,躺了一会儿。你一直没回来。
+        </div>
+        ${tabbar([['codex', '▦', '图鉴'], ['diary', '✎', '日记'], ['pet', '●', '它']], 'diary')}
+      </div>` },
+    { key: 'pet', label: '它', render: () => `
+      <div class="scr">
+        ${statusbar()}
+        <h3>小团</h3>
+        <p class="sub">在家 · 刚回来</p>
+        <div class="pet-stage">${petSVG('calm', 'stare', 180)}</div>
+        <p class="doing" style="font-size:16px">对着什么发呆</p>
+        <div class="tile">
+          <div class="k">下次出门</div>
+          <div class="v">明天早上 <small>· 它自己决定的</small></div>
+        </div>
+        <div class="btn-row">
+          <button class="sbtn">给点心</button>
+          <button class="sbtn primary">摸摸</button>
+        </div>
+        ${tabbar([['codex', '▦', '图鉴'], ['diary', '✎', '日记'], ['pet', '●', '它']], 'pet')}
+      </div>` }
+  ]
+}
+};
+
+/* ================================================================ 对照表 */
+const CMP_ROWS = [
+  ['一句话', '它反映你今天的状态', '你们每天一起做一件事', '它自己过日子,顺路带东西回来'],
+  ['为什么回来', '好奇它今天在干什么', '一天一个闭环 + 攒本子', '收集 + 它刚回来的通知'],
+  ['主动的是谁', '你(它只是反映)', '它提议,你决定', '它(你不参与也在推进)'],
+  ['手表上够不够', '够,一眼就看完', '够,一眼加一个按钮', '只能看它在不在'],
+  ['现有代码能用多少', '几乎全部(规则层已写完)', '大约一半(天性加权能复用)', '少,离线推进和掉落都要新写'],
+  ['要新美术吗', '不要', '不要', '要,而且量最大'],
+  ['最大的风险', '太安静,三天就腻', '变成打卡任务', '变成挂机,陪伴感最弱'],
+  ['最快能做出来', '<span class="pill">最快</span>', '中', '<span class="pill">最慢</span>']
+];
+
+/* ==================================================================== 状态 */
+const q = new URLSearchParams(location.search);
+const state = {
+  dir: DIRECTIONS[q.get('dir')] ? q.get('dir') : 'a',
+  style: ['paper', 'ink', 'retro'].includes(q.get('style')) ? q.get('style') : 'paper',
+  watch: null,
+  phone: null
+};
+
+const STYLE_NAMES = { paper: '柔纸', ink: '夜色', retro: '点阵' };
+
+/* URL 里的 screen 不分端:哪一端有这个名字就给哪一端。两端同名(比如 A 的 pet)
+   时手机优先,因为手机那边信息多,更可能是想看的。 */
+function applyScreenParam() {
+  const d = DIRECTIONS[state.dir];
+  const want = q.get('screen');
+  state.watch = d.watch[0].key;
+  state.phone = d.phone[0].key;
+  if (!want) return;
+  if (d.phone.some(s => s.key === want)) state.phone = want;
+  else if (d.watch.some(s => s.key === want)) state.watch = want;
+}
+
+function renderControls() {
+  document.getElementById('seg-dir').innerHTML = Object.entries(DIRECTIONS).map(([k, d]) =>
+    `<button data-dir="${k}" aria-pressed="${k === state.dir}">${k.toUpperCase()} · ${d.name}</button>`
+  ).join('');
+  document.getElementById('seg-style').innerHTML = Object.entries(STYLE_NAMES).map(([k, n]) =>
+    `<button data-style="${k}" aria-pressed="${k === state.style}">${n}</button>`
+  ).join('');
+}
+
+function renderNav(side) {
+  const d = DIRECTIONS[state.dir];
+  document.getElementById('nav-' + side).innerHTML = d[side].map(s =>
+    `<button data-screen="${s.key}" data-side="${side}" aria-pressed="${s.key === state[side]}">${s.label}</button>`
+  ).join('');
+}
+
+function renderDevice(side) {
+  const d = DIRECTIONS[state.dir];
+  const screen = d[side].find(s => s.key === state[side]) || d[side][0];
+  const host = document.getElementById(side);
+  const island = side === 'phone' ? '<div class="island"></div>' : '';
+  host.innerHTML = island + screen.render(d);
+}
+
+function renderNotes() {
+  const n = DIRECTIONS[state.dir].notes;
+  document.getElementById('notes').innerHTML = `
+    <div class="note-card"><h4>玩法循环</h4><p>${n.loop}</p></div>
+    <div class="note-card"><h4>为什么会回来</h4><p>${n.why}</p></div>
+    <div class="note-card"><h4>技术前提</h4><ul>${n.tech.map(t => `<li>${t}</li>`).join('')}</ul></div>
+    <div class="note-card"><h4>风险</h4><ul>${n.risk.map(t => `<li>${t}</li>`).join('')}</ul></div>`;
+}
+
+function renderHead() {
+  const d = DIRECTIONS[state.dir];
+  document.getElementById('dir-kicker').textContent = d.code;
+  document.getElementById('dir-title').textContent = d.name;
+  document.getElementById('dir-tagline').textContent = d.tagline;
+}
+
+function renderCompare() {
+  const head = `<thead><tr><th></th>
+    <th>A · ${DIRECTIONS.a.name}</th><th>B · ${DIRECTIONS.b.name}</th><th>C · ${DIRECTIONS.c.name}</th>
+  </tr></thead>`;
+  const body = `<tbody>${CMP_ROWS.map(r =>
+    `<tr>${r.map((c, i) => i === 0 ? `<td>${c}</td>` : `<td>${c}</td>`).join('')}</tr>`
+  ).join('')}</tbody>`;
+  document.getElementById('cmp').innerHTML = head + body;
+}
+
+/* 截图用:`?freeze=1` 把动作通道钉在幅度峰值,动画整个不存在。实现全在 CSS 里
+   （见 body[data-freeze]）,这里只负责打那个开关。必须在第一次 render 之前设好——
+   晚一步动画就已经创建了,`chrome --headless --screenshot` 会等不到页面稳定,
+   一张图都出不来。 */
+function setupFreeze() {
+  const f = q.get('freeze');
+  if (f === null || f === '0' || f === 'false') return;
+  document.body.dataset.freeze = '1';
+}
+
+function syncURL() {
+  const p = new URLSearchParams();
+  p.set('dir', state.dir);
+  p.set('style', state.style);
+  p.set('screen', state.phone);
+  history.replaceState(null, '', '?' + p.toString());
+}
+
+function render() {
+  document.body.dataset.style = state.style;
+  renderControls();
+  renderHead();
+  renderNav('watch');
+  renderNav('phone');
+  renderDevice('watch');
+  renderDevice('phone');
+  renderNotes();
+}
+
+document.addEventListener('click', (e) => {
+  const b = e.target.closest('button');
+  if (!b) return;
+  if (b.dataset.dir) {
+    state.dir = b.dataset.dir;
+    applyScreenParam();
+    q.delete('screen');
+    render(); syncURL(); return;
+  }
+  if (b.dataset.style) { state.style = b.dataset.style; render(); syncURL(); return; }
+  if (b.dataset.screen && b.dataset.side) {
+    state[b.dataset.side] = b.dataset.screen;
+    renderNav(b.dataset.side);
+    renderDevice(b.dataset.side);
+    syncURL();
+  }
+});
+
+setupFreeze();
+applyScreenParam();
+render();
+renderCompare();
+</script>
+</body>
+</html>
