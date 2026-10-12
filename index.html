@@ -215,6 +215,16 @@ body::after {
 }
 .codename b { color: var(--accent); }
 
+/* 四套视觉重构的入口链接,就一行字,不占构图——这轮产出是独立页面,这里只负责指路。 */
+.style-switch {
+  text-align: center;
+  font-size: 12.5px;
+  padding: 7px 20px;
+  color: var(--ink-mute);
+  border-bottom: 1px solid var(--line);
+}
+.style-switch a { color: var(--accent); text-decoration: none; border-bottom: 1px solid currentColor; }
+
 /* 展示页的排版按「编辑级」标准来:标题是 display 级尺寸,导语是 lead 级,
    和屏幕里的小字拉开两个量级。原来 h1 25px / 导语 13.5px,和正文几乎同级,
    整页读起来像一份说明书而不是一个作品页。 */
@@ -1285,6 +1295,11 @@ body[data-freeze] .scr > *, body[data-freeze] .face > * { animation: none !impor
 
 <div class="codename">
   宠物名和 App 名<b>都还没定</b>。下面出现的「小团」是临时代号,不是产品决定——看玩法和画面,别看名字。
+</div>
+
+<div class="style-switch">
+  这页比的是<b>玩法方向</b>,三套风格只换色换字。要看<b>真正不同的视觉语言</b>(方向 C 的四套完全重构)→
+  <a href="styles.html">风格对照页</a>
 </div>
 
 <div class="wrap">

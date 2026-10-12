@@ -1,0 +1,200 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>四套视觉重构对照 · 方向 C</title>
+<!--
+  这页只做一件事:列出方向 C(它自己的生活)的四套完全独立的视觉重构,每套自己的
+  布局/组件/材质体系,不共享样式表。不接 CDN,字体只用系统字体栈——和同目录其他
+  原型页同一条约束(见 README)。
+-->
+<style>
+:root {
+  --sys-sans: -apple-system, "SF Pro Text", "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
+  --sys-mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  --page: #EFEAE1;
+  --ink: #27221B;
+  --ink-mute: #7A7268;
+  --line: rgba(39, 34, 27, .12);
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  background: var(--page);
+  color: var(--ink);
+  font-family: var(--sys-sans);
+}
+.top-link {
+  text-align: center;
+  font-size: 12.5px;
+  padding: 8px 20px;
+  color: var(--ink-mute);
+  border-bottom: 1px solid var(--line);
+}
+.top-link a { color: #B2561E; text-decoration: none; border-bottom: 1px solid currentColor; }
+.wrap { max-width: 980px; margin: 0 auto; padding: 48px 24px 80px; }
+header h1 {
+  font-size: 30px;
+  letter-spacing: -0.01em;
+  margin: 0 0 10px;
+}
+header p {
+  font-size: 15px;
+  line-height: 1.6;
+  color: var(--ink-mute);
+  max-width: 62ch;
+  margin: 0 0 40px;
+}
+header p b { color: var(--ink); }
+.grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+}
+@media (max-width: 680px) {
+  .grid { grid-template-columns: 1fr; }
+}
+.card {
+  position: relative;
+  display: block;
+  text-decoration: none;
+  color: var(--ink);
+  background: #fff;
+  border-radius: 20px;
+  padding: 26px 24px 24px;
+  border: 1px solid var(--line);
+  box-shadow: 0 1px 2px rgba(39,34,27,.06), 0 10px 28px rgba(39,34,27,.07);
+  transition: transform .18s cubic-bezier(.16,1,.3,1), box-shadow .18s;
+}
+.card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 2px 4px rgba(39,34,27,.08), 0 18px 36px rgba(39,34,27,.12);
+}
+.swatch {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 16px;
+}
+.swatch span {
+  width: 20px;
+  height: 20px;
+  border-radius: 7px;
+  display: inline-block;
+}
+.card .kicker {
+  font-family: var(--sys-mono);
+  font-size: 11px;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  color: var(--ink-mute);
+  margin-bottom: 6px;
+}
+.card h2 {
+  font-size: 21px;
+  margin: 0 0 10px;
+}
+.card p {
+  font-size: 13.5px;
+  line-height: 1.6;
+  color: var(--ink-mute);
+  margin: 0 0 18px;
+  min-height: 62px;
+}
+.card .go {
+  font-size: 13px;
+  font-weight: 600;
+}
+footer {
+  margin-top: 48px;
+  font-size: 12px;
+  color: var(--ink-mute);
+  line-height: 1.7;
+  border-top: 1px solid var(--line);
+  padding-top: 20px;
+}
+</style>
+</head>
+<body>
+
+<div class="top-link">
+  这四套用的都是<b>同一个玩法方向(C · 它自己的生活)</b>,内容一字不差——比的是视觉语言。
+  要看三个<b>玩法方向</b>本身的差异 → <a href="index.html">返回方向对照页</a>
+</div>
+
+<div class="wrap">
+  <header>
+    <h1>一个方向,四种长相</h1>
+    <p>
+      同一套文案、同一批美术素材(宠物位图、收藏品插画、场景照片)、同样的屏幕尺寸,
+      <b>只换布局、组件和材质体系</b>。四个文件各自独立,不共享样式表——
+      这样「玩法好不好」和「这套视觉语言成不成立」能分开判断。
+    </p>
+  </header>
+
+  <div class="grid">
+
+    <a class="card" href="style-clay.html">
+      <div class="swatch">
+        <span style="background:#F1E3D2"></span>
+        <span style="background:#E2754A"></span>
+        <span style="background:#88A86B"></span>
+      </div>
+      <div class="kicker">Claymorphism</div>
+      <h2>软粘土陪伴感</h2>
+      <p>厚唇边 + 双层投影 + 超圆润造型,暖陶土色系。图鉴格子靠材质本身说话:
+      收集到的是凸起的,没解锁的是按下去的凹坑——不用锁图标。</p>
+      <div class="go">打开 →</div>
+    </a>
+
+    <a class="card" href="style-brutalist.html">
+      <div class="swatch">
+        <span style="background:#121212"></span>
+        <span style="background:#D7FF3A"></span>
+        <span style="background:#FF4321"></span>
+      </div>
+      <div class="kicker">Neo-brutalist</div>
+      <h2>新野兽派</h2>
+      <p>黑底 + 酸橙绿/红橙色块 + 粗黑描边 + 大字报式标题,整屏带角度地贴在
+      「告示栏」上。新到手的收藏品贴着工业警示斜纹贴纸,不是精致徽章。</p>
+      <div class="go">打开 →</div>
+    </a>
+
+    <a class="card" href="style-editorial.html">
+      <div class="swatch">
+        <span style="background:#F6F2EA"></span>
+        <span style="background:#9C3B26"></span>
+        <span style="background:#221F1A"></span>
+      </div>
+      <div class="kicker">Editorial</div>
+      <h2>编辑排版风</h2>
+      <p>大留白 + 衬线大字 + 一条贯穿六屏的刊头 hairline 取代状态栏。
+      日记页最新一条用首字放大起笔,像在读一段文字,不是读一个列表项。</p>
+      <div class="go">打开 →</div>
+    </a>
+
+    <a class="card" href="style-glass.html">
+      <div class="swatch">
+        <span style="background:#F2F2F7"></span>
+        <span style="background:#BE6A3C"></span>
+        <span style="background:#000000"></span>
+      </div>
+      <div class="kicker">Apple 原生质感</div>
+      <h2>玻璃拟物 Glass</h2>
+      <p>毛玻璃只留给悬浮控件(tabbar/按钮),内容层是素色卡片与列表。
+      「它」这一屏整屏铺场景插画出血,信息浮在悬浮玻璃信息条上。</p>
+      <div class="go">打开 →</div>
+    </a>
+
+  </div>
+
+  <footer>
+    内容事实(件数、物品名、日期、台词)四套完全一致,照同一份方向 C 原文——
+    排版/语气可以按风格调性走,产品事实不编新的。宠物名「小团」仍是预填代号,未定。<br>
+    这台机器没有 Apple 设备:已验的是静态截图(自检时逐屏看过,没有 CDN/占位图/明显溢出),
+    没验的是动起来的手感和真机渲染。
+  </footer>
+</div>
+
+</body>
+</html>

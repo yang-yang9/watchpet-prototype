@@ -1,0 +1,459 @@
+<!DOCTYPE html>
+<!--
+  设计小结 —— 编辑排版风 Editorial(方向 C · 它自己的生活)
+
+  调色板:
+    --paper      #F6F2EA  纸底(偏暖的米白,不是纯白)
+    --paper-well #FBF8F2  纸面上再亮一级(照片/卡片留白区)
+    --ink        #221F1A  正文墨色(暖近黑,不是纯黑)
+    --ink-soft   #6B6456  次级文字 / 说明
+    --rule       #D9D0BE  分隔线色(hairline)
+    --accent     #9C3B26  赭石红——全篇只给「稀有/新到」两处脚注式标记用
+
+  字体角色:
+    标题 / 大数字 —— var(--sys-serif)(Songti SC → Noto Serif CJK SC → Georgia)
+    正文 / 说明 / 导航 —— var(--sys-sans)(PingFang SC → Microsoft YaHei)
+
+  布局构想:每一屏当一页排版杂志的内页:顶部是贯穿全篇的「刊头线」(小团 · 时间 + 一条
+  hairline),取代原来的状态栏;信息分组靠 hairline 和留白,不靠卡片底色;数字做成大号衬线
+  的「拉出式」统计,照片配意大利体说明文字当图说。
+
+  Signature element:两处——(1)贯穿 6 屏的刊头 hairline,是全篇唯一重复出现的构件,
+  让「这是同一本杂志的不同页」而不是「同一组件换了背景」;(2)日记页最新一条用首字放大
+  (drop cap)起笔,把「它写的东西」处理成真的在读一段文字,不是在读一个 UI 列表项。
+-->
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>编辑排版风 Editorial · 方向 C</title>
+<style>
+  :root {
+    --paper: #F6F2EA;
+    --paper-well: #FBF8F2;
+    --ink: #221F1A;
+    --ink-soft: #6B6456;
+    --rule: #D9D0BE;
+    --accent: #9C3B26;
+    --sys-sans: -apple-system, "SF Pro Text", "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
+    --sys-serif: "Songti SC", "Noto Serif CJK SC", "Source Han Serif SC", Georgia, serif;
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0; padding: 0;
+    background: var(--paper);
+    color: var(--ink);
+    font-family: var(--sys-sans);
+  }
+  body { padding: 56px 32px 96px; }
+
+  /* ---------------------------------------------------------- 页头(本页说明,不是产品 UI) */
+  .masthead { max-width: 1180px; margin: 0 auto 48px; }
+  .masthead .kicker {
+    font-size: 11px; letter-spacing: .18em; color: var(--accent);
+    text-transform: uppercase; margin: 0 0 10px;
+  }
+  .masthead h1 {
+    font-family: var(--sys-serif); font-weight: 600; font-size: 40px;
+    margin: 0 0 10px; letter-spacing: -.01em;
+  }
+  .masthead p {
+    font-size: 15px; line-height: 1.7; color: var(--ink-soft);
+    max-width: 62ch; margin: 0;
+  }
+  .masthead .rule { height: 1px; background: var(--rule); margin-top: 28px; }
+
+  /* ---------------------------------------------------------------- 设备区布局 */
+  .section { max-width: 1180px; margin: 0 auto 64px; }
+  .section > .label {
+    font-family: var(--sys-serif); font-size: 13px; letter-spacing: .06em;
+    color: var(--ink-soft); margin: 0 0 20px;
+  }
+  .row { display: flex; gap: 36px; flex-wrap: wrap; align-items: flex-start; }
+  .device-col { display: flex; flex-direction: column; align-items: center; gap: 14px; }
+  .device-col .caption {
+    font-family: var(--sys-serif); font-style: italic; font-size: 13px;
+    color: var(--ink-soft);
+  }
+
+  /* ---------------------------------------------------------------- 表 / 机 外框(朴素,比较重点在屏内) */
+  .watch-frame {
+    width: 236px; height: 276px; border-radius: 52px;
+    background: #2B2822; padding: 14px;
+    box-shadow: 0 10px 26px rgba(34,31,26,.18);
+    position: relative;
+  }
+  .watch-frame::after {
+    content: ''; position: absolute; right: -5px; top: 50%; transform: translateY(-50%);
+    width: 9px; height: 30px; border-radius: 4px; background: #2B2822;
+  }
+  .watch-screen {
+    width: 208px; height: 248px; border-radius: 40px;
+    background: var(--paper-well); overflow: hidden;
+    display: flex; flex-direction: column;
+    padding: 13px 15px 12px;
+  }
+
+  .phone-frame {
+    width: 358px; height: 744px; border-radius: 46px;
+    background: #2B2822; padding: 14px;
+    box-shadow: 0 14px 34px rgba(34,31,26,.2);
+    position: relative;
+  }
+  .phone-frame::after {
+    content: ''; position: absolute; left: 50%; top: 10px; transform: translateX(-50%);
+    width: 86px; height: 20px; border-radius: 11px; background: #2B2822;
+  }
+  .phone-screen {
+    width: 330px; height: 716px; border-radius: 36px;
+    background: var(--paper-well); overflow: hidden;
+    display: flex; flex-direction: column;
+    padding: 20px 22px 0;
+  }
+
+  /* ---------------------------------------------------------------- 刊头(贯穿全篇的 signature) */
+  .folio { display: flex; justify-content: space-between; align-items: baseline; }
+  .folio span:first-child {
+    font-size: 10px; letter-spacing: .14em; color: var(--ink-soft); text-transform: uppercase;
+  }
+  .folio span:last-child { font-size: 10px; color: var(--ink-soft); font-variant-numeric: tabular-nums; }
+  .watch-screen .folio span { font-size: 8.5px; }
+  .folio-rule { height: 1px; background: var(--rule); margin: 7px 0 12px; }
+  .watch-screen .folio-rule { margin: 5px 0 9px; }
+
+  .kicker-sm {
+    font-size: 10px; letter-spacing: .12em; color: var(--accent); text-transform: uppercase;
+    margin: 0 0 6px;
+  }
+  .watch-screen .kicker-sm { font-size: 8px; margin-bottom: 4px; }
+
+  h2.headline {
+    font-family: var(--sys-serif); font-weight: 600; font-size: 25px; letter-spacing: -.005em;
+    margin: 0 0 6px; line-height: 1.2;
+  }
+  .watch-screen h2.headline { font-size: 16px; margin-bottom: 3px; text-align: center; }
+
+  .deck {
+    font-family: var(--sys-serif); font-style: italic; font-size: 14px; color: var(--ink-soft);
+    margin: 0; line-height: 1.5;
+  }
+  .watch-screen .deck { font-size: 11.5px; text-align: center; }
+
+  /* ---------------------------------------------------------------- 宠物 / 场景影像(做成印刷照片的处理) */
+  .pet-art { filter: saturate(.76) contrast(1.05) brightness(1.01) sepia(.05); }
+  .scene-photo {
+    filter: grayscale(.55) sepia(.22) contrast(1.08) brightness(.96);
+  }
+  .plate {
+    position: relative; border: 1px solid var(--rule); border-radius: 4px;
+    overflow: hidden; background: #ECE6D8;
+  }
+  .plate img.scene-photo { display: block; width: 100%; height: 100%; object-fit: cover; }
+  .plate .pet-wrap {
+    position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+  }
+  .plate .pet-wrap img.pet-art { max-width: 55%; max-height: 65%; object-fit: contain; }
+
+  .dust { position: absolute; inset: 0; pointer-events: none; }
+  .dust i {
+    position: absolute; width: 3px; height: 3px; border-radius: 50%;
+    background: var(--ink-soft); opacity: .35;
+    animation: dust-drift 7s ease-in-out infinite;
+  }
+  @keyframes dust-drift { 0%,100% { transform: translateY(0); opacity: .15; } 50% { transform: translateY(-10px); opacity: .4; } }
+
+  .burst { position: absolute; inset: 0; pointer-events: none; }
+  .burst i {
+    position: absolute; left: 50%; top: 44%; width: 1px; height: 13px; background: var(--accent);
+    opacity: .55; transform-origin: bottom center;
+  }
+
+  /* ---------------------------------------------------------------- 按钮(排版式,不是胶囊填色) */
+  .btn-row { display: flex; gap: 14px; margin-top: auto; }
+  .watch-screen .btn-row { margin-top: 10px; justify-content: center; }
+  .ebtn {
+    font-family: var(--sys-sans); font-size: 13px; letter-spacing: .02em;
+    padding: 9px 0; flex: 1; text-align: center; cursor: default;
+    border: 1px solid var(--ink); border-radius: 3px;
+    background: transparent; color: var(--ink);
+  }
+  .ebtn.primary { background: var(--ink); color: var(--paper-well); }
+  .watch-screen .ebtn { font-size: 11px; padding: 7px 0; border-radius: 20px; }
+
+  /* ---------------------------------------------------------------- 复杂功能(表盘,独立深色,不吃纸面调色) */
+  .face-screen {
+    background: #1C1A17; color: #EFE8D8;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 10px; height: 100%;
+  }
+  .face-screen .clock { font-family: var(--sys-serif); font-size: 30px; letter-spacing: -.01em; }
+  .face-screen .compl {
+    display: flex; align-items: center; gap: 10px;
+    border: 1px solid rgba(239,230,216,.25); border-radius: 16px; padding: 8px 14px;
+  }
+  .face-screen .compl img { width: 26px; height: 26px; object-fit: contain; opacity: .85; }
+  .face-screen .compl .t { font-size: 11px; line-height: 1.4; }
+  .face-screen .compl .t b { display: block; font-weight: 600; color: var(--accent); font-size: 10px; letter-spacing: .04em; }
+
+  /* ---------------------------------------------------------------- 图鉴:标本陈列柜 */
+  .codex-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin: 14px 0; }
+  .specimen {
+    position: relative; border: 1px solid var(--rule); border-radius: 4px;
+    aspect-ratio: 1; display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 4px; background: var(--paper);
+  }
+  .specimen.locked { color: var(--ink-soft); font-family: var(--sys-serif); font-size: 20px; background: transparent; border-style: dashed; }
+  .specimen img { width: 46%; object-fit: contain; filter: saturate(.76) contrast(1.05) sepia(.05); }
+  .specimen .name {
+    font-family: var(--sys-serif); font-size: 9.5px; color: var(--ink-soft); letter-spacing: .01em;
+  }
+  .specimen .rare-mark { color: var(--accent); font-size: 10px; margin-left: 1px; }
+  .specimen .tag-new {
+    position: absolute; top: -8px; right: 2px;
+    font-size: 8px; letter-spacing: .05em; color: var(--accent);
+    border-bottom: 1px solid var(--accent); padding-bottom: 1px;
+  }
+  .footnote { font-size: 10px; color: var(--ink-soft); margin: -4px 0 16px; }
+  .footnote .rare-mark { color: var(--accent); margin-right: 3px; }
+
+  .pull-row {
+    display: flex; align-items: baseline; gap: 16px;
+    border-top: 1px solid var(--rule); border-bottom: 1px solid var(--rule);
+    padding: 14px 0; margin-bottom: 16px;
+  }
+  .pull-row .num { font-family: var(--sys-serif); font-size: 34px; line-height: 1; white-space: nowrap; }
+  .pull-row .num small { font-size: 17px; color: var(--ink-soft); }
+  .pull-row .txt { font-size: 12px; line-height: 1.55; color: var(--ink-soft); }
+  .pull-row .txt .k { display: block; font-size: 10px; letter-spacing: .1em; color: var(--accent); text-transform: uppercase; margin-bottom: 3px; }
+
+  .latest-row { font-size: 12.5px; line-height: 1.6; }
+  .latest-row .k { font-size: 10px; letter-spacing: .1em; color: var(--accent); text-transform: uppercase; display: block; margin-bottom: 4px; }
+  .latest-row .v { font-family: var(--sys-serif); font-size: 15px; }
+  .latest-row .d { color: var(--ink-soft); }
+
+  /* ---------------------------------------------------------------- 日记:真的一页文字 */
+  .diary-col { flex: 1; overflow: hidden; }
+  .entry { margin-bottom: 20px; }
+  .entry .when { font-size: 10.5px; letter-spacing: .06em; color: var(--accent); text-transform: uppercase; display: block; margin-bottom: 6px; }
+  .entry p { font-size: 13.5px; line-height: 1.75; margin: 0; }
+  .entry.latest p { font-size: 14px; }
+  .entry.latest p::first-letter {
+    font-family: var(--sys-serif); font-size: 2.5em; line-height: .75; float: left;
+    padding: 2px 7px 0 0; font-weight: 600;
+  }
+  .diary-end {
+    font-family: var(--sys-serif); font-style: italic; font-size: 11.5px; color: var(--ink-soft);
+    text-align: center; border-top: 1px solid var(--rule); padding-top: 12px; margin-top: auto;
+  }
+
+  /* ---------------------------------------------------------------- 它:大图版 */
+  .pet-plate { height: 240px; margin-bottom: 10px; }
+  .pet-plate .cap-scrim {
+    position: absolute; left: 0; right: 0; bottom: 0; height: 56%;
+    background: linear-gradient(to bottom, rgba(28,25,20,0) 0%, rgba(28,25,20,.58) 100%);
+  }
+  .pet-plate .cap {
+    position: absolute; bottom: 8px; left: 0; right: 0; text-align: center;
+    font-family: var(--sys-serif); font-style: italic; font-size: 11.5px; color: #F3EEE2;
+  }
+  .fact-row {
+    display: flex; justify-content: space-between; font-size: 12.5px;
+    border-top: 1px solid var(--rule); border-bottom: 1px solid var(--rule);
+    padding: 12px 0; margin: 4px 0 16px;
+  }
+  .fact-row .k { color: var(--ink-soft); letter-spacing: .06em; font-size: 10px; text-transform: uppercase; }
+  .fact-row .v { font-family: var(--sys-serif); }
+  .fact-row .v small { color: var(--ink-soft); font-style: italic; font-family: var(--sys-sans); }
+
+  /* ---------------------------------------------------------------- 底部导航(排版式页签) */
+  .tabbar {
+    display: flex; border-top: 1px solid var(--rule); margin-top: auto;
+  }
+  .tabbar a {
+    flex: 1; text-align: center; padding: 14px 0 16px; font-size: 12.5px;
+    color: var(--ink-soft); font-family: var(--sys-sans); position: relative;
+  }
+  .tabbar a + a { border-left: 1px solid var(--rule); }
+  .tabbar a.active {
+    color: var(--ink); font-family: var(--sys-serif); font-weight: 600;
+  }
+  .tabbar a.active::after {
+    content: ''; position: absolute; left: 30%; right: 30%; bottom: 8px; height: 1.5px; background: var(--ink);
+  }
+</style>
+</head>
+<body>
+
+  <div class="masthead">
+    <p class="kicker">风格重构 · 四选一 · Editorial</p>
+    <h1>编辑排版风</h1>
+    <p>大留白、衬线大字、克制配色——信息分组靠 hairline 和留白,不靠卡片底色;数字做成拉出式
+      大号排版;照片配意大利体说明文字,像一本关于「它」的田野笔记,不是一个应用界面。
+      下面是方向 C(它自己的生活/收集向)的 6 屏,内容和另外三套风格一致,只是排版语言完全重做。</p>
+    <div class="rule"></div>
+  </div>
+
+  <div class="section">
+    <p class="label">手表</p>
+    <div class="row">
+
+      <div class="device-col">
+        <div class="watch-frame"><div class="watch-screen">
+          <div class="folio"><span>小团</span><span>9:41</span></div>
+          <div class="folio-rule"></div>
+          <div class="plate" style="height:92px;margin-bottom:8px">
+            <img class="scene-photo" src="art/scene-burrow.jpg" alt="">
+            <div class="pet-wrap"><img class="pet-art" src="art/warm-idle.png" alt="宠物" style="opacity:.32"></div>
+            <div class="dust">
+              <i style="left:22%;top:70%;animation-delay:.2s"></i>
+              <i style="left:50%;top:60%;animation-delay:1.4s"></i>
+              <i style="left:76%;top:72%;animation-delay:2.6s"></i>
+            </div>
+          </div>
+          <h2 class="headline">它出门了</h2>
+          <p class="deck">大概傍晚回来</p>
+          <div class="btn-row"><a class="ebtn">看看它</a></div>
+        </div></div>
+        <p class="caption">出门了</p>
+      </div>
+
+      <div class="device-col">
+        <div class="watch-frame"><div class="watch-screen">
+          <div class="folio"><span>小团</span><span>9:41</span></div>
+          <div class="folio-rule"></div>
+          <div class="plate" style="height:92px;margin-bottom:8px">
+            <img class="scene-photo" src="art/scene-burrow.jpg" alt="">
+            <div class="pet-wrap"><img class="pet-art" src="art/warm-playful.png" alt="宠物"></div>
+            <div class="burst">
+              <i style="transform:rotate(-28deg)"></i><i style="transform:rotate(-10deg)"></i>
+              <i style="transform:rotate(8deg)"></i><i style="transform:rotate(26deg)"></i>
+            </div>
+          </div>
+          <h2 class="headline">它回来了</h2>
+          <p class="deck">带回一颗果子</p>
+          <div class="btn-row"><a class="ebtn primary">收下</a></div>
+        </div></div>
+        <p class="caption">回来了</p>
+      </div>
+
+      <div class="device-col">
+        <div class="watch-frame"><div class="watch-screen" style="padding:0">
+          <div class="face-screen">
+            <div class="clock">9:41</div>
+            <div class="compl">
+              <img src="art/warm-idle.png" alt="">
+              <div class="t"><b>出门中</b>傍晚回来</div>
+            </div>
+          </div>
+        </div></div>
+        <p class="caption">复杂功能</p>
+      </div>
+
+    </div>
+  </div>
+
+  <div class="section">
+    <p class="label">手机</p>
+    <div class="row">
+
+      <div class="device-col">
+        <div class="phone-frame"><div class="phone-screen">
+          <div class="folio"><span>小团</span><span>9:41</span></div>
+          <div class="folio-rule"></div>
+          <p class="kicker-sm">方向 C · 图鉴</p>
+          <h2 class="headline">它带回来的</h2>
+          <p class="deck" style="margin-bottom:14px">7 样 · 还有很多没见过</p>
+
+          <div class="codex-grid">
+            <div class="specimen"><span class="tag-new">刚到手</span><img src="art/items/berry.png" alt=""><span class="name">一颗果子</span></div>
+            <div class="specimen"><img src="art/items/leaf.png" alt=""><span class="name">一片叶子</span></div>
+            <div class="specimen"><img src="art/items/stone.png" alt=""><span class="name">一块石头</span></div>
+            <div class="specimen"><img src="art/items/feather.png" alt=""><span class="name">一根羽毛<span class="rare-mark">﹡</span></span></div>
+            <div class="specimen"><img src="art/items/shell.png" alt=""><span class="name">一枚贝壳<span class="rare-mark">﹡</span></span></div>
+            <div class="specimen"><img src="art/items/flower.png" alt=""><span class="name">一朵花</span></div>
+            <div class="specimen"><img src="art/items/bottle.png" alt=""><span class="name">一个小瓶子<span class="rare-mark">﹡</span></span></div>
+            <div class="specimen locked">？</div>
+            <div class="specimen locked">？</div>
+          </div>
+          <p class="footnote"><span class="rare-mark">﹡</span>稀有</p>
+
+          <div class="pull-row">
+            <div class="num">4<small>/6</small></div>
+            <div class="txt"><span class="k">套装 · 林线</span>集齐解锁新的散步路线,缺的两样在湖边。</div>
+          </div>
+
+          <div class="latest-row">
+            <span class="k">刚收到</span>
+            <span class="v">一颗果子</span> <span class="d">· 它说路边捡的,不太确定能不能吃</span>
+          </div>
+
+          <div class="tabbar">
+            <a class="active">图鉴</a><a>日记</a><a>它</a>
+          </div>
+        </div></div>
+        <p class="caption">图鉴</p>
+      </div>
+
+      <div class="device-col">
+        <div class="phone-frame"><div class="phone-screen">
+          <div class="folio"><span>小团</span><span>9:41</span></div>
+          <div class="folio-rule"></div>
+          <p class="kicker-sm">方向 C · 日记</p>
+          <h2 class="headline">它写的</h2>
+          <p class="deck" style="margin-bottom:18px">它自己的视角,不是你的记录</p>
+
+          <div class="diary-col">
+            <div class="entry latest">
+              <span class="when">10 月 11 日 · 傍晚</span>
+              <p>今天走得比平常远。你好像也走了不少,我们大概错过了。带了一颗果子回来。</p>
+            </div>
+            <div class="entry">
+              <span class="when">10 月 10 日 · 下午</span>
+              <p>窗台那边太阳很好,躺了一会儿。你一直没回来。</p>
+            </div>
+          </div>
+          <p class="diary-end">再往前就翻不到了 · 它也没打算全记住</p>
+
+          <div class="tabbar">
+            <a>图鉴</a><a class="active">日记</a><a>它</a>
+          </div>
+        </div></div>
+        <p class="caption">日记</p>
+      </div>
+
+      <div class="device-col">
+        <div class="phone-frame"><div class="phone-screen">
+          <div class="folio"><span>小团</span><span>9:41</span></div>
+          <div class="folio-rule"></div>
+          <p class="kicker-sm">方向 C · 它</p>
+          <h2 class="headline">小团</h2>
+          <p class="deck" style="margin-bottom:14px">在家 · 刚回来</p>
+
+          <div class="plate pet-plate">
+            <img class="scene-photo" src="art/scene-room.jpg" alt="">
+            <div class="pet-wrap"><img class="pet-art" src="art/warm-calm.png" alt="宠物" style="max-height:72%"></div>
+            <div class="cap-scrim"></div>
+            <p class="cap">对着什么发呆</p>
+          </div>
+
+          <div class="fact-row">
+            <span class="k">下次出门</span>
+            <span class="v">明天早上 <small>· 它自己决定的</small></span>
+          </div>
+
+          <div class="btn-row">
+            <a class="ebtn">给点心</a><a class="ebtn primary">摸摸</a>
+          </div>
+
+          <div class="tabbar">
+            <a>图鉴</a><a>日记</a><a class="active">它</a>
+          </div>
+        </div></div>
+        <p class="caption">它</p>
+      </div>
+
+    </div>
+  </div>
+
+</body>
+</html>

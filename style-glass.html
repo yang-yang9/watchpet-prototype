@@ -1,0 +1,440 @@
+<!DOCTYPE html>
+<!--
+  设计小结 —— 玻璃拟物 · Apple 原生质感 (style-glass)
+
+  调色(语义命名,不是随手 hex):
+    手机(亮色语义层级):--bg #F2F2F7(systemGroupedBackground)/ --surface #FFFFFF(elevated)/
+      --label #1C1C1E / --label-2 rgba(60,60,67,.6) / --label-3 rgba(60,60,67,.32) /
+      --sep rgba(60,60,67,.13) / --accent #BE6A3C(暖陶土,呼应宠物毛色,全局只给"摸摸"
+      主按钮和选中态图标用)/ --accent-soft rgba(190,106,60,.14)
+    手表(watchOS 没有 Dark Mode——表盘本来就按暗色原生设计):--w-bg #000 /
+      --w-surface rgba(255,255,255,.09) / --w-label #fff / --w-label-2 rgba(255,255,255,.56) /
+      --w-accent #E07A46
+
+  字体角色:正文/标题统一走系统无衬线(-apple-system/PingFang SC),靠系统字重升级
+  (Body→Headline Semibold)区分层级,不另造字号;数字(4/6、时间戳)单独用等宽字体,
+  贴近 watch 数字表盘的排布感。
+
+  布局构想:手机内容是素色底上的若干独立卡片/列表(图鉴=卡片网格,日记=纯列表,
+  两种 HIG 组件各用一次),毛玻璃材质只浮在最上层的悬浮控件(tabbar、按钮、徽标),
+  不进内容层本身。
+
+  Signature element:「它」这一屏整屏铺场景插画出血,文字和操作浮在图上(悬浮玻璃
+  信息条 + 悬浮按钮),给出"看向一个真实房间"的沉浸感——不是另一张卡片网格,
+  这是和图鉴/日记两屏刻意拉开的记忆点,也是这套风格区别于"加了毛玻璃的卡片网格"
+  （那只是材质正确,不是设计记忆点）的落点。
+-->
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<title>玻璃拟物 · Apple 原生质感 — 方向 C</title>
+<style>
+  :root {
+    --sys-sans: -apple-system, "SF Pro Text", "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
+    --sys-mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+
+    --bg: #F2F2F7;
+    --surface: #FFFFFF;
+    --label: #1C1C1E;
+    --label-2: rgba(60,60,67,.6);
+    --label-3: rgba(60,60,67,.32);
+    --sep: rgba(60,60,67,.13);
+    --accent: #BE6A3C;
+    --accent-soft: rgba(190,106,60,.14);
+
+    --w-bg: #000;
+    --w-surface: rgba(255,255,255,.09);
+    --w-label: #fff;
+    --w-label-2: rgba(255,255,255,.56);
+    --w-accent: #E07A46;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: #E4E1D8;
+    font-family: var(--sys-sans);
+    color: var(--label);
+    padding: 40px;
+  }
+  .intro { max-width: 760px; margin: 0 auto 36px; }
+  .intro .eyebrow {
+    font-family: var(--sys-mono); font-size: 11px; letter-spacing: .12em;
+    color: var(--accent); text-transform: uppercase; margin: 0 0 6px;
+  }
+  .intro h1 { font-size: 26px; font-weight: 650; margin: 0 0 8px; letter-spacing: -.01em; }
+  .intro p { font-size: 14.5px; line-height: 1.6; color: #55524A; margin: 0; max-width: 62ch; }
+
+  .row { max-width: 1200px; margin: 0 auto 44px; }
+  .row > h2 {
+    font-size: 13px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase;
+    color: #8A8578; margin: 0 0 16px;
+  }
+  .devices { display: flex; gap: 28px; flex-wrap: wrap; align-items: flex-start; }
+  .device-wrap { display: flex; flex-direction: column; align-items: center; gap: 10px; }
+  .device-wrap figcaption,
+  .cap { font-size: 12px; color: #8A8578; font-family: var(--sys-mono); }
+
+  /* ---------------------------------------------------------------- 手表外框 */
+  .watch-frame {
+    width: 240px; height: 280px; background: #0A0A0A; border-radius: 52px;
+    padding: 16px; position: relative; box-shadow: 0 18px 30px -10px rgba(0,0,0,.35);
+    border: 1px solid #1c1c1c;
+  }
+  .watch-frame::after {
+    content: ''; position: absolute; right: -4px; top: 50%; translate: 0 -50%;
+    width: 8px; height: 44px; background: #141414; border-radius: 4px;
+    box-shadow: 0 -58px 0 -36px #141414, 0 58px 0 -36px #141414;
+  }
+  .watch-screen {
+    width: 208px; height: 248px; border-radius: 38px; overflow: hidden;
+    background: var(--w-bg); position: relative; color: var(--w-label);
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    font-family: var(--sys-sans);
+  }
+
+  /* ---------------------------------------------------------------- 手机外框 */
+  .phone-frame {
+    width: 358px; height: 744px; background: #0A0A0A; border-radius: 58px;
+    padding: 14px; position: relative; box-shadow: 0 24px 40px -12px rgba(0,0,0,.35);
+    border: 1px solid #1c1c1c;
+  }
+  .phone-screen {
+    width: 330px; height: 716px; border-radius: 46px; overflow: hidden;
+    background: var(--bg); position: relative; color: var(--label);
+  }
+  .island {
+    position: absolute; top: 10px; left: 50%; translate: -50% 0;
+    width: 92px; height: 25px; border-radius: 14px; background: #000; z-index: 50;
+  }
+
+  /* ---------------------------------------------------------------- 手表内容 */
+  .w-screen { width: 100%; height: 100%; padding: 14px 10px 12px; position: relative; }
+  .w-pet-stage { position: relative; height: 118px; display: flex; align-items: center; justify-content: center; }
+  .w-pet-stage img.pet { width: 108px; height: 108px; object-fit: contain; }
+  .mote { position: absolute; width: 4px; height: 4px; border-radius: 50%; background: rgba(255,255,255,.5); }
+  .spark { position: absolute; width: 6px; height: 6px; border-radius: 50%; background: var(--w-accent); box-shadow: 0 0 6px var(--w-accent); }
+  .w-headline { font-size: 15px; font-weight: 600; text-align: center; margin: 2px 0 2px; }
+  .w-sub { font-size: 12px; color: var(--w-label-2); text-align: center; margin: 0 0 10px; }
+  .w-btn-row { display: flex; justify-content: center; }
+  .w-btn {
+    font-family: var(--sys-sans); font-size: 13px; font-weight: 600; color: #fff;
+    border: none; border-radius: 999px; padding: 9px 20px; min-height: 32px;
+  }
+  .w-btn.glass {
+    background: var(--w-surface); backdrop-filter: blur(14px) saturate(1.3);
+    -webkit-backdrop-filter: blur(14px) saturate(1.3);
+  }
+  .w-btn.accent { background: var(--w-accent); }
+  .w-btn:active { transform: scale(.96); }
+
+  .face-clock { font-family: var(--sys-mono); font-size: 34px; font-weight: 600; text-align: center; margin: 2px 0 10px; letter-spacing: -.02em; }
+  .compl {
+    display: flex; align-items: center; gap: 10px; margin: 0 8px;
+    background: var(--w-surface); backdrop-filter: blur(14px) saturate(1.3);
+    -webkit-backdrop-filter: blur(14px) saturate(1.3);
+    border-radius: 18px; padding: 9px 12px;
+  }
+  .compl img { width: 30px; height: 30px; object-fit: contain; opacity: .85; }
+  .compl .t1 { font-size: 11px; color: var(--w-accent); font-weight: 700; letter-spacing: .03em; }
+  .compl .t2 { font-size: 12.5px; font-weight: 600; }
+
+  /* ---------------------------------------------------------------- 手机内容:通用 */
+  .p-screen { width: 100%; height: 100%; display: flex; flex-direction: column; }
+  .p-top { padding: 46px 18px 2px; }
+  .p-title { font-size: 23px; font-weight: 700; letter-spacing: -.01em; margin: 0 0 3px; }
+  .p-sub { font-size: 13.5px; color: var(--label-2); margin: 0; }
+  .p-body { flex: 1; padding: 14px 18px 0; overflow: hidden; }
+
+  .card {
+    background: var(--surface); border-radius: 16px; padding: 14px 15px;
+    box-shadow: 0 1px 2px rgba(0,0,0,.05), 0 6px 16px rgba(0,0,0,.05);
+    border: 1px solid rgba(0,0,0,.03);
+  }
+
+  /* 图鉴格子 */
+  .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 16px; }
+  .slot {
+    aspect-ratio: 1; background: var(--surface); border-radius: 14px; position: relative;
+    display: flex; align-items: center; justify-content: center;
+    box-shadow: 0 1px 2px rgba(0,0,0,.05), 0 4px 10px rgba(0,0,0,.04);
+    border: 1px solid rgba(0,0,0,.03);
+  }
+  .slot img { width: 56%; height: 56%; object-fit: contain; }
+  .slot.locked { color: var(--label-3); font-size: 17px; font-weight: 600; box-shadow: none; background: rgba(0,0,0,.025); border: 1px dashed var(--sep); }
+  .badge {
+    position: absolute; top: 6px; right: 6px; font-family: var(--sys-sans);
+    font-size: 9px; font-weight: 700; color: #fff; background: var(--accent);
+    padding: 3px 7px; border-radius: 999px; letter-spacing: .01em;
+  }
+
+  .stat-row { display: flex; align-items: baseline; gap: 12px; margin-bottom: 10px; }
+  .stat-num { font-family: var(--sys-mono); font-size: 30px; font-weight: 700; color: var(--accent); line-height: 1; }
+  .stat-num small { font-size: 16px; font-weight: 500; color: var(--label-3); }
+  .stat-title { font-size: 13px; font-weight: 650; margin: 0 0 2px; }
+  .stat-desc { font-size: 12px; color: var(--label-2); line-height: 1.45; margin: 0; }
+  .progress { height: 5px; background: var(--sep); border-radius: 999px; overflow: hidden; }
+  .progress-fill { height: 100%; background: var(--accent); border-radius: 999px; }
+
+  .received-card { display: flex; align-items: center; gap: 12px; margin-top: 12px; }
+  .received-card img { width: 42px; height: 42px; object-fit: contain; flex-shrink: 0; }
+  .received-card strong { display: block; font-size: 13.5px; font-weight: 650; margin-bottom: 2px; }
+  .received-card span { font-size: 12px; color: var(--label-2); line-height: 1.4; }
+
+  /* 日记:纯列表,不用卡片——和图鉴的网格刻意拉开组件语言 */
+  .diary-list { margin-top: 2px; }
+  .diary-row { padding: 14px 2px; border-bottom: 1px solid var(--sep); }
+  .diary-row time {
+    display: block; font-family: var(--sys-mono); font-size: 11px;
+    color: var(--accent); margin-bottom: 5px; letter-spacing: .01em;
+  }
+  .diary-row p { font-size: 14.5px; line-height: 1.56; margin: 0; color: var(--label); }
+  .diary-end { text-align: center; font-size: 12px; color: var(--label-3); margin: 18px 0 0; }
+
+  /* 悬浮 tabbar——毛玻璃限定在这一层 */
+  .tabbar {
+    position: absolute; left: 16px; right: 16px; bottom: 14px; height: 58px;
+    background: rgba(255,255,255,.72); backdrop-filter: blur(20px) saturate(1.5);
+    -webkit-backdrop-filter: blur(20px) saturate(1.5);
+    border-radius: 24px; display: flex; box-shadow: 0 8px 24px rgba(0,0,0,.1);
+    border: 1px solid rgba(255,255,255,.5);
+  }
+  .tabbar.on-photo {
+    background: rgba(20,18,16,.42); border: 1px solid rgba(255,255,255,.14);
+  }
+  .tab {
+    flex: 1; border: none; background: none; display: flex; flex-direction: column;
+    align-items: center; justify-content: center; gap: 3px; font-family: var(--sys-sans);
+    font-size: 10.5px; color: var(--label-3); position: relative;
+  }
+  .tabbar.on-photo .tab { color: rgba(255,255,255,.65); }
+  .tab svg { width: 21px; height: 21px; }
+  .tab.active { color: var(--accent); font-weight: 650; }
+  .tabbar.on-photo .tab.active { color: #fff; }
+  .tab.active svg { fill: var(--accent); stroke: none; }
+  .tabbar.on-photo .tab.active svg { fill: #fff; }
+  .tab .dot { position: absolute; bottom: -1px; width: 4px; height: 4px; border-radius: 50%; background: var(--accent); opacity: 0; }
+  .tab.active .dot { opacity: 1; }
+  .tabbar.on-photo .tab.active .dot { background: #fff; }
+  .tab:active { transform: scale(.94); }
+
+  /* 「它」—— 整屏出血的沉浸屏,这套风格的 signature */
+  .screen-pet { position: relative; height: 100%; }
+  .scene-bg { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+  .scrim-top { position: absolute; left: 0; right: 0; top: 0; height: 160px; background: linear-gradient(to bottom, rgba(0,0,0,.4), transparent); }
+  .scrim-bottom { position: absolute; left: 0; right: 0; bottom: 0; height: 300px; background: linear-gradient(to top, rgba(0,0,0,.46), transparent); }
+  .status-overlay { position: absolute; top: 46px; left: 20px; color: #fff; z-index: 10; }
+  .status-overlay .title { font-size: 19px; font-weight: 700; text-shadow: 0 1px 6px rgba(0,0,0,.3); }
+  .status-overlay .sub { font-size: 12.5px; color: rgba(255,255,255,.8); margin-top: 2px; text-shadow: 0 1px 6px rgba(0,0,0,.3); }
+  .pet-on-scene { position: absolute; left: 50%; bottom: 300px; translate: -50% 0; width: 158px; height: 158px; object-fit: contain; filter: drop-shadow(0 10px 18px rgba(0,0,0,.3)); z-index: 5; }
+  .caption-chip {
+    position: absolute; left: 50%; bottom: 258px; translate: -50% 0; z-index: 10;
+    background: rgba(20,18,16,.5); backdrop-filter: blur(14px) saturate(1.4);
+    -webkit-backdrop-filter: blur(14px) saturate(1.4);
+    color: #fff; font-size: 11.5px; padding: 6px 13px; border-radius: 999px;
+    border: 1px solid rgba(255,255,255,.14); white-space: nowrap;
+  }
+  .info-bar {
+    position: absolute; left: 16px; right: 16px; bottom: 164px; z-index: 10;
+    background: rgba(20,18,16,.44); backdrop-filter: blur(18px) saturate(1.4);
+    -webkit-backdrop-filter: blur(18px) saturate(1.4);
+    border-radius: 16px; padding: 11px 14px; display: flex; justify-content: space-between;
+    align-items: baseline; border: 1px solid rgba(255,255,255,.12);
+  }
+  .info-bar .k { font-size: 11.5px; color: rgba(255,255,255,.6); }
+  .info-bar .v { font-size: 12.5px; color: #fff; font-weight: 600; }
+  .action-row { position: absolute; left: 16px; right: 16px; bottom: 86px; z-index: 10; display: flex; gap: 10px; }
+  .glass-btn {
+    flex: 1; border: none; border-radius: 15px; padding: 13px 0; font-family: var(--sys-sans);
+    font-size: 14.5px; font-weight: 650; color: #fff;
+    background: rgba(255,255,255,.16); backdrop-filter: blur(16px) saturate(1.5);
+    -webkit-backdrop-filter: blur(16px) saturate(1.5);
+    border: 1px solid rgba(255,255,255,.22);
+  }
+  .glass-btn.primary { background: var(--accent); border: none; }
+  .glass-btn:active { transform: scale(.96); }
+
+  @media (prefers-reduced-motion: reduce) {
+    * { animation: none !important; }
+  }
+</style>
+</head>
+<body>
+
+<div class="intro">
+  <p class="eyebrow">方向 C · 它自己的生活 — 玻璃拟物 / Apple 原生质感</p>
+  <h1>材质分级,不是材质堆满</h1>
+  <p>毛玻璃只留给悬浮的控件层(tabbar、按钮、徽标);内容层靠语义色的不透明度分级,
+    不是每张卡片都发光。「它」这一屏整屏铺场景插画,信息和操作浮在图上——比起又一张
+    卡片网格,这是更贴近「看向一个真实房间」的落点。</p>
+</div>
+
+<section class="row row-watch">
+  <h2>手表</h2>
+  <div class="devices">
+
+    <div class="device-wrap">
+      <div class="watch-frame"><div class="watch-screen">
+        <div class="w-screen">
+          <div class="w-pet-stage">
+            <img class="pet" style="opacity:.32" src="art/warm-idle.png" alt="宠物">
+            <i class="mote" style="left:28%;top:18%"></i>
+            <i class="mote" style="left:68%;top:30%"></i>
+            <i class="mote" style="left:48%;top:68%"></i>
+            <i class="mote" style="left:76%;top:70%"></i>
+          </div>
+          <p class="w-headline">它出门了</p>
+          <p class="w-sub">大概傍晚回来</p>
+          <div class="w-btn-row"><button class="w-btn glass">看看它</button></div>
+        </div>
+      </div></div>
+      <span class="cap">出门了</span>
+    </div>
+
+    <div class="device-wrap">
+      <div class="watch-frame"><div class="watch-screen">
+        <div class="w-screen">
+          <div class="w-pet-stage">
+            <img class="pet" src="art/warm-playful.png" alt="宠物">
+            <i class="spark" style="left:14%;top:20%"></i>
+            <i class="spark" style="left:82%;top:16%"></i>
+            <i class="spark" style="left:78%;top:62%"></i>
+            <i class="spark" style="left:10%;top:60%"></i>
+          </div>
+          <p class="w-headline">它回来了</p>
+          <p class="w-sub">带回一颗果子</p>
+          <div class="w-btn-row"><button class="w-btn accent">收下</button></div>
+        </div>
+      </div></div>
+      <span class="cap">回来了</span>
+    </div>
+
+    <div class="device-wrap">
+      <div class="watch-frame"><div class="watch-screen">
+        <div class="w-screen" style="justify-content:center">
+          <div class="face-clock">9:41</div>
+          <div class="compl">
+            <img src="art/warm-idle.png" alt="">
+            <div><div class="t1">出门中</div><div class="t2">傍晚回来</div></div>
+          </div>
+        </div>
+      </div></div>
+      <span class="cap">复杂功能</span>
+    </div>
+
+  </div>
+</section>
+
+<section class="row row-phone">
+  <h2>手机</h2>
+  <div class="devices">
+
+    <div class="device-wrap">
+      <div class="phone-frame"><div class="phone-screen">
+        <div class="island"></div>
+        <div class="p-screen">
+          <div class="p-top">
+            <h1 class="p-title">它带回来的</h1>
+            <p class="p-sub">7 样 · 还有很多没见过</p>
+          </div>
+          <div class="p-body">
+            <div class="grid">
+              <div class="slot"><img src="art/items/berry.png" alt="一颗果子"><span class="badge">刚到手</span></div>
+              <div class="slot"><img src="art/items/leaf.png" alt="一片叶子"></div>
+              <div class="slot"><img src="art/items/stone.png" alt="一块石头"></div>
+              <div class="slot"><img src="art/items/feather.png" alt="一根羽毛"></div>
+              <div class="slot"><img src="art/items/shell.png" alt="一枚贝壳"></div>
+              <div class="slot"><img src="art/items/flower.png" alt="一朵花"></div>
+              <div class="slot"><img src="art/items/bottle.png" alt="一个小瓶子"></div>
+              <div class="slot locked">?</div>
+              <div class="slot locked">?</div>
+            </div>
+            <div class="card">
+              <div class="stat-row">
+                <span class="stat-num">4<small>/6</small></span>
+                <div><div class="stat-title">套装 · 林线</div>
+                  <p class="stat-desc">集齐解锁新的散步路线,缺的两样在湖边</p></div>
+              </div>
+              <div class="progress"><div class="progress-fill" style="width:66.6%"></div></div>
+              <div class="received-card">
+                <img src="art/items/berry.png" alt="">
+                <span><strong>刚收到:一颗果子</strong>它说路边捡的,不太确定能不能吃</span>
+              </div>
+            </div>
+          </div>
+          <nav class="tabbar">
+            <button class="tab active"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="4" y="4" width="16" height="16" rx="2"/><path d="M4 10h16M10 4v16"/></svg>图鉴<i class="dot"></i></button>
+            <button class="tab"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="6" y="4" width="12" height="16" rx="1.4"/><path d="M9 9h6M9 13h6"/></svg>日记<i class="dot"></i></button>
+            <button class="tab"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="14" r="5.4"/><circle cx="8" cy="7" r="2"/><circle cx="16" cy="7" r="2"/></svg>它<i class="dot"></i></button>
+          </nav>
+        </div>
+      </div></div>
+      <span class="cap">图鉴</span>
+    </div>
+
+    <div class="device-wrap">
+      <div class="phone-frame"><div class="phone-screen">
+        <div class="island"></div>
+        <div class="p-screen">
+          <div class="p-top">
+            <h1 class="p-title">它写的</h1>
+            <p class="p-sub">它自己的视角,不是你的记录</p>
+          </div>
+          <div class="p-body">
+            <div class="diary-list">
+              <div class="diary-row">
+                <time>10 月 11 日 · 傍晚</time>
+                <p>今天走得比平常远。你好像也走了不少,我们大概错过了。带了一颗果子回来。</p>
+              </div>
+              <div class="diary-row">
+                <time>10 月 10 日 · 下午</time>
+                <p>窗台那边太阳很好,躺了一会儿。你一直没回来。</p>
+              </div>
+              <p class="diary-end">再往前就翻不到了 · 它也没打算全记住</p>
+            </div>
+          </div>
+          <nav class="tabbar">
+            <button class="tab"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="4" y="4" width="16" height="16" rx="2"/><path d="M4 10h16M10 4v16"/></svg>图鉴<i class="dot"></i></button>
+            <button class="tab active"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="6" y="4" width="12" height="16" rx="1.4"/><path d="M9 9h6M9 13h6"/></svg>日记<i class="dot"></i></button>
+            <button class="tab"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="14" r="5.4"/><circle cx="8" cy="7" r="2"/><circle cx="16" cy="7" r="2"/></svg>它<i class="dot"></i></button>
+          </nav>
+        </div>
+      </div></div>
+      <span class="cap">日记</span>
+    </div>
+
+    <div class="device-wrap">
+      <div class="phone-frame"><div class="phone-screen">
+        <div class="island"></div>
+        <div class="screen-pet">
+          <img class="scene-bg" src="art/scene-room.jpg" alt="">
+          <div class="scrim-top"></div>
+          <div class="scrim-bottom"></div>
+          <div class="status-overlay">
+            <div class="title">小团</div>
+            <div class="sub">在家 · 刚回来</div>
+          </div>
+          <img class="pet-on-scene" src="art/warm-calm.png" alt="宠物">
+          <div class="caption-chip">对着什么发呆</div>
+          <div class="info-bar">
+            <span class="k">下次出门</span>
+            <span class="v">明天早上 · 它自己决定的</span>
+          </div>
+          <div class="action-row">
+            <button class="glass-btn">给点心</button>
+            <button class="glass-btn primary">摸摸</button>
+          </div>
+          <nav class="tabbar on-photo">
+            <button class="tab"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="4" y="4" width="16" height="16" rx="2"/><path d="M4 10h16M10 4v16"/></svg>图鉴<i class="dot"></i></button>
+            <button class="tab"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="6" y="4" width="12" height="16" rx="1.4"/><path d="M9 9h6M9 13h6"/></svg>日记<i class="dot"></i></button>
+            <button class="tab active"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="14" r="5.4"/><circle cx="8" cy="7" r="2"/><circle cx="16" cy="7" r="2"/></svg>它<i class="dot"></i></button>
+          </nav>
+        </div>
+      </div></div>
+      <span class="cap">它</span>
+    </div>
+
+  </div>
+</section>
+
+</body>
+</html>
