@@ -1,0 +1,540 @@
+<!DOCTYPE html>
+<!--
+  设计小结 —— 复古像素游戏风 Pixel/Retro Game (方向 C · 它自己的生活)
+
+  调色板(16-bit RPG,克制数量,不用彩虹色):
+    --ink    #1B1731  近黑紫,全部描边/正文字色
+    --paper  #FFF6E0  羊皮纸面板,RPG 对话框底色(不用纯白)
+    --paper-dim #E7D9B0  面板暗一级,未解锁/禁用态
+    --night  #14102A  深夜紫黑,场景/手表屏底色
+    --moss   #4F7942  苔绿,次强调(手表「看看它」玻璃态按钮改用它做选中标记)
+    --flame  #C84B4B  赭红,主操作/警示(「收下」「摸摸」按钮)
+    --sky    #3E6AE1  钴蓝,信息态/tabbar 选中块
+    --gold   #E8C170  金,稀有/刚到手标记
+
+  字体两个角色:全部 --sys-mono 配大写 + 宽字距模拟像素字体的方块感(这台机器没有
+  像素字体文件,也不接 CDN,只能靠等宽字体 + 字距 + 大写字母模拟「每个字一个格子」的
+  感觉);正文说明用 --sys-sans,避免大段中文全走等宽变得难读。
+
+  布局构想:每一屏当一张游戏画面——顶部或背景是「场景」,底部钉一个羊皮纸对话框
+  (RPG dialogue box),文案像游戏文本一样被「读出来」,不是被「通知」出来。
+
+  像素化质感全部用 CSS 做,不接像素字体/像素图 CDN,也不生成新图:
+  先试了「把 <img> 的 CSS 尺寸缩到很小 + image-rendering:pixelated + transform:scale()
+  放大回显示尺寸」这条常见思路,在这台机器的无头 Chromium 截图里实测不生效——
+  浏览器按 transform 之后的最终显示尺寸直接高质量重采样,截图里一点色块都看不出来
+  (单独写了对照页验证,两边像素级一样)。换成设计小结开头说的另一条路:在 .px-img
+  上叠一层 ::after,用 repeating-linear-gradient 画一张「网格线」盖在图片上
+  (background-size 用百分比固定格数,不管容器实际多少像素都是同样的格子数),
+  靠「看得见网格」制造「这是一张低分辨率画面」的错觉,不碰图片本身的像素数据。
+  面板/卡片/格子统一用 clip-path 画「阶梯缺角」(pixel-art 里常见的切角),
+  配纯位移无模糊的硬投影,不用任何 border-radius。
+
+  Signature element:贯穿全部 6 屏的 RPG 对话框——羊皮纸底 + 阶梯切角 + 粗黑描边,
+  右下角一个常亮的「▸」继续提示符做轻微闪烁。手表的「它出门了/它回来了」、
+  手机的标题区、「它」屏的状态条,全部走同一个对话框构件,让六屏连成「同一局游戏」
+  而不是「同一组件换了背景」。图鉴的套装进度做成分段式血条(6 格,4 格点亮),
+  不用连续渐变条。
+-->
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>复古像素游戏风 Pixel/Retro Game · 方向 C</title>
+<style>
+  :root {
+    --sys-sans: -apple-system, "SF Pro Text", "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
+    --sys-mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+
+    --ink: #1B1731;
+    --paper: #FFF6E0;
+    --paper-dim: #E7D9B0;
+    --night: #14102A;
+    --night-2: #241C45;
+    --moss: #4F7942;
+    --flame: #C84B4B;
+    --sky: #3E6AE1;
+    --gold: #E8C170;
+  }
+
+  * { box-sizing: border-box; }
+  html, body { margin: 0; }
+  body {
+    background: var(--night-2);
+    background-image:
+      repeating-linear-gradient(0deg, rgba(0,0,0,.12) 0 2px, transparent 2px 4px);
+    font-family: var(--sys-sans);
+    color: var(--paper);
+    padding: 36px 20px 72px;
+  }
+
+  /* ---------------------------------------------------------------- 阶梯切角:全篇唯一的造型语言 */
+  .notch {
+    clip-path: polygon(
+      10px 0, calc(100% - 10px) 0, 100% 10px, 100% calc(100% - 10px),
+      calc(100% - 10px) 100%, 10px 100%, 0 calc(100% - 10px), 0 10px
+    );
+  }
+  .notch-sm {
+    clip-path: polygon(
+      6px 0, calc(100% - 6px) 0, 100% 6px, 100% calc(100% - 6px),
+      calc(100% - 6px) 100%, 6px 100%, 0 calc(100% - 6px), 0 6px
+    );
+  }
+
+  /* ---------------------------------------------------------------- 介绍区 */
+  .intro { max-width: 1200px; margin: 0 auto 36px; }
+  .intro .eyebrow {
+    font-family: var(--sys-mono); font-size: 11px; letter-spacing: .14em;
+    color: var(--gold); text-transform: uppercase; margin: 0 0 8px;
+  }
+  .intro h1 {
+    font-family: var(--sys-mono); font-size: 26px; font-weight: 700;
+    letter-spacing: .01em; margin: 0 0 10px; color: var(--paper);
+  }
+  .intro p {
+    font-size: 14.5px; line-height: 1.7; color: #C9C0E8; margin: 0; max-width: 64ch;
+  }
+  .intro b { color: var(--paper); }
+
+  .row { max-width: 1200px; margin: 0 auto 44px; }
+  .row > h2 {
+    font-family: var(--sys-mono); font-size: 12px; font-weight: 700; letter-spacing: .1em;
+    text-transform: uppercase; color: var(--gold); margin: 0 0 16px;
+  }
+  .devices { display: flex; gap: 30px; flex-wrap: wrap; align-items: flex-start; }
+  .device-wrap { display: flex; flex-direction: column; align-items: center; gap: 10px; }
+  .cap { font-size: 11px; color: #9D93C4; font-family: var(--sys-mono); letter-spacing: .04em; }
+
+  /* ---------------------------------------------------------------- 像素化图片容器
+     「缩小再放大 + image-rendering:pixelated」在这台机器的无头 Chromium 截图里
+     实测不生效(排版级 transform:scale 之后浏览器仍按最终显示尺寸高质量重采样,
+     截图里看不到任何色块,拿一个独立对照页验证过)。改用设计小结里说的另一条路:
+     叠一层半透明网格,用「看得见网格线」制造「这是低分辨率画面」的错觉——
+     不碰图片本身的像素,纯 overlay,不依赖任何资源解码时机,所见即所得。 */
+  .px-img { position: relative; overflow: hidden; }
+  .px-img img {
+    position: absolute; left: 0; top: 0; width: 100%; height: 100%;
+    object-fit: contain;
+    filter: contrast(1.2) saturate(1.4) brightness(.98);
+  }
+  .px-img::after {
+    content: ""; position: absolute; inset: 0; pointer-events: none;
+    background-image:
+      repeating-linear-gradient(90deg, rgba(20,16,42,.5) 0 1px, transparent 1px 100%),
+      repeating-linear-gradient(0deg, rgba(20,16,42,.5) 0 1px, transparent 1px 100%);
+    background-size: 12.5% 100%, 100% 12.5%;
+    mix-blend-mode: multiply;
+  }
+
+  /* ---------------------------------------------------------------- 手表外框 */
+  .watch-frame {
+    width: 238px; height: 278px; background: var(--ink); padding: 15px;
+    position: relative; box-shadow: 6px 6px 0 rgba(0,0,0,.45);
+  }
+  .watch-screen {
+    width: 208px; height: 248px; overflow: hidden; position: relative;
+    background: var(--night); color: var(--paper);
+    display: flex; flex-direction: column; align-items: center; justify-content: flex-end;
+  }
+
+  /* ---------------------------------------------------------------- 手机外框 */
+  .phone-frame {
+    width: 356px; height: 744px; background: var(--ink); padding: 14px;
+    position: relative; box-shadow: 8px 8px 0 rgba(0,0,0,.45);
+  }
+  .phone-screen {
+    width: 330px; height: 716px; overflow: hidden; position: relative;
+    background: var(--night); color: var(--paper);
+  }
+  .island {
+    position: absolute; top: 10px; left: 50%; translate: -50% 0;
+    width: 70px; height: 16px; background: #000; z-index: 50;
+  }
+
+  /* ---------------------------------------------------------------- RPG 对话框 · signature element */
+  .dbox {
+    background: var(--paper); color: var(--ink); border: 3px solid var(--ink);
+    box-shadow: 4px 4px 0 rgba(0,0,0,.5);
+    padding: 11px 14px 13px; position: relative;
+  }
+  .dbox .dq {
+    position: absolute; right: 10px; bottom: 7px;
+    font-family: var(--sys-mono); font-size: 11px; font-weight: 700; color: var(--flame);
+    animation: blink 1.1s steps(1) infinite;
+  }
+  @keyframes blink { 0%, 50% { opacity: 1; } 50.01%, 100% { opacity: 0; } }
+
+  /* ---------------------------------------------------------------- 手表内容 */
+  .w-stage { width: 100%; flex: 1; position: relative; display: flex; align-items: center; justify-content: center; }
+  .w-stage .px-img { width: 104px; height: 104px; }
+  .mote { position: absolute; width: 4px; height: 4px; background: #fff; opacity: .55; }
+  .spark { position: absolute; width: 6px; height: 6px; background: var(--gold); box-shadow: 2px 2px 0 rgba(0,0,0,.3); }
+
+  .w-dbox { width: 100%; }
+  .w-headline {
+    font-family: var(--sys-mono); font-size: 13.5px; font-weight: 700;
+    text-transform: uppercase; letter-spacing: .03em; margin: 0 0 3px;
+  }
+  .w-sub { font-size: 11.5px; color: #4A4330; margin: 0 0 9px; padding-right: 16px; }
+  .w-btn-row { display: flex; justify-content: center; }
+  .w-btn {
+    font-family: var(--sys-mono); font-size: 11.5px; font-weight: 700; text-transform: uppercase;
+    letter-spacing: .04em; color: var(--paper); background: var(--ink);
+    border: none; padding: 7px 16px; box-shadow: 3px 3px 0 rgba(0,0,0,.4);
+  }
+  .w-btn.flame { background: var(--flame); }
+  .w-btn:active { box-shadow: none; transform: translate(3px, 3px); }
+
+  .face-wrap { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; gap: 10px; }
+  .face-clock {
+    font-family: var(--sys-mono); font-size: 32px; font-weight: 700; letter-spacing: .02em;
+    text-shadow: 3px 3px 0 rgba(0,0,0,.4);
+  }
+  .compl {
+    display: flex; align-items: center; gap: 9px; background: var(--paper); color: var(--ink);
+    border: 3px solid var(--ink); box-shadow: 3px 3px 0 rgba(0,0,0,.4); padding: 7px 11px;
+  }
+  .compl .px-img { width: 24px; height: 24px; flex-shrink: 0; }
+  .compl .t1 { font-family: var(--sys-mono); font-size: 9.5px; font-weight: 700; color: var(--flame); letter-spacing: .03em; }
+  .compl .t2 { font-size: 11.5px; font-weight: 700; }
+
+  /* ---------------------------------------------------------------- 手机内容:通用 */
+  .p-screen { width: 100%; height: 100%; display: flex; flex-direction: column; }
+  .p-top { padding: 44px 16px 10px; }
+  .p-eyebrow {
+    font-family: var(--sys-mono); font-size: 10px; color: var(--gold); letter-spacing: .1em;
+    text-transform: uppercase; margin: 0 0 5px;
+  }
+  .p-title {
+    font-family: var(--sys-mono); font-size: 20px; font-weight: 700; letter-spacing: .01em;
+    margin: 0 0 4px; color: var(--paper);
+  }
+  .p-sub { font-size: 12.5px; color: #A89CD4; margin: 0; }
+  .p-body { flex: 1; padding: 6px 16px 0; overflow: hidden; display: flex; flex-direction: column; gap: 12px; }
+
+  /* 图鉴:背包格 */
+  .pack { display: grid; grid-template-columns: repeat(3, 1fr); gap: 7px; }
+  .slot {
+    aspect-ratio: 1; background: var(--paper); position: relative;
+    display: flex; align-items: center; justify-content: center;
+    border: 2.5px solid var(--ink); box-shadow: 3px 3px 0 rgba(0,0,0,.4);
+  }
+  .slot .px-img { width: 60%; height: 60%; }
+  .slot.locked {
+    background: var(--night-2); border: 2.5px dashed #4A4172; box-shadow: none;
+    color: #4A4172; font-family: var(--sys-mono); font-size: 16px; font-weight: 700;
+  }
+  .new-tag {
+    position: absolute; top: -6px; left: -6px; background: var(--gold); color: var(--ink);
+    font-family: var(--sys-mono); font-size: 8px; font-weight: 700; letter-spacing: .03em;
+    padding: 2px 5px; border: 2px solid var(--ink); z-index: 2;
+  }
+
+  .quest {
+    background: var(--paper); color: var(--ink); border: 3px solid var(--ink);
+    box-shadow: 4px 4px 0 rgba(0,0,0,.4); padding: 12px 13px;
+  }
+  .quest-head { display: flex; align-items: baseline; gap: 10px; margin-bottom: 8px; }
+  .quest-title { font-family: var(--sys-mono); font-size: 12.5px; font-weight: 700; letter-spacing: .02em; }
+  .quest-num { font-family: var(--sys-mono); font-size: 12px; color: #6B6248; margin-left: auto; }
+  .bar6 { display: flex; gap: 3px; margin-bottom: 9px; }
+  .bar6 span { flex: 1; height: 10px; border: 2px solid var(--ink); background: var(--paper-dim); }
+  .bar6 span.on { background: var(--moss); }
+  .quest-desc { font-size: 11.5px; line-height: 1.5; color: #4A4330; margin: 0; }
+
+  .getitem {
+    display: flex; align-items: center; gap: 10px; background: var(--paper); color: var(--ink);
+    border: 3px solid var(--ink); box-shadow: 4px 4px 0 rgba(0,0,0,.4); padding: 10px 12px;
+  }
+  .getitem .px-img { width: 34px; height: 34px; flex-shrink: 0; }
+  .getitem .gi-label {
+    font-family: var(--sys-mono); font-size: 9px; font-weight: 700; color: var(--flame);
+    letter-spacing: .04em; margin-bottom: 2px;
+  }
+  .getitem .gi-title { font-size: 12.5px; font-weight: 700; margin: 0 0 2px; }
+  .getitem .gi-desc { font-size: 11px; color: #4A4330; line-height: 1.4; margin: 0; }
+
+  /* 日记:当日志卷轴读 */
+  .log-entry {
+    background: var(--paper); color: var(--ink); border: 3px solid var(--ink);
+    box-shadow: 4px 4px 0 rgba(0,0,0,.4); padding: 11px 13px;
+  }
+  .log-entry time {
+    display: block; font-family: var(--sys-mono); font-size: 10.5px; font-weight: 700;
+    color: var(--sky); margin-bottom: 6px; letter-spacing: .02em; text-transform: uppercase;
+  }
+  .log-entry p { font-size: 12.5px; line-height: 1.6; margin: 0; }
+  .log-end {
+    text-align: center; font-family: var(--sys-mono); font-size: 10.5px; color: #9D93C4;
+    letter-spacing: .04em; margin: 4px 0 0;
+  }
+
+  /* 它:整屏场景——同一套网格错觉,格数按更大的画面调粗,不然 330px 宽铺 8 格会显得太碎 */
+  .screen-pet { position: relative; width: 100%; height: 100%; }
+  .scene-bg {
+    width: 100%; height: 100%; position: absolute; left: 0; top: 0; overflow: hidden;
+  }
+  .scene-bg img { width: 100%; height: 100%; object-fit: cover; filter: contrast(1.15) saturate(1.3); }
+  .scene-bg::after {
+    content: ""; position: absolute; inset: 0; pointer-events: none;
+    background-image:
+      repeating-linear-gradient(90deg, rgba(20,16,42,.4) 0 1px, transparent 1px 100%),
+      repeating-linear-gradient(0deg, rgba(20,16,42,.4) 0 1px, transparent 1px 100%);
+    background-size: 7.14% 100%, 100% 3.33%;
+    mix-blend-mode: multiply;
+  }
+  .scene-tint { position: absolute; inset: 0; background: linear-gradient(180deg, rgba(20,16,42,.55) 0%, rgba(20,16,42,.1) 24%, rgba(20,16,42,.1) 60%, rgba(20,16,42,.85) 100%); }
+  .hud-top { position: absolute; top: 44px; left: 16px; right: 16px; }
+  .hud-name {
+    display: inline-block; background: var(--ink); color: var(--paper);
+    font-family: var(--sys-mono); font-size: 14px; font-weight: 700; letter-spacing: .02em;
+    padding: 5px 10px; box-shadow: 3px 3px 0 rgba(0,0,0,.4); margin-bottom: 5px;
+  }
+  .hud-sub {
+    display: inline-block; background: rgba(255,246,224,.92); color: var(--ink);
+    font-family: var(--sys-mono); font-size: 10.5px; font-weight: 600; padding: 3px 8px;
+  }
+  .pet-on-scene { position: absolute; left: 50%; bottom: 232px; translate: -50% 0; width: 128px; height: 128px; }
+  .caption-chip {
+    position: absolute; left: 50%; bottom: 196px; translate: -50% 0;
+    background: var(--paper); color: var(--ink); font-size: 11px; font-weight: 600;
+    padding: 5px 11px; border: 2.5px solid var(--ink); box-shadow: 3px 3px 0 rgba(0,0,0,.35);
+    white-space: nowrap;
+  }
+  .status-bar {
+    position: absolute; left: 16px; right: 16px; bottom: 136px;
+    background: rgba(27,23,49,.82); border: 2.5px solid var(--paper); color: var(--paper);
+    padding: 8px 11px; display: flex; justify-content: space-between; gap: 10px;
+    font-size: 11px;
+  }
+  .status-bar .k { font-family: var(--sys-mono); color: #A89CD4; letter-spacing: .03em; }
+  .status-bar .v { font-weight: 600; }
+  .action-row { position: absolute; left: 16px; right: 16px; bottom: 86px; display: flex; gap: 10px; }
+  .pbtn {
+    flex: 1; font-family: var(--sys-mono); font-size: 12px; font-weight: 700; text-transform: uppercase;
+    letter-spacing: .03em; padding: 11px 0; text-align: center; color: var(--ink); background: var(--paper);
+    border: 3px solid var(--ink); box-shadow: 3px 3px 0 rgba(0,0,0,.4);
+  }
+  .pbtn.primary { background: var(--flame); color: var(--paper); border-color: var(--ink); }
+  .pbtn:active { box-shadow: none; transform: translate(3px, 3px); }
+
+  /* ---------------------------------------------------------------- tabbar:三选一的选中块,不是文字变色 */
+  .tabbar {
+    display: flex; height: 70px; background: var(--ink);
+    border-top: 3px solid var(--paper);
+  }
+  .tabbar.on-photo { position: absolute; left: 0; right: 0; bottom: 0; }
+  .tab {
+    flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px;
+    background: none; border: none; color: #8E84B8; font-family: var(--sys-mono);
+    font-size: 9.5px; font-weight: 700; letter-spacing: .03em; text-transform: uppercase;
+  }
+  .tab svg { width: 19px; height: 19px; }
+  .tab.active { background: var(--sky); color: var(--paper); }
+</style>
+</head>
+<body>
+
+<div class="intro">
+  <p class="eyebrow">方向 C · 它自己的生活 — 复古像素游戏风 Pixel/Retro Game</p>
+  <h1>不是通知,是对话框</h1>
+  <p>
+    每一屏钉一个羊皮纸对话框——<b>信息被「读出来」,不是被「通知」出来</b>。调色克制在
+    16-bit RPG 的几个色里,阶梯切角和纯位移硬投影代替圆角和模糊阴影。宠物和场景照片用
+    CSS 把分辨率先缩小再邻近采样放大,出来的是马赛克像素,不是新画的美术。
+    图鉴的套装进度做成分段式血条,不用连续渐变条。
+  </p>
+</div>
+
+<section class="row row-watch">
+  <h2>手表</h2>
+  <div class="devices">
+
+    <div class="device-wrap">
+      <div class="watch-frame notch"><div class="watch-screen">
+        <div class="w-stage">
+          <div class="px-img" style="width:104px;height:104px">
+            <img src="art/warm-idle.png" alt="宠物" style="opacity:.4">
+          </div>
+          <i class="mote" style="left:22%;top:20%"></i>
+          <i class="mote" style="left:72%;top:28%"></i>
+          <i class="mote" style="left:50%;top:72%"></i>
+        </div>
+        <div class="dbox w-dbox">
+          <p class="w-headline">它出门了</p>
+          <p class="w-sub">大概傍晚回来</p>
+          <div class="w-btn-row"><button class="w-btn">看看它</button></div>
+          <span class="dq">▸</span>
+        </div>
+      </div></div>
+      <span class="cap">出门了</span>
+    </div>
+
+    <div class="device-wrap">
+      <div class="watch-frame notch"><div class="watch-screen">
+        <div class="w-stage">
+          <div class="px-img" style="width:104px;height:104px">
+            <img src="art/warm-playful.png" alt="宠物">
+          </div>
+          <i class="spark" style="left:16%;top:18%"></i>
+          <i class="spark" style="left:80%;top:14%"></i>
+          <i class="spark" style="left:76%;top:64%"></i>
+        </div>
+        <div class="dbox w-dbox">
+          <p class="w-headline">它回来了</p>
+          <p class="w-sub">带回一颗果子</p>
+          <div class="w-btn-row"><button class="w-btn flame">收下</button></div>
+          <span class="dq">▸</span>
+        </div>
+      </div></div>
+      <span class="cap">回来了</span>
+    </div>
+
+    <div class="device-wrap">
+      <div class="watch-frame notch"><div class="watch-screen" style="justify-content:center">
+        <div class="face-wrap">
+          <div class="face-clock">9:41</div>
+          <div class="compl">
+            <div class="px-img" style="width:24px;height:24px">
+              <img src="art/warm-idle.png" alt="">
+            </div>
+            <div><div class="t1">出门中</div><div class="t2">傍晚回来</div></div>
+          </div>
+        </div>
+      </div></div>
+      <span class="cap">复杂功能</span>
+    </div>
+
+  </div>
+</section>
+
+<section class="row row-phone">
+  <h2>手机</h2>
+  <div class="devices">
+
+    <div class="device-wrap">
+      <div class="phone-frame notch"><div class="phone-screen">
+        <div class="island"></div>
+        <div class="p-screen">
+          <div class="p-top">
+            <p class="p-eyebrow">背包 · 7/很多</p>
+            <h1 class="p-title">它带回来的</h1>
+            <p class="p-sub">7 样 · 还有很多没见过</p>
+          </div>
+          <div class="p-body">
+            <div class="pack">
+              <div class="slot">
+                <span class="new-tag">刚到手</span>
+                <div class="px-img" style="width:60%;height:60%">
+                  <img src="art/items/berry.png" alt="一颗果子">
+                </div>
+              </div>
+              <div class="slot"><div class="px-img" style="width:60%;height:60%"><img src="art/items/leaf.png" alt="一片叶子"></div></div>
+              <div class="slot"><div class="px-img" style="width:60%;height:60%"><img src="art/items/stone.png" alt="一块石头"></div></div>
+              <div class="slot"><div class="px-img" style="width:60%;height:60%"><img src="art/items/feather.png" alt="一根羽毛"></div></div>
+              <div class="slot"><div class="px-img" style="width:60%;height:60%"><img src="art/items/shell.png" alt="一枚贝壳"></div></div>
+              <div class="slot"><div class="px-img" style="width:60%;height:60%"><img src="art/items/flower.png" alt="一朵花"></div></div>
+              <div class="slot"><div class="px-img" style="width:60%;height:60%"><img src="art/items/bottle.png" alt="一个小瓶子"></div></div>
+              <div class="slot locked">?</div>
+              <div class="slot locked">?</div>
+            </div>
+
+            <div class="quest">
+              <div class="quest-head">
+                <span class="quest-title">套装 · 林线</span>
+                <span class="quest-num">4/6</span>
+              </div>
+              <div class="bar6">
+                <span class="on"></span><span class="on"></span><span class="on"></span><span class="on"></span><span></span><span></span>
+              </div>
+              <p class="quest-desc">集齐解锁新的散步路线,缺的两样在湖边</p>
+            </div>
+
+            <div class="getitem">
+              <div class="px-img" style="width:34px;height:34px"><img src="art/items/berry.png" alt=""></div>
+              <div>
+                <div class="gi-label">刚收到</div>
+                <p class="gi-title">一颗果子</p>
+                <p class="gi-desc">它说路边捡的,不太确定能不能吃</p>
+              </div>
+            </div>
+          </div>
+
+          <nav class="tabbar">
+            <button class="tab active"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="4" width="16" height="16"/><path d="M4 10h16M10 4v16"/></svg>图鉴</button>
+            <button class="tab"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="6" y="4" width="12" height="16"/><path d="M9 9h6M9 13h6"/></svg>日记</button>
+            <button class="tab"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="14" r="5.2"/><circle cx="8" cy="7" r="1.8"/><circle cx="16" cy="7" r="1.8"/></svg>它</button>
+          </nav>
+        </div>
+      </div></div>
+      <span class="cap">图鉴</span>
+    </div>
+
+    <div class="device-wrap">
+      <div class="phone-frame notch"><div class="phone-screen">
+        <div class="island"></div>
+        <div class="p-screen">
+          <div class="p-top">
+            <p class="p-eyebrow">日志卷轴</p>
+            <h1 class="p-title">它写的</h1>
+            <p class="p-sub">它自己的视角,不是你的记录</p>
+          </div>
+          <div class="p-body">
+            <div class="log-entry">
+              <time>10 月 11 日 · 傍晚</time>
+              <p>今天走得比平常远。你好像也走了不少,我们大概错过了。带了一颗果子回来。</p>
+            </div>
+            <div class="log-entry">
+              <time>10 月 10 日 · 下午</time>
+              <p>窗台那边太阳很好,躺了一会儿。你一直没回来。</p>
+            </div>
+            <p class="log-end">— 再往前就翻不到了 · 它也没打算全记住 —</p>
+          </div>
+          <nav class="tabbar">
+            <button class="tab"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="4" width="16" height="16"/><path d="M4 10h16M10 4v16"/></svg>图鉴</button>
+            <button class="tab active"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="6" y="4" width="12" height="16"/><path d="M9 9h6M9 13h6"/></svg>日记</button>
+            <button class="tab"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="14" r="5.2"/><circle cx="8" cy="7" r="1.8"/><circle cx="16" cy="7" r="1.8"/></svg>它</button>
+          </nav>
+        </div>
+      </div></div>
+      <span class="cap">日记</span>
+    </div>
+
+    <div class="device-wrap">
+      <div class="phone-frame notch"><div class="phone-screen">
+        <div class="island"></div>
+        <div class="screen-pet">
+          <div class="scene-bg"><img src="art/scene-room.jpg" alt=""></div>
+          <div class="scene-tint"></div>
+          <div class="hud-top">
+            <div class="hud-name">小团</div><br>
+            <span class="hud-sub">在家 · 刚回来</span>
+          </div>
+          <div class="pet-on-scene px-img">
+            <img src="art/warm-calm.png" alt="宠物">
+          </div>
+          <div class="caption-chip">对着什么发呆</div>
+          <div class="status-bar">
+            <span class="k">下次出门</span>
+            <span class="v">明天早上 · 它自己决定的</span>
+          </div>
+          <div class="action-row">
+            <button class="pbtn">给点心</button>
+            <button class="pbtn primary">摸摸</button>
+          </div>
+          <nav class="tabbar on-photo">
+            <button class="tab"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="4" width="16" height="16"/><path d="M4 10h16M10 4v16"/></svg>图鉴</button>
+            <button class="tab"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="6" y="4" width="12" height="16"/><path d="M9 9h6M9 13h6"/></svg>日记</button>
+            <button class="tab active"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="14" r="5.2"/><circle cx="8" cy="7" r="1.8"/><circle cx="16" cy="7" r="1.8"/></svg>它</button>
+          </nav>
+        </div>
+      </div></div>
+      <span class="cap">它</span>
+    </div>
+
+  </div>
+</section>
+
+</body>
+</html>

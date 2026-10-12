@@ -3,11 +3,14 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>四套视觉重构对照 · 方向 C</title>
+<title>视觉重构对照 · 方向 C</title>
 <!--
-  这页只做一件事:列出方向 C(它自己的生活)的四套完全独立的视觉重构,每套自己的
+  这页只做一件事:列出方向 C(它自己的生活)的几套完全独立的视觉重构,每套自己的
   布局/组件/材质体系,不共享样式表。不接 CDN,字体只用系统字体栈——和同目录其他
   原型页同一条约束(见 README)。
+
+  这批风格会随反馈继续换(第一轮软粘土/新野兽派/编辑排版风被判定「不好」已经
+  下线,只留了 Glass),所以标题和文案故意不写死数量/名字列表。
 -->
 <style>
 :root {
@@ -118,60 +121,21 @@ footer {
 <body>
 
 <div class="top-link">
-  这四套用的都是<b>同一个玩法方向(C · 它自己的生活)</b>,内容一字不差——比的是视觉语言。
+  下面这些用的都是<b>同一个玩法方向(C · 它自己的生活)</b>,内容一字不差——比的是视觉语言。
   要看三个<b>玩法方向</b>本身的差异 → <a href="index.html">返回方向对照页</a>
 </div>
 
 <div class="wrap">
   <header>
-    <h1>一个方向,四种长相</h1>
+    <h1>一个方向,几种长相</h1>
     <p>
       同一套文案、同一批美术素材(宠物位图、收藏品插画、场景照片)、同样的屏幕尺寸,
-      <b>只换布局、组件和材质体系</b>。四个文件各自独立,不共享样式表——
+      <b>只换布局、组件和材质体系</b>。每个文件各自独立,不共享样式表——
       这样「玩法好不好」和「这套视觉语言成不成立」能分开判断。
     </p>
   </header>
 
   <div class="grid">
-
-    <a class="card" href="style-clay.html">
-      <div class="swatch">
-        <span style="background:#F1E3D2"></span>
-        <span style="background:#E2754A"></span>
-        <span style="background:#88A86B"></span>
-      </div>
-      <div class="kicker">Claymorphism</div>
-      <h2>软粘土陪伴感</h2>
-      <p>厚唇边 + 双层投影 + 超圆润造型,暖陶土色系。图鉴格子靠材质本身说话:
-      收集到的是凸起的,没解锁的是按下去的凹坑——不用锁图标。</p>
-      <div class="go">打开 →</div>
-    </a>
-
-    <a class="card" href="style-brutalist.html">
-      <div class="swatch">
-        <span style="background:#121212"></span>
-        <span style="background:#D7FF3A"></span>
-        <span style="background:#FF4321"></span>
-      </div>
-      <div class="kicker">Neo-brutalist</div>
-      <h2>新野兽派</h2>
-      <p>黑底 + 酸橙绿/红橙色块 + 粗黑描边 + 大字报式标题,整屏带角度地贴在
-      「告示栏」上。新到手的收藏品贴着工业警示斜纹贴纸,不是精致徽章。</p>
-      <div class="go">打开 →</div>
-    </a>
-
-    <a class="card" href="style-editorial.html">
-      <div class="swatch">
-        <span style="background:#F6F2EA"></span>
-        <span style="background:#9C3B26"></span>
-        <span style="background:#221F1A"></span>
-      </div>
-      <div class="kicker">Editorial</div>
-      <h2>编辑排版风</h2>
-      <p>大留白 + 衬线大字 + 一条贯穿六屏的刊头 hairline 取代状态栏。
-      日记页最新一条用首字放大起笔,像在读一段文字,不是读一个列表项。</p>
-      <div class="go">打开 →</div>
-    </a>
 
     <a class="card" href="style-glass.html">
       <div class="swatch">
@@ -186,10 +150,65 @@ footer {
       <div class="go">打开 →</div>
     </a>
 
+    <a class="card" href="style-scandi.html">
+      <div class="swatch">
+        <span style="background:#F7F5F1"></span>
+        <span style="background:#4F6F5E"></span>
+        <span style="background:#2B2A27"></span>
+      </div>
+      <div class="kicker">大面积留白 · 几何母题</div>
+      <h2>北欧极简 Scandi</h2>
+      <p>全篇只留一个几何母题——圆:图鉴是圆形收藏格,套装进度画成圆环,
+      「它」这一屏把场景插画裁进一个圆窗。强调色只给苔绿一处,刻意不用橙,
+      避免和 Glass 的暖陶土撞色。</p>
+      <div class="go">打开 →</div>
+    </a>
+
+    <a class="card" href="style-pixel.html">
+      <div class="swatch">
+        <span style="background:#14102A"></span>
+        <span style="background:#C84B4B"></span>
+        <span style="background:#E8C170"></span>
+      </div>
+      <div class="kicker">16-bit RPG 对话框</div>
+      <h2>复古像素 Pixel/Retro</h2>
+      <p>六屏共用同一个羊皮纸 RPG 对话框构件,文案像游戏文本一样被「读出来」。
+      像素质感靠 CSS 网格叠加做出来,不生成新图、不接像素字体 CDN;
+      图鉴进度是分段式血条,不是渐变条。</p>
+      <div class="go">打开 →</div>
+    </a>
+
+    <a class="card" href="style-storybook.html">
+      <div class="swatch">
+        <span style="background:#FBF4E6"></span>
+        <span style="background:#C76B4A"></span>
+        <span style="background:#7D9471"></span>
+      </div>
+      <div class="kicker">撕纸毛边 · 水彩</div>
+      <h2>手绘绘本 Storybook</h2>
+      <p>卡片和标签都是撕纸毛边(clip-path),角落有藤蔓涂鸦和水彩晕染块。
+      「它」这一屏收进一张留白纸边的贴画卡,不整屏出血——这是刻意和
+      Glass 拉开的地方。</p>
+      <div class="go">打开 →</div>
+    </a>
+
+    <a class="card" href="style-scrapbook.html">
+      <div class="swatch">
+        <span style="background:#CDB68B"></span>
+        <span style="background:#C1573B"></span>
+        <span style="background:#A9D1D6"></span>
+      </div>
+      <div class="kicker">牛皮纸相册 · washi tape</div>
+      <h2>剪贴拼贴 Scrapbook</h2>
+      <p>图鉴像撒在桌上的贴纸,「刚到手」那件盖一个旋转邮戳;「它」这一屏是
+      全本相册里最大的一张宝丽来,两角压着 washi tape。</p>
+      <div class="go">打开 →</div>
+    </a>
+
   </div>
 
   <footer>
-    内容事实(件数、物品名、日期、台词)四套完全一致,照同一份方向 C 原文——
+    内容事实(件数、物品名、日期、台词)每套完全一致,照同一份方向 C 原文——
     排版/语气可以按风格调性走,产品事实不编新的。宠物名「小团」仍是预填代号,未定。<br>
     这台机器没有 Apple 设备:已验的是静态截图(自检时逐屏看过,没有 CDN/占位图/明显溢出),
     没验的是动起来的手感和真机渲染。
