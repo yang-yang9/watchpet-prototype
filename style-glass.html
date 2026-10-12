@@ -9,7 +9,7 @@
       的信号上——摸摸主按钮/选中态图标/刚到手徽标/套装进度/日记日期锚点,是一组语义
       一致但场景不止一个的用法,不是只绑定单一控件)/ --accent-soft rgba(190,106,60,.14)
     手表(watchOS 没有 Dark Mode——表盘本来就按暗色原生设计):--w-bg #000 /
-      --w-surface rgba(255,255,255,.09) / --w-label #fff / --w-label-2 rgba(255,255,255,.56) /
+      --w-surface rgba(255,255,255,.14) / --w-label #fff / --w-label-2 rgba(255,255,255,.56) /
       --w-accent #E07A46
 
   字体角色:正文/标题统一走系统无衬线(-apple-system/PingFang SC),靠系统字重升级
@@ -42,6 +42,14 @@
   27px(呼应它是全篇唯一沉浸屏的地位)、图鉴格子补上按压态、手表复杂功能屏加一枚
   同体系的暖色环境光斑、顺手修正了上面这条 accent 用法说明(以前写"只给摸摸按钮用",
   实际早就不是了)。
+
+  再一轮(「现在的效果和毛玻璃好像没有半毛钱关系」反馈)——截图核验后发现 6 屏里
+  5 屏的 backdrop-filter 背后是纯色平涂(--bg / --w-bg),模糊一片纯色结果还是那片
+  纯色,肉眼和不透明填充完全无法区分;只有「它」屏(背后是照片)材质才成立。根因是
+  "材质分级"执行时忘了检查"玻璃控件背后到底有没有东西可以透"。修法两条都做:
+  给 `.phone-screen`/新增的 `.w-screen.w-glow`/`.w-screen.w-face` 的 background 叠加
+  径向渐变色斑,让每个玻璃控件背后有颜色可透;给全部 backdrop-filter 选择器统一加
+  顶部 inset 高光 + 提高 saturate,让材质本身也有"有厚度"的视觉线索,不完全依赖背景运气。
 -->
 <html lang="zh">
 <head>
@@ -119,7 +127,11 @@
   }
   .phone-screen {
     width: 330px; height: 716px; border-radius: 46px; overflow: hidden;
-    background: var(--bg); position: relative; color: var(--label);
+    background:
+      radial-gradient(ellipse 520px 260px at 50% 100%, rgba(190,106,60,.17), transparent 68%),
+      radial-gradient(ellipse 380px 300px at 86% 4%, rgba(94,118,138,.13), transparent 65%),
+      var(--bg);
+    position: relative; color: var(--label);
   }
   .island {
     position: absolute; top: 10px; left: 50%; translate: -50% 0;
@@ -130,6 +142,12 @@
   .w-screen {
     width: 100%; height: 100%; padding: 14px 10px 12px; position: relative;
     animation: fadeInUp .36s cubic-bezier(.16,1,.3,1) both;
+  }
+  .w-screen.w-glow {
+    background: radial-gradient(ellipse 160px 120px at 50% 78%, rgba(224,122,70,.32), transparent 72%);
+  }
+  .w-screen.w-face {
+    background: radial-gradient(ellipse 170px 130px at 50% 49%, rgba(224,122,70,.34), transparent 72%);
   }
   .w-pet-stage { position: relative; height: 118px; display: flex; align-items: center; justify-content: center; }
   .w-pet-stage img.pet {
@@ -152,8 +170,9 @@
     border: none; border-radius: 999px; padding: 9px 20px; min-height: 32px;
   }
   .w-btn.glass {
-    background: var(--w-surface); backdrop-filter: blur(14px) saturate(1.3);
-    -webkit-backdrop-filter: blur(14px) saturate(1.3);
+    background: var(--w-surface); backdrop-filter: blur(16px) saturate(1.7);
+    -webkit-backdrop-filter: blur(16px) saturate(1.7);
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.3);
   }
   .w-btn.accent { background: var(--w-accent); }
   .w-btn:active { transform: scale(.96) translateY(1px); filter: brightness(.94); }
@@ -162,21 +181,15 @@
   .face-clock { font-family: var(--sys-mono); font-size: 34px; font-weight: 600; text-align: center; margin: 2px 0 10px; letter-spacing: -.02em; }
   .compl {
     display: flex; align-items: center; gap: 10px; margin: 0 8px;
-    background: var(--w-surface); backdrop-filter: blur(14px) saturate(1.3);
-    -webkit-backdrop-filter: blur(14px) saturate(1.3);
+    background: var(--w-surface); backdrop-filter: blur(16px) saturate(1.7);
+    -webkit-backdrop-filter: blur(16px) saturate(1.7);
     border-radius: 18px; padding: 9px 12px;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.26);
     position: relative; overflow: hidden;
   }
   .compl img { width: 30px; height: 30px; object-fit: contain; opacity: .85; }
   .compl .t1 { font-size: 11px; color: var(--w-accent); font-weight: 700; letter-spacing: .03em; }
   .compl .t2 { font-size: 12.5px; font-weight: 600; }
-  .w-face::before {
-    content: ''; position: absolute; left: 50%; top: 36%; translate: -50% -50%;
-    width: 150px; height: 150px; border-radius: 50%; z-index: -1;
-    background: radial-gradient(circle, rgba(224,122,70,.24) 0%, transparent 70%);
-    filter: blur(4px); pointer-events: none;
-    animation: glowPulse 6s ease-in-out infinite;
-  }
 
   /* ---------------------------------------------------------------- 手机内容:通用 */
   .p-screen { width: 100%; height: 100%; display: flex; flex-direction: column; }
@@ -287,14 +300,16 @@
   /* 悬浮 tabbar——毛玻璃限定在这一层 */
   .tabbar {
     position: absolute; left: 16px; right: 16px; bottom: 14px; height: 58px;
-    background: rgba(255,255,255,.72); backdrop-filter: blur(20px) saturate(1.5);
-    -webkit-backdrop-filter: blur(20px) saturate(1.5);
-    border-radius: 24px; display: flex; box-shadow: 0 8px 24px rgba(0,0,0,.1);
+    background: rgba(255,255,255,.58); backdrop-filter: blur(22px) saturate(1.8);
+    -webkit-backdrop-filter: blur(22px) saturate(1.8);
+    border-radius: 24px; display: flex;
+    box-shadow: 0 8px 24px rgba(0,0,0,.1), inset 0 1px 0 rgba(255,255,255,.7);
     border: 1px solid rgba(255,255,255,.5); overflow: hidden;
     animation: fadeInUp .32s cubic-bezier(.16,1,.3,1) .46s both;
   }
   .tabbar.on-photo {
-    background: rgba(20,18,16,.42); border: 1px solid rgba(255,255,255,.14);
+    background: rgba(20,18,16,.4); border: 1px solid rgba(255,255,255,.14);
+    box-shadow: 0 8px 24px rgba(0,0,0,.25), inset 0 1px 0 rgba(255,255,255,.16);
   }
   .tab {
     flex: 1; border: none; background: none; display: flex; flex-direction: column;
@@ -337,18 +352,20 @@
   }
   .caption-chip {
     position: absolute; left: 50%; bottom: 258px; translate: -50% 0; z-index: 10;
-    background: rgba(20,18,16,.5); backdrop-filter: blur(14px) saturate(1.4);
-    -webkit-backdrop-filter: blur(14px) saturate(1.4);
+    background: rgba(20,18,16,.5); backdrop-filter: blur(14px) saturate(1.6);
+    -webkit-backdrop-filter: blur(14px) saturate(1.6);
     color: #fff; font-size: 11.5px; padding: 6px 13px; border-radius: 999px;
     border: 1px solid rgba(255,255,255,.14); white-space: nowrap; overflow: hidden;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.2);
     animation: fadeInUp .3s cubic-bezier(.16,1,.3,1) .3s both;
   }
   .info-bar {
     position: absolute; left: 16px; right: 16px; bottom: 164px; z-index: 10;
-    background: rgba(20,18,16,.44); backdrop-filter: blur(18px) saturate(1.4);
-    -webkit-backdrop-filter: blur(18px) saturate(1.4);
+    background: rgba(20,18,16,.44); backdrop-filter: blur(18px) saturate(1.6);
+    -webkit-backdrop-filter: blur(18px) saturate(1.6);
     border-radius: 16px; padding: 11px 14px; display: flex; justify-content: space-between;
     align-items: baseline; border: 1px solid rgba(255,255,255,.12); overflow: hidden;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.16);
     animation: fadeInUp .3s cubic-bezier(.16,1,.3,1) .38s both;
   }
   .info-bar .k { font-size: 11.5px; color: rgba(255,255,255,.6); }
@@ -360,9 +377,10 @@
   .glass-btn {
     flex: 1; border: none; border-radius: 15px; padding: 13px 0; font-family: var(--sys-sans);
     font-size: 14.5px; font-weight: 650; color: #fff;
-    background: rgba(255,255,255,.16); backdrop-filter: blur(16px) saturate(1.5);
-    -webkit-backdrop-filter: blur(16px) saturate(1.5);
+    background: rgba(255,255,255,.18); backdrop-filter: blur(16px) saturate(1.6);
+    -webkit-backdrop-filter: blur(16px) saturate(1.6);
     border: 1px solid rgba(255,255,255,.22);
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.26);
     position: relative; overflow: hidden;
   }
   .glass-btn.primary { background: var(--accent); border: none; }
@@ -407,7 +425,6 @@
   @keyframes glowIn { from { opacity: 0; } to { opacity: .5; } }
   @keyframes fillIn { from { transform: scaleX(0); } to { transform: scaleX(var(--pct, 1)); } }
   @keyframes sceneDrift { from { transform: scale(1); } to { transform: scale(1.045); } }
-  @keyframes glowPulse { 0%, 100% { opacity: .55; } 50% { opacity: .85; } }
 
   /* Glass 专属一次性高光扫光——这套风格的签名动效,只触发一次,各控件错开起始时间 */
   .w-btn.glass::before, .compl::before, .tabbar::before,
@@ -446,7 +463,7 @@
 
     <div class="device-wrap">
       <div class="watch-frame"><div class="watch-screen">
-        <div class="w-screen">
+        <div class="w-screen w-glow">
           <div class="w-pet-stage">
             <img class="pet" style="opacity:.32" src="art/warm-idle.png" alt="宠物">
             <i class="mote" style="left:28%;top:18%;animation-delay:-.5s"></i>
@@ -464,7 +481,7 @@
 
     <div class="device-wrap">
       <div class="watch-frame"><div class="watch-screen">
-        <div class="w-screen">
+        <div class="w-screen w-glow">
           <div class="w-pet-stage">
             <img class="pet" src="art/warm-playful.png" alt="宠物">
             <i class="spark" style="left:14%;top:20%;animation-delay:0ms"></i>
