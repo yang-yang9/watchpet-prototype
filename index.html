@@ -49,6 +49,11 @@
   /* 深色屏上的接地是「地上的一摊光」,所以要宽、要散。第一版 70% 收边 + .11 的白
      在点阵风格上看起来像脚下掉了一根白条,比不画还糟。 */
   --pet-ground: radial-gradient(ellipse, rgba(255, 255, 255, .085), rgba(255, 255, 255, 0) 55%);
+  /* 落影的颜色。纯黑投影「不属于任何地方」——亮表面上要取表面同色相的深色
+     (暖棕),暗表面上黑影才对。默认黑,亮屏各自覆盖(规范 §2.1 色彩)。 */
+  --card-drop: rgba(0, 0, 0, .5);
+  /* 宝丽来相框的纸色。暖 off-white,不用纯白(规范 §2.1)。 */
+  --photo: #FFFDF9;
 }
 
 /* 柔纸：暖、米色、衬线。现有那版原型的方向。 */
@@ -104,6 +109,7 @@ body[data-style="paper"] .phone-screen {
   --vignette: rgba(42, 36, 28, .10);
   --spark: #E8A25C;
   --pet-shadow: rgba(178, 86, 30, .28);
+  --card-drop: rgba(122, 92, 62, .30);
 }
 
 body[data-style="ink"] {
@@ -525,13 +531,15 @@ body[data-style="retro"] .phone-screen::before {
   border-radius: 18px;
   padding: 13px 16px 13px 19px;
   margin-top: 10px;
-  box-shadow: var(--card-lift), 0 16px 30px -18px rgba(0, 0, 0, .5);
+  box-shadow: var(--card-lift), 0 16px 30px -18px var(--card-drop);
   position: relative;
   z-index: 1;
 }
 /* 左侧一道强调色竖条:把「一块灰盒子」变成「一条有归属的信息」。加一圈同色辉光,
-   让它不是一条死线,而是「这条信息在发光」。 */
-.tile::before {
+   让它不是一条死线,而是「这条信息在发光」。
+   但只给挂了 .signal 的 tile——每屏至多一条。之前每一块 tile 都挂它,
+   等于没有强调:全都突出就是全都不突出(规范 §2.2 色彩层级)。 */
+.tile.signal::before {
   content: "";
   position: absolute; left: 0; top: 11px; bottom: 11px;
   width: 3px; border-radius: 0 3px 3px 0;
@@ -546,6 +554,18 @@ body[data-style="retro"] .tile {
   background: var(--screen-card);
   backdrop-filter: none;
   box-shadow: none;
+}
+/* 间距要表达归属:同组的 tile 贴 8px,跨组(场景→第一块、卡→操作区)留 12–14px。
+   之前全屏一个 10px 步长,读起来像表格行(规范 §2.2 邻近层级)。 */
+.tile + .tile { margin-top: 8px; }
+/* 场景插画之后的第一块卡**压到插画下缘上**(负 margin):层叠出来,
+   插画是「世界」、卡是浮在世界上面的纸,不再是一张图加一份表单。
+   顶角放大成 sheet 感,底角保持卡的内圈圆角(同心配对)。 */
+.pet-stage.scene + .tile {
+  margin-top: -18px;
+  position: relative;
+  z-index: 2;
+  border-radius: 24px 24px 18px 18px;
 }
 .tile .k {
   color: var(--screen-mute);
@@ -570,7 +590,7 @@ body[data-style="retro"] .tile {
 .tile .stat b small { font-size: 16px; color: var(--screen-mute); font-weight: 500; }
 .tile .stat > span { font-size: 11.5px; color: var(--screen-mute); line-height: 1.4; }
 
-.btn-row { display: flex; gap: 8px; margin-top: auto; padding-top: 10px; }
+.btn-row { display: flex; gap: 8px; margin-top: auto; padding-top: 14px; }
 .sbtn {
   appearance: none;
   background: var(--screen-card);
@@ -599,11 +619,20 @@ body[data-style="retro"] .tile {
   border-color: transparent;
   color: var(--screen-bg);
   font-weight: 700;
+  /* 主按钮比次按钮宽一档:等宽的按钮行是 wireframe 的均质,
+     重量差才是「这边是正事」的信号(规范 §2.2 重要度=尺度)。 */
+  flex: 1.35;
   box-shadow: 0 14px 26px -12px var(--pet-shadow), inset 0 1px 0 rgba(255, 255, 255, .4);
   animation: cta 2.6s ease-in-out infinite;
 }
 .sbtn.primary:hover { filter: brightness(1.06); }
-.sbtn:active { transform: scale(.96); }
+/* 按压是「陷下去」,不是「缩一点」:位移 + 缩放 + 投影收短,三件事一起才像材质。
+   不低于 .95——再小看起来像坏了而不是被按了(规范 §2.1 微交互)。 */
+.sbtn:active {
+  transform: scale(.97) translateY(1px);
+  box-shadow: 0 6px 14px -10px var(--pet-shadow), inset 0 1px 0 rgba(255, 255, 255, .25);
+}
+.sbtn.primary:active { filter: brightness(.97); }
 @keyframes cta {
   0%, 100% { box-shadow: 0 14px 26px -12px var(--pet-shadow), inset 0 1px 0 rgba(255, 255, 255, .4); }
   50%      { box-shadow: 0 14px 26px -12px var(--pet-shadow), inset 0 1px 0 rgba(255, 255, 255, .4), 0 0 18px 2px var(--accent-soft); }
@@ -611,34 +640,44 @@ body[data-style="retro"] .tile {
 body[data-style="retro"] .sbtn { border-radius: 3px; border-color: var(--line); backdrop-filter: none; }
 body[data-style="retro"] .sbtn.primary { color: #060A07; background: var(--accent); box-shadow: none; }
 
+/* tabbar 是一层材质,不是一条 hairline 加三个等分文字:毛玻璃垫在屏幕底,
+   内容从它后面透过来一点,才有「浮在内容上的系统层」的感觉。 */
 .tabbar {
   display: flex;
   border-top: 1px solid var(--line);
   margin: 8px -20px -14px;
   padding: 9px 0 12px;
+  background: var(--screen-card);
+  backdrop-filter: blur(18px) saturate(150%);
+  -webkit-backdrop-filter: blur(18px) saturate(150%);
 }
+body[data-style="retro"] .tabbar { backdrop-filter: none; background: var(--screen-bg); }
 .tabbar button {
   appearance: none; background: none; border: 0;
   color: var(--screen-mute);
   cursor: pointer; flex: 1;
   font: inherit; font-size: 10.5px;
   padding: 3px 0;
+  position: relative;
 }
-/* 选中的 tab 给一块强调色底:原来只有文字变色,在一排哑色里太安静,
-   看不出「我在哪」。 */
+/* 选中态是三件安静的事:变色 + 图标填芯(duotone)+ 底下一颗指示点。
+   之前那块强调色底 pill 是第四件,太多(规范 §2.2 大胆只花一处)。 */
 .tabbar button:hover { color: var(--screen-ink); }
-.tabbar button[aria-pressed="true"] {
-  color: var(--accent); font-weight: 600;
-  background: var(--accent-soft);
-  border-radius: 12px;
-  margin: 0 8px;
-}
+.tabbar button[aria-pressed="true"] { color: var(--accent); font-weight: 600; }
 .tabbar button[aria-pressed="true"]:hover { color: var(--accent); }
+.tabbar button[aria-pressed="true"]::after {
+  content: "";
+  position: absolute; left: 50%; bottom: 1px;
+  width: 4px; height: 4px; border-radius: 50%;
+  background: currentColor;
+  transform: translateX(-50%);
+}
+.tabbar button[aria-pressed="true"] .ic { fill: currentColor; fill-opacity: .22; stroke-width: 2; }
 /* 图标放大一号、描边加粗:19px/1.7 描边在真机上就是几根头发丝,
    截图里看起来像「没画完的线」,是简陋观感的一部分。 */
 .tabbar .ic { display: block; margin: 0 auto 2px; width: 21px; height: 21px; stroke-width: 1.9; }
 
-.chips { display: flex; flex-wrap: wrap; gap: 7px; margin-top: 9px; }
+.chips { display: flex; flex-wrap: wrap; gap: 7px; margin-top: 12px; }
 .chip {
   appearance: none;
   background: var(--screen-card);
@@ -668,7 +707,20 @@ body[data-style="retro"] .chip { border-radius: 3px; }
 body[data-style="retro"] .bar-wrap,
 body[data-style="retro"] .bar-fill { border-radius: 0; }
 
-.grid-cal { display: grid; grid-template-columns: repeat(7, 1fr); gap: 5px; margin-top: 10px; }
+.grid-cal { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; margin-top: 12px; }
+/* 有照片的格子是**散着的宝丽来**,不是表格单元:白相框 + 交替微旋转 ±1.4°。
+   相册就该像从鞋盒里倒出来的,不该像日历控件(规范 §2.2 破格/微旋转)。 */
+.cell:has(.cell-art) {
+  background: var(--photo);
+  padding: 3px;
+  border-radius: 5px;
+  box-shadow: 0 6px 14px -8px var(--card-drop);
+}
+.grid-cal .cell:nth-child(odd):has(.cell-art) { rotate: -1.4deg; }
+.grid-cal .cell:nth-child(even):has(.cell-art) { rotate: 1.1deg; }
+body[data-style="retro"] .cell:has(.cell-art) {
+  background: var(--screen-card); padding: 0; border-radius: 0; box-shadow: none; rotate: 0deg;
+}
 .cell {
   aspect-ratio: 1;
   background: var(--screen-card);
@@ -701,13 +753,33 @@ body[data-style="retro"] .cell { border-radius: 0; }
   backdrop-filter: blur(16px) saturate(150%);
   -webkit-backdrop-filter: blur(16px) saturate(150%);
   border: 1px solid var(--line);
-  border-radius: 15px;
+  /* 不对称圆角 + 相邻交替方向:一格一格「手摆上去」的痕迹。
+     全 15px 的均质圆角是组件库的脸(规范 §2.2 圆角策略)。 */
+  border-radius: 16px 16px 16px 6px;
   display: grid; place-items: center;
   font-size: 20px;
   color: var(--accent);
-  box-shadow: var(--card-lift), 0 10px 20px -14px rgba(0, 0, 0, .5);
+  box-shadow: var(--card-lift), 0 10px 20px -14px var(--card-drop);
+}
+.codex .slot:nth-child(even) { border-radius: 16px 6px 16px 16px; }
+/* 「刚到手」贴纸:硬偏移投影 + 微旋转,die-cut 贴纸配方(规范 §2.1)。
+   收集品的「新」是一个时刻,不是一种状态——贴纸是时刻的语言。 */
+.slot .stamp {
+  position: absolute; top: -7px; right: -5px; z-index: 3;
+  background: var(--spark);
+  color: var(--screen-bg);
+  font-family: var(--sys-mono);
+  font-size: 8.5px;
+  letter-spacing: .06em;
+  padding: 2px 7px;
+  border-radius: 999px;
+  rotate: -6deg;
+  box-shadow: 2px 2px 0 var(--card-drop);
 }
 body[data-style="retro"] .slot { backdrop-filter: none; box-shadow: none; }
+body[data-style="retro"] .slot .stamp {
+  border-radius: 0; rotate: 0deg; box-shadow: none;
+}
 /* 稀有度:右上角一颗点。普通的点是哑的,稀有的点带一圈光——
    收集欲靠「这格和那格不一样」养出来,不靠数字。 */
 .slot .rar {
@@ -739,6 +811,16 @@ body[data-style="retro"] .slot { border-radius: 3px; }
   margin-top: 11px;
   padding-left: 11px;
 }
+/* 日记屏两条之后的空白不是「排完了剩下的地方」:一句它自己的话沉到屏底,
+   空白就成了「本子合上的那一页」。margin-top:auto 把它推到底,
+   同时把 tabbar 的 auto 让掉,否则两段 auto 会把这句话悬在半空。 */
+.fill-note {
+  margin-top: auto;
+  text-align: center;
+  opacity: .75;
+  padding: 8px 0 2px;
+}
+.scr:has(.fill-note) .tabbar { margin-top: 8px; }
 .diary .when {
   color: var(--screen-mute);
   font-family: var(--sys-mono);
@@ -885,6 +967,9 @@ body[data-style="retro"] .slot { border-radius: 3px; }
   padding: 30px 18px 14px;
   background: linear-gradient(180deg, rgba(10, 8, 6, 0) 0%, rgba(10, 8, 6, .5) 55%, rgba(10, 8, 6, .74) 100%);
 }
+/* 字幕比场景晚一点到(主角先入、配角延后 100–200ms,规范 §2.1 编排):
+   插画先落,字再浮上来,读序就是「先看见它,再看见它在干嘛」。 */
+.scene-caption { animation: rise .5s cubic-bezier(.16, 1, .3, 1) .16s both; }
 .scene-caption span {
   display: block;
   color: #FBF6EC;
@@ -966,7 +1051,13 @@ body[data-style="retro"] .slot { border-radius: 3px; }
   85%  { opacity: .45; }
   100% { transform: translate(var(--dx), -74px); opacity: 0; }
 }
-.pet-motion { position: absolute; inset: 0; transform-origin: 50% 86%; }
+/* 漂浮放在 .pet-motion 这一层:接地阴影是它的兄弟节点,留在地上不跟着浮,
+   宠物才有体重;有动作通道的屏由后面的 .m-* 规则接管这条 animation。
+   幅度用 % (自身高度):30px 的复杂功能小宠物不会浮得比 186px 的还凶。 */
+.pet-motion {
+  position: absolute; inset: 0; transform-origin: 50% 86%;
+  animation: pet-float 5.2s ease-in-out infinite;
+}
 .pet-frames { position: absolute; inset: 0; transform-origin: 50% 88%; }
 .pet-art {
   position: absolute; inset: 0;
@@ -986,8 +1077,27 @@ body[data-style="retro"] .slot { border-radius: 3px; }
 @keyframes ch-scale  { 0%, 100% { scale: calc(1 - var(--amp)); } 50% { scale: calc(1 + var(--amp)); } }
 @keyframes ch-blink  { 0%, 91%, 100% { opacity: 0; } 94%, 96% { opacity: 1; } }
 /* 常驻呼吸。没有任何微事件的时候它也得是活的,否则静止的位图就是一张贴纸。
-   幅度刻意很小(1.5%),放在和通道不同的那一层,免得两个动画抢同一个 scale。 */
+   幅度刻意很小(1.5%),放在和通道不同的那一层,免得两个动画抢同一个 scale。
+   origin 在脚边:吸气时是「压扁」而不是「中心放大」,才像有体重。 */
 @keyframes pet-breathe { 0%, 100% { scale: 1 1; } 50% { scale: 1.015 .985; } }
+/* 漂浮和呼吸**相位错开**:5.2s 对 4.2s 不成倍数,合成循环永远看不出重复周期——
+   这是「活着」和「GIF 循环」的区别(规范 §2.1 idle)。作用在 .pet 这一层,
+   和通道(.pet-motion)、呼吸(.pet-frames)各占一层,互不抢属性。 */
+@keyframes pet-float { 0%, 100% { translate: 0 0; } 50% { translate: 0 -4%; } }
+/* 奖励时刻的 squash & stretch:落地先压扁再冲过一点再 settle,体积守恒
+   (1.1×.88 → .94×1.06)。用 transform 写,和呼吸的 scale 属性叠得不冲突。
+   只在有 burst 的那几屏播一次(.5s),庆祝长了就从 delight 变烦。 */
+@keyframes pet-squash {
+  0%   { transform: scale(1, 1); }
+  30%  { transform: scale(1.1, .88); }
+  62%  { transform: scale(.94, 1.06); }
+  100% { transform: scale(1, 1); }
+}
+.pet-stage:has(.burst) .pet-frames {
+  animation:
+    pet-breathe 4.2s ease-in-out infinite,
+    pet-squash .5s cubic-bezier(.34, 1.56, .64, 1) both;
+}
 
 .m-rotate { animation: ch-rotate var(--cyc) ease-in-out infinite; }
 .m-shift  { animation: ch-shift  var(--cyc) ease-in-out infinite; }
@@ -1087,8 +1197,9 @@ footer.foot code {
   .note-card { margin-bottom: 0; }
 }
 @media (prefers-reduced-motion: reduce) {
-  .m-rotate, .m-shift, .m-scale, .m-blink, .pet-frames,
-  .phone-screen::before, .sbtn.primary, .burst i, .motes i, .scr > *, .face > * { animation: none !important; }
+  .m-rotate, .m-shift, .m-scale, .m-blink, .pet-frames, .pet-motion,
+  .phone-screen::before, .sbtn.primary, .burst i, .motes i,
+  .scr > *, .face > *, .scene-caption { animation: none !important; }
   .chip, .tile, .screen-nav button, .tabbar button, .tile:hover { transition: none; transform: none; }
 }
 
@@ -1098,11 +1209,14 @@ footer.foot code {
    眼睛能跟上「什么换了」。延迟按 nth-child 递增,不写 JS。
    微交互:chip / tile / 屏幕选择 pill 都有 hover 与按压反馈;
    :focus-visible 给键盘用户一圈强调色焦点环(评审会看无障碍)。 */
+/* 入场:12px 是「到达」的最小抬升(再小就只是淡入),expo-out 曲线前快后慢,
+   50ms/项的 stagger 看的是最后一项何时落地——7 项 × 50ms ≈ .35s 收尾,正好。
+   规范来源:docs/design/ui-design-standards.md §2.1(陪伴类 app 调研)。 */
 @keyframes rise {
-  from { opacity: 0; transform: translateY(9px); }
+  from { opacity: 0; transform: translateY(12px) scale(.985); }
   to   { opacity: 1; transform: none; }
 }
-.scr > *, .face > * { animation: rise .44s cubic-bezier(.2, .7, .2, 1) both; }
+.scr > *, .face > * { animation: rise .38s cubic-bezier(.16, 1, .3, 1) both; }
 .scr > *:nth-child(2) { animation-delay: .05s; }
 .scr > *:nth-child(3) { animation-delay: .10s; }
 .scr > *:nth-child(4) { animation-delay: .15s; }
@@ -1114,8 +1228,9 @@ footer.foot code {
 .chip, .tile, .screen-nav button, .tabbar button {
   transition: transform .16s cubic-bezier(.2, .7, .2, 1), background .16s, border-color .16s, box-shadow .16s;
 }
-.chip:active, .sbtn:active, .screen-nav button:active { transform: scale(.95); }
-.tile:hover { transform: translateY(-1px); box-shadow: var(--card-lift), 0 4px 14px rgba(0, 0, 0, .12); }
+.chip:active, .screen-nav button:active { transform: scale(.96); }
+/* hover 抬升配更深的同色投影:抬起来的东西离背景更远,影子就该更长更软。 */
+.tile:hover { transform: translateY(-2px); box-shadow: var(--card-lift), 0 10px 22px -12px var(--card-drop); }
 .screen-nav button:hover { border-color: var(--accent); color: var(--accent); }
 :focus-visible {
   outline: 2px solid var(--accent);
@@ -1143,6 +1258,8 @@ body[data-freeze] .m-scale  { animation: none !important; scale: calc(1 + var(--
 body[data-freeze] .m-blink  { animation: none !important; opacity: 0 !important; }
 /* 呼吸也要停,否则同一个 URL 两次截图不会逐像素相同——冻结的全部用处就是这个。 */
 body[data-freeze] .pet-frames { animation: none !important; }
+body[data-freeze] .pet-motion { animation: none !important; }
+body[data-freeze] .scene-caption { animation: none !important; }
 /* 新加的几组无限动画(极光 / 主按钮呼吸 / 粒子 / 浮尘)也一样要钉住。
    粒子钉在飞行约七成处:起点和终点都是全透明,只有中段截出来才看得见
    「这里刚发生过一件好事」——冻结帧要能回答「这个效果接上没有」。 */
@@ -1340,9 +1457,9 @@ const thumb = (i) =>
 /* 稀有度只有两档(普通 / 稀有),刻意不做数值:收集欲靠「这格和那格不一样」养出来。
    哪几件稀有是写死的,不随机——原型要能逐像素比对。 */
 const RARE = { feather: 1, shell: 1, bottle: 1 };
-const item = (k) => {
+const item = (k, stamp) => {
   const name = ITEM[k] || '';
-  return `<div class="slot" title="${name}"><img class="item-art" src="art/items/${k}.png" alt="${name}"><span class="rar${RARE[k] ? ' rare' : ''}"></span></div>`;
+  return `<div class="slot" title="${name}"><img class="item-art" src="art/items/${k}.png" alt="${name}"><span class="rar${RARE[k] ? ' rare' : ''}"></span>${stamp ? `<span class="stamp">${stamp}</span>` : ''}</div>`;
 };
 
 /* 粒子。方向和延迟全部写死在这里:截图必须可复现,随机数会让同一个 URL
@@ -1429,7 +1546,7 @@ a: {
         <p class="sub">心跳比平时快一点 · 猜的,不是诊断</p>
         <div class="pet-stage">${pet('idle', 'stare', 100)}</div>
         <p class="doing">它也跟着紧张了一下</p>
-        <div class="tile">
+        <div class="tile signal">
           <div class="k">心率信号</div>
           <div class="stat"><b>92<small>bpm</small></b><span>比你平时的区间高一些</span></div>
         </div>
@@ -1472,7 +1589,7 @@ a: {
           <div class="k">这次的反应</div>
           <div class="v">它特别高兴 <small>· 你好像找对了什么</small></div>
         </div>
-        <div class="tile">
+        <div class="tile signal">
           <div class="k">摸出来的</div>
           <div class="v">喜欢被摸头、下巴要轻 <small>· 还有没摸出来的</small></div>
         </div>
@@ -1493,7 +1610,7 @@ a: {
         ${statusbar()}
         <h3>这几天</h3>
         <p class="sub">它看到的你,不是健康报告</p>
-        <div class="tile">
+        <div class="tile signal">
           <div class="k">这周</div>
           <div class="v">它玩耍的日子比上周多 <small>· 你走得多了</small></div>
         </div>
@@ -1588,11 +1705,12 @@ b: {
           ${pet('idle', 'waiting', 160)}
           <p class="scene-caption"><span>想晒会儿太阳</span></p>
         </div>
-        ${bar(0.6, '快到了 · 不显示还差多少,那是数字不是陪伴')}
-        <div class="tile">
+        <!-- 卡先、进度条后:场景下缘要由一张卡压住(层叠),7px 的进度条压不住。 -->
+        <div class="tile signal">
           <div class="k">做到了会怎样</div>
           <div class="v">一起留下今天的一帧 <small>· 收进合照本</small></div>
         </div>
+        ${bar(0.6, '快到了 · 不显示还差多少,那是数字不是陪伴')}
         <div class="btn-row">
           <button class="sbtn">晚点再说</button>
           <button class="sbtn primary">我去了</button>
@@ -1691,11 +1809,11 @@ c: {
         <h3>它带回来的</h3>
         <p class="sub">7 样 · 还有很多没见过</p>
         <div class="codex">
-          ${item('berry')}${item('leaf')}${item('stone')}
+          ${item('berry', '刚到手')}${item('leaf')}${item('stone')}
           ${item('feather')}${item('shell')}${item('flower')}
           ${item('bottle')}<div class="slot locked">?</div><div class="slot locked">?</div>
         </div>
-        <div class="tile">
+        <div class="tile signal">
           <div class="k">套装 · 林线</div>
           <div class="stat"><b>4<small>/6</small></b><span>集齐解锁新的散步路线,缺的两样在湖边</span></div>
         </div>
@@ -1718,6 +1836,7 @@ c: {
           <span class="when">10 月 10 日 · 下午</span>
           窗台那边太阳很好,躺了一会儿。你一直没回来。
         </div>
+        <p class="sub fill-note">再往前就翻不到了 · 它也没打算全记住</p>
         ${tabbar([['codex', '图鉴'], ['diary', '日记'], ['pet', '它']], 'diary')}
       </div>` },
     { key: 'pet', label: '它', render: () => `
