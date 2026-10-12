@@ -23,6 +23,13 @@
   信息条 + 悬浮按钮),给出"看向一个真实房间"的沉浸感——不是另一张卡片网格,
   这是和图鉴/日记两屏刻意拉开的记忆点,也是这套风格区别于"加了毛玻璃的卡片网格"
   （那只是材质正确,不是设计记忆点）的落点。
+
+  打磨一轮(2026-10-12,用户在七套风格里选定收敛到这一套之后)——加了入场编排、
+  宠物呼吸/漂浮(相位错开的两个周期,不整倍数)、玻璃材质自己的一次性高光扫光
+  (不是循环动效,克制)、图鉴"刚到手"那格和"刚收到"卡片的材质级突出(浮起+
+  accent-soft 底,不借用其他风格的旋转/贴纸语言)、日记屏死空白处的一枚极淡玉光斑、
+  按压态加了下陷感(translateY+brightness,不只是缩小)。内容和尺寸没有变,只打磨
+  材质和动效这两件事。
 -->
 <html lang="zh">
 <head>
@@ -108,11 +115,23 @@
   }
 
   /* ---------------------------------------------------------------- 手表内容 */
-  .w-screen { width: 100%; height: 100%; padding: 14px 10px 12px; position: relative; }
+  .w-screen {
+    width: 100%; height: 100%; padding: 14px 10px 12px; position: relative;
+    animation: fadeInUp .36s cubic-bezier(.16,1,.3,1) both;
+  }
   .w-pet-stage { position: relative; height: 118px; display: flex; align-items: center; justify-content: center; }
-  .w-pet-stage img.pet { width: 108px; height: 108px; object-fit: contain; }
-  .mote { position: absolute; width: 4px; height: 4px; border-radius: 50%; background: rgba(255,255,255,.5); }
-  .spark { position: absolute; width: 6px; height: 6px; border-radius: 50%; background: var(--w-accent); box-shadow: 0 0 6px var(--w-accent); }
+  .w-pet-stage img.pet {
+    width: 108px; height: 108px; object-fit: contain; transform-origin: bottom center;
+    animation: wBreathe 3.6s ease-in-out infinite, wFloaty 5.4s ease-in-out infinite;
+  }
+  .mote {
+    position: absolute; width: 4px; height: 4px; border-radius: 50%; background: rgba(255,255,255,.5);
+    animation: moteDrift 7s ease-in-out infinite;
+  }
+  .spark {
+    position: absolute; width: 6px; height: 6px; border-radius: 50%; background: var(--w-accent); box-shadow: 0 0 6px var(--w-accent);
+    animation: sparkPop .6s cubic-bezier(.34,1.56,.64,1) both;
+  }
   .w-headline { font-size: 15px; font-weight: 600; text-align: center; margin: 2px 0 2px; }
   .w-sub { font-size: 12px; color: var(--w-label-2); text-align: center; margin: 0 0 10px; }
   .w-btn-row { display: flex; justify-content: center; }
@@ -125,7 +144,8 @@
     -webkit-backdrop-filter: blur(14px) saturate(1.3);
   }
   .w-btn.accent { background: var(--w-accent); }
-  .w-btn:active { transform: scale(.96); }
+  .w-btn:active { transform: scale(.96) translateY(1px); filter: brightness(.94); }
+  .w-btn.glass { position: relative; overflow: hidden; }
 
   .face-clock { font-family: var(--sys-mono); font-size: 34px; font-weight: 600; text-align: center; margin: 2px 0 10px; letter-spacing: -.02em; }
   .compl {
@@ -133,6 +153,7 @@
     background: var(--w-surface); backdrop-filter: blur(14px) saturate(1.3);
     -webkit-backdrop-filter: blur(14px) saturate(1.3);
     border-radius: 18px; padding: 9px 12px;
+    position: relative; overflow: hidden;
   }
   .compl img { width: 30px; height: 30px; object-fit: contain; opacity: .85; }
   .compl .t1 { font-size: 11px; color: var(--w-accent); font-weight: 700; letter-spacing: .03em; }
@@ -140,15 +161,16 @@
 
   /* ---------------------------------------------------------------- 手机内容:通用 */
   .p-screen { width: 100%; height: 100%; display: flex; flex-direction: column; }
-  .p-top { padding: 46px 18px 2px; }
+  .p-top { padding: 46px 18px 2px; animation: fadeInUp .32s cubic-bezier(.16,1,.3,1) both; }
   .p-title { font-size: 23px; font-weight: 700; letter-spacing: -.01em; margin: 0 0 3px; }
   .p-sub { font-size: 13.5px; color: var(--label-2); margin: 0; }
-  .p-body { flex: 1; padding: 14px 18px 0; overflow: hidden; }
+  .p-body { flex: 1; padding: 14px 18px 0; overflow: hidden; position: relative; }
 
   .card {
     background: var(--surface); border-radius: 16px; padding: 14px 15px;
     box-shadow: 0 1px 2px rgba(0,0,0,.05), 0 6px 16px rgba(0,0,0,.05);
     border: 1px solid rgba(0,0,0,.03);
+    animation: fadeInUp .32s cubic-bezier(.16,1,.3,1) .42s both;
   }
 
   /* 图鉴格子 */
@@ -158,6 +180,12 @@
     display: flex; align-items: center; justify-content: center;
     box-shadow: 0 1px 2px rgba(0,0,0,.05), 0 4px 10px rgba(0,0,0,.04);
     border: 1px solid rgba(0,0,0,.03);
+    animation: fadeInUp .32s cubic-bezier(.16,1,.3,1) both;
+    animation-delay: calc(60ms + var(--n, 0) * 40ms);
+  }
+  .slot:first-child {
+    animation-name: fadeInUpRaised;
+    box-shadow: 0 2px 4px rgba(0,0,0,.08), 0 10px 20px rgba(0,0,0,.09);
   }
   .slot img { width: 56%; height: 56%; object-fit: contain; }
   .slot.locked { color: var(--label-3); font-size: 17px; font-weight: 600; box-shadow: none; background: rgba(0,0,0,.025); border: 1px dashed var(--sep); }
@@ -165,6 +193,7 @@
     position: absolute; top: 6px; right: 6px; font-family: var(--sys-sans);
     font-size: 9px; font-weight: 700; color: #fff; background: var(--accent);
     padding: 3px 7px; border-radius: 999px; letter-spacing: .01em;
+    animation: badgePop .4s cubic-bezier(.34,1.56,.64,1) .56s both;
   }
 
   .stat-row { display: flex; align-items: baseline; gap: 12px; margin-bottom: 10px; }
@@ -175,20 +204,40 @@
   .progress { height: 5px; background: var(--sep); border-radius: 999px; overflow: hidden; }
   .progress-fill { height: 100%; background: var(--accent); border-radius: 999px; }
 
-  .received-card { display: flex; align-items: center; gap: 12px; margin-top: 12px; }
+  .received-card {
+    display: flex; align-items: center; gap: 12px; margin-top: 14px;
+    background: var(--accent-soft); border-radius: 14px; padding: 10px 12px;
+    box-shadow: 0 1px 2px rgba(190,106,60,.08);
+    animation: fadeInUp .32s cubic-bezier(.16,1,.3,1) .5s both;
+  }
   .received-card img { width: 42px; height: 42px; object-fit: contain; flex-shrink: 0; }
   .received-card strong { display: block; font-size: 13.5px; font-weight: 650; margin-bottom: 2px; }
   .received-card span { font-size: 12px; color: var(--label-2); line-height: 1.4; }
 
   /* 日记:纯列表,不用卡片——和图鉴的网格刻意拉开组件语言 */
   .diary-list { margin-top: 2px; }
-  .diary-row { padding: 14px 2px; border-bottom: 1px solid var(--sep); }
+  .diary-row {
+    padding: 14px 2px; border-bottom: 1px solid var(--sep);
+    animation: fadeInUp .32s cubic-bezier(.16,1,.3,1) both;
+  }
+  .diary-row:nth-child(1) { animation-delay: .08s; }
+  .diary-row:nth-child(2) { animation-delay: .16s; }
   .diary-row time {
     display: block; font-family: var(--sys-mono); font-size: 11px;
     color: var(--accent); margin-bottom: 5px; letter-spacing: .01em;
   }
   .diary-row p { font-size: 14.5px; line-height: 1.56; margin: 0; color: var(--label); }
-  .diary-end { text-align: center; font-size: 12px; color: var(--label-3); margin: 18px 0 0; }
+  .diary-end {
+    text-align: center; font-size: 12px; color: var(--label-3); margin: 18px 0 0;
+    animation: fadeInUp .32s cubic-bezier(.16,1,.3,1) .24s both;
+  }
+  .diary-glow {
+    position: absolute; left: 50%; bottom: 90px; translate: -50% 0;
+    width: 260px; height: 260px; border-radius: 50%;
+    background: radial-gradient(circle, var(--accent-soft) 0%, transparent 70%);
+    filter: blur(2px); pointer-events: none; z-index: 0;
+    opacity: 0; animation: glowIn 1s ease-out .4s both;
+  }
 
   /* 悬浮 tabbar——毛玻璃限定在这一层 */
   .tabbar {
@@ -196,7 +245,8 @@
     background: rgba(255,255,255,.72); backdrop-filter: blur(20px) saturate(1.5);
     -webkit-backdrop-filter: blur(20px) saturate(1.5);
     border-radius: 24px; display: flex; box-shadow: 0 8px 24px rgba(0,0,0,.1);
-    border: 1px solid rgba(255,255,255,.5);
+    border: 1px solid rgba(255,255,255,.5); overflow: hidden;
+    animation: fadeInUp .32s cubic-bezier(.16,1,.3,1) .46s both;
   }
   .tabbar.on-photo {
     background: rgba(20,18,16,.42); border: 1px solid rgba(255,255,255,.14);
@@ -215,43 +265,114 @@
   .tab .dot { position: absolute; bottom: -1px; width: 4px; height: 4px; border-radius: 50%; background: var(--accent); opacity: 0; }
   .tab.active .dot { opacity: 1; }
   .tabbar.on-photo .tab.active .dot { background: #fff; }
-  .tab:active { transform: scale(.94); }
+  .tab:active { transform: scale(.94) translateY(1px); }
 
   /* 「它」—— 整屏出血的沉浸屏,这套风格的 signature */
   .screen-pet { position: relative; height: 100%; }
   .scene-bg { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
   .scrim-top { position: absolute; left: 0; right: 0; top: 0; height: 160px; background: linear-gradient(to bottom, rgba(0,0,0,.4), transparent); }
   .scrim-bottom { position: absolute; left: 0; right: 0; bottom: 0; height: 300px; background: linear-gradient(to top, rgba(0,0,0,.46), transparent); }
-  .status-overlay { position: absolute; top: 46px; left: 20px; color: #fff; z-index: 10; }
+  .status-overlay {
+    position: absolute; top: 46px; left: 20px; color: #fff; z-index: 10;
+    animation: fadeInUp .34s cubic-bezier(.16,1,.3,1) both;
+  }
   .status-overlay .title { font-size: 19px; font-weight: 700; text-shadow: 0 1px 6px rgba(0,0,0,.3); }
   .status-overlay .sub { font-size: 12.5px; color: rgba(255,255,255,.8); margin-top: 2px; text-shadow: 0 1px 6px rgba(0,0,0,.3); }
-  .pet-on-scene { position: absolute; left: 50%; bottom: 300px; translate: -50% 0; width: 158px; height: 158px; object-fit: contain; filter: drop-shadow(0 10px 18px rgba(0,0,0,.3)); z-index: 5; }
+  .pet-on-scene {
+    position: absolute; left: 50%; bottom: 300px; translate: -50% 0; width: 158px; height: 158px;
+    object-fit: contain; filter: drop-shadow(0 10px 18px rgba(0,0,0,.3)); z-index: 5;
+    transform-origin: bottom center;
+    animation:
+      petPopIn .5s cubic-bezier(.34,1.56,.64,1) .12s both,
+      breathe 3.4s ease-in-out .6s infinite,
+      floaty 5.2s ease-in-out .6s infinite;
+  }
   .caption-chip {
     position: absolute; left: 50%; bottom: 258px; translate: -50% 0; z-index: 10;
     background: rgba(20,18,16,.5); backdrop-filter: blur(14px) saturate(1.4);
     -webkit-backdrop-filter: blur(14px) saturate(1.4);
     color: #fff; font-size: 11.5px; padding: 6px 13px; border-radius: 999px;
-    border: 1px solid rgba(255,255,255,.14); white-space: nowrap;
+    border: 1px solid rgba(255,255,255,.14); white-space: nowrap; overflow: hidden;
+    animation: fadeInUp .3s cubic-bezier(.16,1,.3,1) .3s both;
   }
   .info-bar {
     position: absolute; left: 16px; right: 16px; bottom: 164px; z-index: 10;
     background: rgba(20,18,16,.44); backdrop-filter: blur(18px) saturate(1.4);
     -webkit-backdrop-filter: blur(18px) saturate(1.4);
     border-radius: 16px; padding: 11px 14px; display: flex; justify-content: space-between;
-    align-items: baseline; border: 1px solid rgba(255,255,255,.12);
+    align-items: baseline; border: 1px solid rgba(255,255,255,.12); overflow: hidden;
+    animation: fadeInUp .3s cubic-bezier(.16,1,.3,1) .38s both;
   }
   .info-bar .k { font-size: 11.5px; color: rgba(255,255,255,.6); }
   .info-bar .v { font-size: 12.5px; color: #fff; font-weight: 600; }
-  .action-row { position: absolute; left: 16px; right: 16px; bottom: 86px; z-index: 10; display: flex; gap: 10px; }
+  .action-row {
+    position: absolute; left: 16px; right: 16px; bottom: 86px; z-index: 10; display: flex; gap: 10px;
+    animation: fadeInUp .3s cubic-bezier(.16,1,.3,1) .46s both;
+  }
   .glass-btn {
     flex: 1; border: none; border-radius: 15px; padding: 13px 0; font-family: var(--sys-sans);
     font-size: 14.5px; font-weight: 650; color: #fff;
     background: rgba(255,255,255,.16); backdrop-filter: blur(16px) saturate(1.5);
     -webkit-backdrop-filter: blur(16px) saturate(1.5);
     border: 1px solid rgba(255,255,255,.22);
+    position: relative; overflow: hidden;
   }
   .glass-btn.primary { background: var(--accent); border: none; }
-  .glass-btn:active { transform: scale(.96); }
+  .glass-btn:active { transform: scale(.96) translateY(1px); filter: brightness(.9); }
+  .glass-btn.primary:active { filter: brightness(.82); }
+
+  /* ---------------------------------------------------------------- 入场编排 + 常驻 idle + 一次性高光(打磨一轮加) */
+  @keyframes fadeInUp {
+    from { opacity: 0; transform: translateY(12px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+  @keyframes fadeInUpRaised {
+    from { opacity: 0; transform: translateY(12px); }
+    to   { opacity: 1; transform: translateY(-2px); }
+  }
+  @keyframes petPopIn {
+    from { opacity: 0; transform: scale(.9); }
+    to   { opacity: 1; transform: scale(1); }
+  }
+  @keyframes badgePop {
+    0%   { opacity: 0; transform: scale(.5); }
+    60%  { opacity: 1; transform: scale(1.15); }
+    100% { opacity: 1; transform: scale(1); }
+  }
+  @keyframes breathe { 0%, 100% { scale: 1; } 50% { scale: 1.025; } }
+  @keyframes floaty { 0%, 100% { translate: 0 0; } 50% { translate: 0 -3px; } }
+  @keyframes wBreathe { 0%, 100% { scale: 1; } 50% { scale: 1.015; } }
+  @keyframes wFloaty { 0%, 100% { translate: 0 0; } 50% { translate: 0 -1.5px; } }
+  @keyframes moteDrift {
+    0%, 100% { translate: 0 0; opacity: .45; }
+    50%      { translate: 3px -5px; opacity: .8; }
+  }
+  @keyframes sparkPop {
+    0%   { opacity: 0; scale: .3; }
+    55%  { opacity: 1; scale: 1.15; }
+    100% { opacity: .9; scale: 1; }
+  }
+  @keyframes sheen {
+    from { transform: translateX(-120%); }
+    to   { transform: translateX(220%); }
+  }
+  @keyframes glowIn { from { opacity: 0; } to { opacity: .5; } }
+
+  /* Glass 专属一次性高光扫光——这套风格的签名动效,只触发一次,各控件错开起始时间 */
+  .w-btn.glass::before, .compl::before, .tabbar::before,
+  .glass-btn::before, .info-bar::before, .caption-chip::before {
+    content: ''; position: absolute; inset: 0;
+    background: linear-gradient(115deg, transparent 30%, rgba(255,255,255,.55) 48%, transparent 66%);
+    animation: sheen 1.1s ease-out both;
+    pointer-events: none;
+  }
+  .w-btn.glass::before { animation-delay: .45s; }
+  .caption-chip::before { animation-delay: .6s; }
+  .info-bar::before { animation-delay: .7s; }
+  .glass-btn::before { animation-delay: .76s; }
+  .glass-btn.primary::before { animation-delay: .84s; }
+  .compl::before { animation-delay: .5s; }
+  .tabbar::before { animation-delay: .9s; }
 
   @media (prefers-reduced-motion: reduce) {
     * { animation: none !important; }
@@ -277,10 +398,10 @@
         <div class="w-screen">
           <div class="w-pet-stage">
             <img class="pet" style="opacity:.32" src="art/warm-idle.png" alt="宠物">
-            <i class="mote" style="left:28%;top:18%"></i>
-            <i class="mote" style="left:68%;top:30%"></i>
-            <i class="mote" style="left:48%;top:68%"></i>
-            <i class="mote" style="left:76%;top:70%"></i>
+            <i class="mote" style="left:28%;top:18%;animation-delay:-.5s"></i>
+            <i class="mote" style="left:68%;top:30%;animation-delay:-2.3s"></i>
+            <i class="mote" style="left:48%;top:68%;animation-delay:-4.1s"></i>
+            <i class="mote" style="left:76%;top:70%;animation-delay:-5.6s"></i>
           </div>
           <p class="w-headline">它出门了</p>
           <p class="w-sub">大概傍晚回来</p>
@@ -295,10 +416,10 @@
         <div class="w-screen">
           <div class="w-pet-stage">
             <img class="pet" src="art/warm-playful.png" alt="宠物">
-            <i class="spark" style="left:14%;top:20%"></i>
-            <i class="spark" style="left:82%;top:16%"></i>
-            <i class="spark" style="left:78%;top:62%"></i>
-            <i class="spark" style="left:10%;top:60%"></i>
+            <i class="spark" style="left:14%;top:20%;animation-delay:0ms"></i>
+            <i class="spark" style="left:82%;top:16%;animation-delay:90ms"></i>
+            <i class="spark" style="left:78%;top:62%;animation-delay:160ms"></i>
+            <i class="spark" style="left:10%;top:60%;animation-delay:220ms"></i>
           </div>
           <p class="w-headline">它回来了</p>
           <p class="w-sub">带回一颗果子</p>
@@ -338,15 +459,15 @@
           </div>
           <div class="p-body">
             <div class="grid">
-              <div class="slot"><img src="art/items/berry.png" alt="一颗果子"><span class="badge">刚到手</span></div>
-              <div class="slot"><img src="art/items/leaf.png" alt="一片叶子"></div>
-              <div class="slot"><img src="art/items/stone.png" alt="一块石头"></div>
-              <div class="slot"><img src="art/items/feather.png" alt="一根羽毛"></div>
-              <div class="slot"><img src="art/items/shell.png" alt="一枚贝壳"></div>
-              <div class="slot"><img src="art/items/flower.png" alt="一朵花"></div>
-              <div class="slot"><img src="art/items/bottle.png" alt="一个小瓶子"></div>
-              <div class="slot locked">?</div>
-              <div class="slot locked">?</div>
+              <div class="slot" style="--n:0"><img src="art/items/berry.png" alt="一颗果子"><span class="badge">刚到手</span></div>
+              <div class="slot" style="--n:1"><img src="art/items/leaf.png" alt="一片叶子"></div>
+              <div class="slot" style="--n:2"><img src="art/items/stone.png" alt="一块石头"></div>
+              <div class="slot" style="--n:3"><img src="art/items/feather.png" alt="一根羽毛"></div>
+              <div class="slot" style="--n:4"><img src="art/items/shell.png" alt="一枚贝壳"></div>
+              <div class="slot" style="--n:5"><img src="art/items/flower.png" alt="一朵花"></div>
+              <div class="slot" style="--n:6"><img src="art/items/bottle.png" alt="一个小瓶子"></div>
+              <div class="slot locked" style="--n:7">?</div>
+              <div class="slot locked" style="--n:8">?</div>
             </div>
             <div class="card">
               <div class="stat-row">
@@ -391,6 +512,7 @@
               </div>
               <p class="diary-end">再往前就翻不到了 · 它也没打算全记住</p>
             </div>
+            <div class="diary-glow"></div>
           </div>
           <nav class="tabbar">
             <button class="tab"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="4" y="4" width="16" height="16" rx="2"/><path d="M4 10h16M10 4v16"/></svg>图鉴<i class="dot"></i></button>
