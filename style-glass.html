@@ -170,14 +170,19 @@
     background: var(--surface); border-radius: 16px; padding: 14px 15px;
     box-shadow: 0 1px 2px rgba(0,0,0,.05), 0 6px 16px rgba(0,0,0,.05);
     border: 1px solid rgba(0,0,0,.03);
-    animation: fadeInUp .32s cubic-bezier(.16,1,.3,1) .42s both;
+    animation: fadeInUp .32s cubic-bezier(.16,1,.3,1) .54s both;
   }
 
   /* 图鉴格子 */
-  .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 16px; }
+  .grid-section {
+    font-size: 11px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase;
+    color: var(--label-3); margin: 0 2px 8px;
+    animation: fadeInUp .32s cubic-bezier(.16,1,.3,1) .02s both;
+  }
+  .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 14px; }
   .slot {
     aspect-ratio: 1; background: var(--surface); border-radius: 14px; position: relative;
-    display: flex; align-items: center; justify-content: center;
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px;
     box-shadow: 0 1px 2px rgba(0,0,0,.05), 0 4px 10px rgba(0,0,0,.04);
     border: 1px solid rgba(0,0,0,.03);
     animation: fadeInUp .32s cubic-bezier(.16,1,.3,1) both;
@@ -187,7 +192,12 @@
     animation-name: fadeInUpRaised;
     box-shadow: 0 2px 4px rgba(0,0,0,.08), 0 10px 20px rgba(0,0,0,.09);
   }
-  .slot img { width: 56%; height: 56%; object-fit: contain; }
+  .slot img { width: 44%; height: 44%; object-fit: contain; }
+  .slot-name {
+    font-size: 9px; font-weight: 600; color: var(--label-2); text-align: center;
+    max-width: 92%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    letter-spacing: -.01em;
+  }
   .slot.locked { color: var(--label-3); font-size: 17px; font-weight: 600; box-shadow: none; background: rgba(0,0,0,.025); border: 1px dashed var(--sep); }
   .badge {
     position: absolute; top: 6px; right: 6px; font-family: var(--sys-sans);
@@ -205,30 +215,40 @@
   .progress-fill { height: 100%; background: var(--accent); border-radius: 999px; }
 
   .received-card {
-    display: flex; align-items: center; gap: 12px; margin-top: 14px;
+    display: flex; align-items: center; gap: 12px; margin-bottom: 12px;
     background: var(--accent-soft); border-radius: 14px; padding: 10px 12px;
     box-shadow: 0 1px 2px rgba(190,106,60,.08);
-    animation: fadeInUp .32s cubic-bezier(.16,1,.3,1) .5s both;
+    animation: fadeInUp .32s cubic-bezier(.16,1,.3,1) .46s both;
   }
   .received-card img { width: 42px; height: 42px; object-fit: contain; flex-shrink: 0; }
   .received-card strong { display: block; font-size: 13.5px; font-weight: 650; margin-bottom: 2px; }
   .received-card span { font-size: 12px; color: var(--label-2); line-height: 1.4; }
 
-  /* 日记:纯列表,不用卡片——和图鉴的网格刻意拉开组件语言 */
-  .diary-list { margin-top: 2px; }
+  /* 日记:纯列表 + 左侧时间线脊柱——和图鉴的网格刻意拉开组件语言,但列表内部也有结构装置 */
+  .diary-list { position: relative; margin-top: 2px; padding-left: 20px; }
+  .diary-rail {
+    position: absolute; left: 5px; top: 19px; bottom: 58px; width: 2px;
+    background: linear-gradient(to bottom, var(--sep) 0%, var(--sep) 80%, transparent 100%);
+  }
   .diary-row {
-    padding: 14px 2px; border-bottom: 1px solid var(--sep);
+    position: relative; padding: 14px 2px 14px 0; border-bottom: 1px solid var(--sep);
     animation: fadeInUp .32s cubic-bezier(.16,1,.3,1) both;
   }
-  .diary-row:nth-child(1) { animation-delay: .08s; }
-  .diary-row:nth-child(2) { animation-delay: .16s; }
+  .diary-row:nth-child(2) { animation-delay: .08s; }
+  .diary-row:nth-child(3) { animation-delay: .16s; }
+  .diary-dot {
+    position: absolute; left: -18px; top: 19px; width: 8px; height: 8px; border-radius: 50%;
+    background: var(--surface); border: 2px solid var(--accent);
+    box-shadow: 0 1px 2px rgba(0,0,0,.1);
+  }
   .diary-row time {
-    display: block; font-family: var(--sys-mono); font-size: 11px;
-    color: var(--accent); margin-bottom: 5px; letter-spacing: .01em;
+    display: inline-block; font-family: var(--sys-mono); font-size: 10.5px; font-weight: 700;
+    color: var(--accent); background: var(--accent-soft); margin-bottom: 7px;
+    padding: 3px 9px; border-radius: 999px; letter-spacing: .01em;
   }
   .diary-row p { font-size: 14.5px; line-height: 1.56; margin: 0; color: var(--label); }
   .diary-end {
-    text-align: center; font-size: 12px; color: var(--label-3); margin: 18px 0 0;
+    text-align: center; font-size: 12px; color: var(--label-3); margin: 16px 0 0;
     animation: fadeInUp .32s cubic-bezier(.16,1,.3,1) .24s both;
   }
   .diary-glow {
@@ -458,16 +478,21 @@
             <p class="p-sub">7 样 · 还有很多没见过</p>
           </div>
           <div class="p-body">
+            <div class="grid-section">已收集 7</div>
             <div class="grid">
-              <div class="slot" style="--n:0"><img src="art/items/berry.png" alt="一颗果子"><span class="badge">刚到手</span></div>
-              <div class="slot" style="--n:1"><img src="art/items/leaf.png" alt="一片叶子"></div>
-              <div class="slot" style="--n:2"><img src="art/items/stone.png" alt="一块石头"></div>
-              <div class="slot" style="--n:3"><img src="art/items/feather.png" alt="一根羽毛"></div>
-              <div class="slot" style="--n:4"><img src="art/items/shell.png" alt="一枚贝壳"></div>
-              <div class="slot" style="--n:5"><img src="art/items/flower.png" alt="一朵花"></div>
-              <div class="slot" style="--n:6"><img src="art/items/bottle.png" alt="一个小瓶子"></div>
+              <div class="slot" style="--n:0"><img src="art/items/berry.png" alt="一颗果子"><span class="slot-name">果子</span><span class="badge">刚到手</span></div>
+              <div class="slot" style="--n:1"><img src="art/items/leaf.png" alt="一片叶子"><span class="slot-name">叶子</span></div>
+              <div class="slot" style="--n:2"><img src="art/items/stone.png" alt="一块石头"><span class="slot-name">石头</span></div>
+              <div class="slot" style="--n:3"><img src="art/items/feather.png" alt="一根羽毛"><span class="slot-name">羽毛</span></div>
+              <div class="slot" style="--n:4"><img src="art/items/shell.png" alt="一枚贝壳"><span class="slot-name">贝壳</span></div>
+              <div class="slot" style="--n:5"><img src="art/items/flower.png" alt="一朵花"><span class="slot-name">花</span></div>
+              <div class="slot" style="--n:6"><img src="art/items/bottle.png" alt="一个小瓶子"><span class="slot-name">小瓶子</span></div>
               <div class="slot locked" style="--n:7">?</div>
               <div class="slot locked" style="--n:8">?</div>
+            </div>
+            <div class="received-card">
+              <img src="art/items/berry.png" alt="">
+              <span><strong>刚收到:一颗果子</strong>它说路边捡的,不太确定能不能吃</span>
             </div>
             <div class="card">
               <div class="stat-row">
@@ -476,10 +501,6 @@
                   <p class="stat-desc">集齐解锁新的散步路线,缺的两样在湖边</p></div>
               </div>
               <div class="progress"><div class="progress-fill" style="width:66.6%"></div></div>
-              <div class="received-card">
-                <img src="art/items/berry.png" alt="">
-                <span><strong>刚收到:一颗果子</strong>它说路边捡的,不太确定能不能吃</span>
-              </div>
             </div>
           </div>
           <nav class="tabbar">
@@ -502,11 +523,14 @@
           </div>
           <div class="p-body">
             <div class="diary-list">
+              <div class="diary-rail"></div>
               <div class="diary-row">
+                <i class="diary-dot"></i>
                 <time>10 月 11 日 · 傍晚</time>
                 <p>今天走得比平常远。你好像也走了不少,我们大概错过了。带了一颗果子回来。</p>
               </div>
               <div class="diary-row">
+                <i class="diary-dot"></i>
                 <time>10 月 10 日 · 下午</time>
                 <p>窗台那边太阳很好,躺了一会儿。你一直没回来。</p>
               </div>
