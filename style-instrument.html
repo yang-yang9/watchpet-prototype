@@ -1,0 +1,478 @@
+<!DOCTYPE html>
+<!--
+  设计小结 —— 读数仪表 Instrument (style-instrument)
+
+  来源:designeer.xyz 的 Color 区(OKLCH / APCA / Huetone)和 Components 区的
+  NumberFlow / Rolling Number / Evil Charts。那批东西的共同气质是「界面是一台读数设备」:
+  等宽数字、细刻度、一条高饱和强调色压在纯黑上。
+
+  调色板(纯黑 + 一条酸色,没有第二个彩色):
+    --void   #000000  真黑,OLED 上不供电
+    --rail   #0E1013  刻度槽/取景窗底,比黑高一级
+    --line   #23272E  所有分隔线和刻度的默认色
+    --sig    #C8FF3D  酸黄绿,全篇唯一强调色。在纯黑上 APCA Lc ≈ 105,
+             亮到可以当正文用——但刻意只给「当前值 / 选中 / 刚到手」三种语义
+    --text   #E8EAED  正文,纯黑上 APCA Lc ≈ 98
+    --mute   #747A84  刻度编号与说明,Lc ≈ 46,够读不抢
+
+  字体:标签、编号、所有数字一律 --sys-mono 且 tabular——这套风格的「仪表感」主要
+  是数字排版撑起来的,不是靠图形。正文仍走 --sys-sans,避免整屏等宽读起来像日志。
+
+  布局构想:严格左对齐到一条网格线,圆角一律 2px(只有取景窗角标是直角)。
+  没有悬浮、没有阴影、没有模糊——这是和 Glass/Aura 最硬的区别:那两套靠「浮起来」
+  分层,这套完全靠**线的粗细和刻度的疏密**分层,所有东西都平贴在底面上。
+
+  Signature element:**刻度尺 tick rail**——每个区块下沿一条带编号的细刻度(每 5 格一根长刻度)。
+  它是「这是一台在测量的设备」这个气质的唯一载体,所以别处不再加装饰。
+  宠物不是插画主角,被框进一个带四角标的**取景窗**里,像仪器的瞄准框。
+
+  ⚠️ 这套风格自带一个产品风险,必须在定方向时就说清楚:
+  仪表语言会**引诱人往屏幕上加数字**,而 CLAUDE.md 的产品原则明确禁止把性格或健康的
+  内部数值显示给用户。所以这一版里所有数字都只是方向 C 本来就有的客观量——
+  件数(7 样)、套装内容进度(4/6)、时钟、日期。刻度本身不绑任何数值,是纯粹的视觉母题。
+  如果这套被选中,spec 阶段要专门写一条约束,否则很容易一路加成健康评分面板。
+-->
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>读数仪表 Instrument · 方向 C</title>
+<style>
+  :root {
+    --sys-sans: -apple-system, "SF Pro Text", "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
+    --sys-mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+
+    --void: #000000;
+    --rail: #0E1013;
+    --line: #23272E;
+    --sig: #C8FF3D;
+    --text: #E8EAED;
+    --mute: #747A84;
+    --bezel: #111317;
+
+    /* 仪表屏上宠物要压掉暖调、提对比,否则毛绒质感和酸色强调打架 */
+    --pet-filter: saturate(.72) contrast(1.12) brightness(1.04);
+    --item-filter: saturate(.6) contrast(1.1) brightness(1.06);
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--void);
+    font-family: var(--sys-sans);
+    color: var(--text);
+    padding: 46px 20px 72px;
+  }
+
+  .intro { max-width: 760px; margin: 0 auto 18px; }
+  .intro .eyebrow {
+    font-family: var(--sys-mono); font-size: 11px; letter-spacing: .12em;
+    color: var(--sig); text-transform: uppercase; margin: 0 0 10px;
+  }
+  .intro h1 { font-size: 28px; font-weight: 400; letter-spacing: -.01em; margin: 0 0 10px; }
+  .intro p { font-size: 14px; line-height: 1.75; color: var(--mute); margin: 0; max-width: 60ch; }
+  .intro p b { color: var(--text); font-weight: 500; }
+
+  /* ---------------------------------------------------------------- 刻度尺(signature 母题) */
+  .ticks {
+    height: 9px; width: 100%;
+    background-image:
+      repeating-linear-gradient(90deg, var(--mute) 0 1px, transparent 1px 40px),
+      repeating-linear-gradient(90deg, var(--line) 0 1px, transparent 1px 8px);
+    background-size: 100% 100%, 100% 55%;
+    background-repeat: no-repeat;
+    background-position: 0 0, 0 0;
+  }
+  .page-ticks { max-width: 760px; margin: 0 auto 40px; }
+
+  .row { max-width: 1200px; margin: 0 auto 50px; }
+  .row > h2 {
+    font-family: var(--sys-mono); font-size: 11px; font-weight: 400; letter-spacing: .14em;
+    text-transform: uppercase; color: var(--mute); margin: 0 0 20px;
+  }
+  .devices { display: flex; gap: 34px; flex-wrap: wrap; align-items: flex-start; }
+  .device-wrap { display: flex; flex-direction: column; align-items: center; gap: 13px; }
+  .cap { font-family: var(--sys-mono); font-size: 11px; letter-spacing: .08em; color: var(--mute); }
+
+  /* ---------------------------------------------------------------- 取景窗四角标(signature 构件) */
+  .sight {
+    position: absolute; inset: 0; pointer-events: none; z-index: 6;
+    background:
+      linear-gradient(var(--sig), var(--sig)) 0 0 / 13px 1px no-repeat,
+      linear-gradient(var(--sig), var(--sig)) 0 0 / 1px 13px no-repeat,
+      linear-gradient(var(--sig), var(--sig)) 100% 0 / 13px 1px no-repeat,
+      linear-gradient(var(--sig), var(--sig)) 100% 0 / 1px 13px no-repeat,
+      linear-gradient(var(--sig), var(--sig)) 0 100% / 13px 1px no-repeat,
+      linear-gradient(var(--sig), var(--sig)) 0 100% / 1px 13px no-repeat,
+      linear-gradient(var(--sig), var(--sig)) 100% 100% / 13px 1px no-repeat,
+      linear-gradient(var(--sig), var(--sig)) 100% 100% / 1px 13px no-repeat;
+    opacity: .85;
+  }
+  /* 扫描线:唯一的动效,很慢,证明这台设备在读数而不是定格 */
+  .scan {
+    position: absolute; left: 0; right: 0; height: 1px; z-index: 5; pointer-events: none;
+    background: linear-gradient(90deg, transparent, rgba(200,255,61,.55), transparent);
+    animation: scanDrop 5.5s linear infinite;
+  }
+  @keyframes scanDrop { 0% { top: 0; opacity: 0; } 12% { opacity: 1; } 88% { opacity: 1; } 100% { top: 100%; opacity: 0; } }
+
+  /* NEW 芯片:mono、直角、酸色填底。不是印章/徽章,是仪表上的状态灯 */
+  .chip {
+    font-family: var(--sys-mono); font-size: 8px; letter-spacing: .1em; text-transform: uppercase;
+    color: var(--void); background: var(--sig); padding: 2px 5px; border-radius: 1px; white-space: nowrap;
+  }
+
+  /* ---------------------------------------------------------------- 手表外框 */
+  .watch-frame {
+    width: 240px; height: 280px; background: var(--bezel); border-radius: 50px;
+    padding: 16px; position: relative; box-shadow: 0 0 0 1px #1D2026;
+  }
+  .watch-frame::after {
+    content: ''; position: absolute; right: -4px; top: 50%; translate: 0 -50%;
+    width: 8px; height: 42px; background: #1A1D22; border-radius: 4px;
+  }
+  .watch-screen {
+    width: 208px; height: 248px; border-radius: 36px; overflow: hidden;
+    background: var(--void); position: relative; color: var(--text);
+  }
+
+  /* ---------------------------------------------------------------- 手机外框 */
+  .phone-frame {
+    width: 358px; height: 744px; background: var(--bezel); border-radius: 56px;
+    padding: 14px; position: relative; box-shadow: 0 0 0 1px #1D2026;
+  }
+  .phone-screen {
+    width: 330px; height: 716px; border-radius: 44px; overflow: hidden;
+    background: var(--void); position: relative; color: var(--text);
+  }
+  .island { position: absolute; top: 10px; left: 50%; translate: -50% 0; width: 92px; height: 25px; border-radius: 14px; background: #000; z-index: 50; }
+
+  /* ---------------------------------------------------------------- 手表内容 */
+  .w-screen { width: 100%; height: 100%; padding: 18px 16px 14px; position: relative; display: flex; flex-direction: column; }
+  .w-meta {
+    display: flex; justify-content: space-between; align-items: center;
+    font-family: var(--sys-mono); font-size: 8.5px; letter-spacing: .1em; color: var(--mute);
+    text-transform: uppercase; margin-bottom: 8px;
+  }
+  .w-sight-box { position: relative; height: 112px; background: var(--rail); border-radius: 2px; display: flex; align-items: center; justify-content: center; overflow: hidden; }
+  .w-sight-box img.pet { width: 92px; height: 92px; object-fit: contain; filter: var(--pet-filter); }
+  .w-headline { font-size: 15px; font-weight: 500; letter-spacing: -.005em; margin: 11px 0 0; }
+  .w-sub { font-family: var(--sys-mono); font-size: 10px; color: var(--mute); margin: 4px 0 0; letter-spacing: .04em; }
+  .w-foot { margin-top: auto; }
+  .w-btn {
+    width: 100%; font-family: var(--sys-mono); font-size: 11px; font-weight: 600; letter-spacing: .1em;
+    text-transform: uppercase; color: var(--void); border: none; border-radius: 2px;
+    padding: 10px 0; min-height: 34px; background: var(--sig);
+  }
+  .w-btn:active { opacity: .8; }
+
+  .face { width: 100%; height: 100%; padding: 20px 16px 16px; display: flex; flex-direction: column; justify-content: center; }
+  .face-clock { font-family: var(--sys-mono); font-size: 40px; font-weight: 500; letter-spacing: -.03em; margin: 0; font-variant-numeric: tabular-nums; }
+  .face-ticks { margin: 10px 0 16px; }
+  .compl { display: flex; align-items: center; gap: 10px; background: var(--rail); border-radius: 2px; padding: 9px 11px; position: relative; }
+  .compl::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 2px; background: var(--sig); }
+  .compl-win { width: 32px; height: 32px; background: #000; border-radius: 1px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; overflow: hidden; }
+  .compl-win img { width: 27px; height: 27px; object-fit: contain; filter: var(--pet-filter); }
+  .compl .t1 { font-family: var(--sys-mono); font-size: 8.5px; letter-spacing: .1em; text-transform: uppercase; color: var(--mute); }
+  .compl .t2 { font-size: 12.5px; font-weight: 500; margin-top: 2px; }
+
+  /* ---------------------------------------------------------------- 手机内容:通用 */
+  .p-screen { width: 100%; height: 100%; display: flex; flex-direction: column; position: relative; }
+  .p-top { padding: 46px 20px 0; }
+  .p-index { font-family: var(--sys-mono); font-size: 9px; letter-spacing: .14em; text-transform: uppercase; color: var(--sig); margin: 0 0 8px; }
+  .p-title { font-size: 23px; font-weight: 500; letter-spacing: -.015em; margin: 0; }
+  .p-sub { font-family: var(--sys-mono); font-size: 10.5px; color: var(--mute); margin: 7px 0 0; letter-spacing: .04em; }
+  .p-top .ticks { margin-top: 13px; }
+  .p-body { flex: 1; padding: 16px 20px 0; overflow: hidden; }
+
+  /* 图鉴:严格网格,每格左上角一个两位编号。没拿到的格子刻度更疏 */
+  .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1px; background: var(--line); border: 1px solid var(--line); margin-bottom: 20px; }
+  .slot {
+    position: relative; aspect-ratio: 1; background: var(--rail);
+    display: flex; align-items: center; justify-content: center;
+  }
+  .slot .no { position: absolute; left: 5px; top: 4px; font-family: var(--sys-mono); font-size: 8px; color: var(--mute); letter-spacing: .04em; }
+  .slot img { width: 50%; height: 50%; object-fit: contain; filter: var(--item-filter); }
+  .slot.locked { background: #060709; }
+  .slot.locked .no { color: #3A3F47; }
+  .slot.locked .dash { width: 14px; height: 1px; background: #2C313A; }
+  .slot.fresh { background: #10140A; }
+  .slot .chip { position: absolute; right: 4px; bottom: 4px; }
+
+  /* 套装进度:刻度化的条,格子数就是分母,不画百分比 */
+  .block { border-top: 1px solid var(--line); padding: 15px 0 16px; }
+  .block-head { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 4px; }
+  .block-label { font-family: var(--sys-mono); font-size: 9.5px; letter-spacing: .12em; text-transform: uppercase; color: var(--mute); }
+  .block-val { font-family: var(--sys-mono); font-size: 22px; font-weight: 500; color: var(--sig); font-variant-numeric: tabular-nums; letter-spacing: -.02em; }
+  .block-val small { font-size: 13px; color: var(--mute); }
+  .seg { display: flex; gap: 3px; margin: 10px 0 9px; }
+  .seg i { flex: 1; height: 5px; background: var(--line); border-radius: 1px; }
+  .seg i.on { background: var(--sig); }
+  .block-desc { font-size: 11.5px; color: var(--mute); line-height: 1.55; margin: 0; }
+
+  .received { display: flex; align-items: center; gap: 12px; border-top: 1px solid var(--line); padding: 14px 0 0; }
+  .received .win { width: 46px; height: 46px; background: var(--rail); border-radius: 2px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; position: relative; }
+  .received .win img { width: 34px; height: 34px; object-fit: contain; filter: var(--item-filter); }
+  .received .txt strong { display: block; font-size: 13px; font-weight: 500; margin-bottom: 3px; }
+  .received .txt span { font-size: 11.5px; color: var(--mute); line-height: 1.45; }
+  .received .chip { align-self: flex-start; margin-left: auto; }
+
+  /* 日记:每条一个 mono 时间戳 + 一条左侧引导线,像日志行 */
+  .diary-row { position: relative; padding: 0 0 20px 16px; }
+  .diary-row::before { content: ''; position: absolute; left: 0; top: 4px; bottom: 20px; width: 1px; background: var(--line); }
+  .diary-row:last-of-type::before { bottom: 6px; }
+  .diary-row::after { content: ''; position: absolute; left: -2px; top: 4px; width: 5px; height: 5px; background: var(--sig); border-radius: 1px; }
+  .diary-row time { display: block; font-family: var(--sys-mono); font-size: 9.5px; letter-spacing: .1em; color: var(--mute); margin-bottom: 7px; text-transform: uppercase; }
+  .diary-row p { font-size: 13.5px; line-height: 1.75; margin: 0; }
+  .diary-end { font-family: var(--sys-mono); font-size: 9.5px; letter-spacing: .06em; color: #4C525B; margin: 4px 0 0 16px; }
+  /* 日记只有两条,下半屏是一大片纯黑。给它一条量程底线:空白于是读成「刻度走到头了」,
+     不是「内容没排完」。和 .ticks 同一个构件,不发明新语言。 */
+  .rail-foot { position: absolute; left: 20px; right: 20px; bottom: 74px; }
+  .rail-foot .lbl {
+    display: flex; justify-content: space-between; margin-top: 6px;
+    font-family: var(--sys-mono); font-size: 8.5px; letter-spacing: .14em;
+    text-transform: uppercase; color: #4C525B;
+  }
+
+  /* tabbar:无托盘,一条顶边线 + mono 标签,选中的加一条酸色上沿 */
+  .tabbar { position: absolute; left: 0; right: 0; bottom: 0; height: 62px; padding-bottom: 6px; display: flex; background: var(--void); border-top: 1px solid var(--line); z-index: 5; }
+  .tab {
+    flex: 1; border: none; background: none; display: flex; flex-direction: column;
+    align-items: center; justify-content: center; gap: 5px; position: relative;
+    font-family: var(--sys-mono); font-size: 9px; letter-spacing: .1em; color: var(--mute);
+  }
+  .tab svg { width: 18px; height: 18px; stroke: var(--mute); fill: none; }
+  .tab.active { color: var(--sig); }
+  .tab.active svg { stroke: var(--sig); stroke-width: 1.9; }
+  .tab.active::before { content: ''; position: absolute; top: -1px; left: 22%; right: 22%; height: 2px; background: var(--sig); }
+  .tab:active { opacity: .7; }
+
+  /* 「它」:场景照是一帧「读数画面」,压暗 + 四角标 + 底部一行 mono 元数据 */
+  /* 底部留出 tabbar 的高度,并把 kv+按钮钉到底边——否则「它」这屏下半截是一大片空黑,
+     在这套硬边风格里空黑看起来不是留白,是没做完 */
+  .screen-pet { padding: 46px 20px 74px; display: flex; flex-direction: column; height: 100%; }
+  /* 取景窗高度从 250 提到 340:把 kv/按钮钉到底边之后,中间空出来一段纯黑。
+     这套风格没有材质也没有光,空黑处什么线索都没有,只会读成「没做完」——用图像把它吃掉。 */
+  .stage { position: relative; margin-top: 13px; height: 340px; background: var(--rail); border-radius: 2px; overflow: hidden; display: flex; align-items: flex-end; justify-content: center; }
+  .stage img.scene { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; filter: brightness(.46) saturate(.45) contrast(1.14); }
+  .stage img.pet { position: relative; z-index: 4; width: 124px; height: 124px; object-fit: contain; margin-bottom: 20px; filter: var(--pet-filter); }
+  .stage-meta {
+    position: absolute; left: 0; right: 0; bottom: 0; z-index: 7;
+    display: flex; justify-content: space-between;
+    padding: 6px 9px; background: rgba(0,0,0,.72);
+    font-family: var(--sys-mono); font-size: 8.5px; letter-spacing: .1em; text-transform: uppercase; color: var(--mute);
+  }
+  .stage-meta b { color: var(--sig); font-weight: 500; }
+  .pic-caption { font-size: 12.5px; color: var(--mute); margin: 13px 0 0; }
+  .kv { display: flex; justify-content: space-between; align-items: baseline; border-top: 1px solid var(--line); padding: 13px 0; margin-top: auto; }
+  .kv .k { font-family: var(--sys-mono); font-size: 9.5px; letter-spacing: .12em; text-transform: uppercase; color: var(--mute); }
+  .kv .v { font-size: 12.5px; font-weight: 500; }
+  .action-row { display: flex; gap: 9px; margin-top: 4px; }
+  .pbtn { border: none; border-radius: 2px; padding: 13px 0; font-family: var(--sys-mono); font-size: 11px; font-weight: 600; letter-spacing: .1em; text-transform: uppercase; }
+  .pbtn.secondary { flex: 1; background: transparent; box-shadow: inset 0 0 0 1px var(--line); color: var(--text); }
+  .pbtn.primary { flex: 1.3; background: var(--sig); color: var(--void); }
+  .pbtn:active { opacity: .8; }
+
+  @media (prefers-reduced-motion: reduce) { * { animation: none !important; } }
+</style>
+</head>
+<body>
+
+<div class="intro">
+  <p class="eyebrow">方向 C · 它自己的生活 — 读数仪表 Instrument</p>
+  <h1>一台在读数的设备,不是一本相册</h1>
+  <p>纯黑 + 一条酸黄绿,全部数字走等宽 tabular,每个区块下沿一条带编号的细刻度。
+    没有阴影、没有模糊、没有悬浮——分层只靠线的粗细和刻度的疏密。
+    <b>这套自带一个风险:仪表语言会引诱人往屏上加数字</b>,而产品原则禁止显示性格/健康的内部数值。
+    所以这里的数字只有件数、套装内容进度、时钟和日期,刻度本身不绑任何值。</p>
+</div>
+<div class="ticks page-ticks"></div>
+
+<section class="row row-watch">
+  <h2>手表 · 三帧读数</h2>
+  <div class="devices">
+
+    <div class="device-wrap">
+      <div class="watch-frame"><div class="watch-screen">
+        <div class="w-screen">
+          <div class="w-meta"><span>状态 · 外出</span><span>09:41</span></div>
+          <div class="w-sight-box">
+            <img class="pet" style="opacity:.5" src="art/warm-idle.png" alt="宠物">
+            <div class="scan"></div>
+            <div class="sight"></div>
+          </div>
+          <p class="w-headline">它出门了</p>
+          <p class="w-sub">大概傍晚回来</p>
+          <div class="w-foot">
+            <div class="ticks" style="margin-bottom:9px"></div>
+            <button class="w-btn">看看它</button>
+          </div>
+        </div>
+      </div></div>
+      <span class="cap">出门了</span>
+    </div>
+
+    <div class="device-wrap">
+      <div class="watch-frame"><div class="watch-screen">
+        <div class="w-screen">
+          <div class="w-meta"><span>状态 · 已归</span><span class="chip">New</span></div>
+          <div class="w-sight-box">
+            <img class="pet" src="art/warm-playful.png" alt="宠物">
+            <div class="scan"></div>
+            <div class="sight"></div>
+          </div>
+          <p class="w-headline">它回来了</p>
+          <p class="w-sub">带回一颗果子</p>
+          <div class="w-foot">
+            <div class="ticks" style="margin-bottom:9px"></div>
+            <button class="w-btn">收下</button>
+          </div>
+        </div>
+      </div></div>
+      <span class="cap">回来了</span>
+    </div>
+
+    <div class="device-wrap">
+      <div class="watch-frame"><div class="watch-screen">
+        <div class="face">
+          <p class="face-clock">9:41</p>
+          <div class="ticks face-ticks"></div>
+          <div class="compl">
+            <div class="compl-win"><img src="art/warm-idle.png" alt=""></div>
+            <div><div class="t1">出门中</div><div class="t2">傍晚回来</div></div>
+          </div>
+        </div>
+      </div></div>
+      <span class="cap">复杂功能</span>
+    </div>
+
+  </div>
+</section>
+
+<section class="row row-phone">
+  <h2>手机 · 三页读数</h2>
+  <div class="devices">
+
+    <div class="device-wrap">
+      <div class="phone-frame"><div class="phone-screen">
+        <div class="island"></div>
+        <div class="p-screen">
+          <div class="p-top">
+            <p class="p-index">01 / 图鉴</p>
+            <h1 class="p-title">它带回来的</h1>
+            <p class="p-sub">7 样 · 还有很多没见过</p>
+            <div class="ticks"></div>
+          </div>
+          <div class="p-body">
+            <div class="grid">
+              <div class="slot fresh"><span class="no">01</span><img src="art/items/berry.png" alt="一颗果子"><span class="chip">New</span></div>
+              <div class="slot"><span class="no">02</span><img src="art/items/leaf.png" alt="一片叶子"></div>
+              <div class="slot"><span class="no">03</span><img src="art/items/stone.png" alt="一块石头"></div>
+              <div class="slot"><span class="no">04</span><img src="art/items/feather.png" alt="一根羽毛"></div>
+              <div class="slot"><span class="no">05</span><img src="art/items/shell.png" alt="一枚贝壳"></div>
+              <div class="slot"><span class="no">06</span><img src="art/items/flower.png" alt="一朵花"></div>
+              <div class="slot"><span class="no">07</span><img src="art/items/bottle.png" alt="一个小瓶子"></div>
+              <div class="slot locked"><span class="no">08</span><i class="dash"></i></div>
+              <div class="slot locked"><span class="no">09</span><i class="dash"></i></div>
+            </div>
+            <div class="block">
+              <div class="block-head">
+                <span class="block-label">套装 · 林线</span>
+                <span class="block-val">4<small>/6</small></span>
+              </div>
+              <div class="seg"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i></i><i></i></div>
+              <p class="block-desc">集齐解锁新的散步路线,缺的两样在湖边</p>
+            </div>
+            <div class="received">
+              <div class="win"><img src="art/items/berry.png" alt=""></div>
+              <div class="txt">
+                <strong>刚收到:一颗果子</strong>
+                <span>它说路边捡的,不太确定能不能吃</span>
+              </div>
+              <span class="chip">New</span>
+            </div>
+          </div>
+          <nav class="tabbar">
+            <button class="tab active"><svg viewBox="0 0 24 24" stroke-width="1.6"><rect x="4" y="4" width="7" height="7"/><rect x="13" y="4" width="7" height="7"/><rect x="4" y="13" width="7" height="7"/><rect x="13" y="13" width="7" height="7"/></svg>图鉴</button>
+            <button class="tab"><svg viewBox="0 0 24 24" stroke-width="1.6"><rect x="5" y="3.5" width="14" height="17"/><path d="M8.5 9h7M8.5 13h7"/></svg>日记</button>
+            <button class="tab"><svg viewBox="0 0 24 24" stroke-width="1.6"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="2.2"/></svg>它</button>
+          </nav>
+        </div>
+      </div></div>
+      <span class="cap">图鉴</span>
+    </div>
+
+    <div class="device-wrap">
+      <div class="phone-frame"><div class="phone-screen">
+        <div class="island"></div>
+        <div class="p-screen">
+          <div class="p-top">
+            <p class="p-index">02 / 日记</p>
+            <h1 class="p-title">它写的</h1>
+            <p class="p-sub">它自己的视角,不是你的记录</p>
+            <div class="ticks"></div>
+          </div>
+          <div class="p-body">
+            <div class="diary-row">
+              <time>10-11 · 傍晚</time>
+              <p>今天走得比平常远。你好像也走了不少,我们大概错过了。带了一颗果子回来。</p>
+            </div>
+            <div class="diary-row">
+              <time>10-10 · 下午</time>
+              <p>窗台那边太阳很好,躺了一会儿。你一直没回来。</p>
+            </div>
+            <p class="diary-end">再往前就翻不到了 · 它也没打算全记住</p>
+            <div class="rail-foot">
+              <div class="ticks"></div>
+              <div class="lbl"><span>量程末端</span><span>02 / 03</span></div>
+            </div>
+          </div>
+          <nav class="tabbar">
+            <button class="tab"><svg viewBox="0 0 24 24" stroke-width="1.6"><rect x="4" y="4" width="7" height="7"/><rect x="13" y="4" width="7" height="7"/><rect x="4" y="13" width="7" height="7"/><rect x="13" y="13" width="7" height="7"/></svg>图鉴</button>
+            <button class="tab active"><svg viewBox="0 0 24 24" stroke-width="1.6"><rect x="5" y="3.5" width="14" height="17"/><path d="M8.5 9h7M8.5 13h7"/></svg>日记</button>
+            <button class="tab"><svg viewBox="0 0 24 24" stroke-width="1.6"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="2.2"/></svg>它</button>
+          </nav>
+        </div>
+      </div></div>
+      <span class="cap">日记</span>
+    </div>
+
+    <div class="device-wrap">
+      <div class="phone-frame"><div class="phone-screen">
+        <div class="island"></div>
+        <div class="p-screen">
+          <div class="screen-pet">
+            <p class="p-index">03 / 它</p>
+            <h1 class="p-title">小团</h1>
+            <p class="p-sub">在家 · 刚回来</p>
+            <div class="stage">
+              <img class="scene" src="art/scene-room.jpg" alt="">
+              <img class="pet" src="art/warm-calm.png" alt="宠物">
+              <div class="scan"></div>
+              <div class="sight"></div>
+              <div class="stage-meta"><span>室内 · 窝边</span><span>状态 <b>在家</b></span></div>
+            </div>
+            <p class="pic-caption">对着什么发呆</p>
+            <div class="kv">
+              <span class="k">下次出门</span>
+              <span class="v">明天早上 · 它自己决定的</span>
+            </div>
+            <div class="action-row">
+              <button class="pbtn secondary">给点心</button>
+              <button class="pbtn primary">摸摸</button>
+            </div>
+          </div>
+          <nav class="tabbar">
+            <button class="tab"><svg viewBox="0 0 24 24" stroke-width="1.6"><rect x="4" y="4" width="7" height="7"/><rect x="13" y="4" width="7" height="7"/><rect x="4" y="13" width="7" height="7"/><rect x="13" y="13" width="7" height="7"/></svg>图鉴</button>
+            <button class="tab"><svg viewBox="0 0 24 24" stroke-width="1.6"><rect x="5" y="3.5" width="14" height="17"/><path d="M8.5 9h7M8.5 13h7"/></svg>日记</button>
+            <button class="tab active"><svg viewBox="0 0 24 24" stroke-width="1.6"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="2.2"/></svg>它</button>
+          </nav>
+        </div>
+      </div></div>
+      <span class="cap">它</span>
+    </div>
+
+  </div>
+</section>
+
+</body>
+</html>

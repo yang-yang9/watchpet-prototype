@@ -1,0 +1,448 @@
+<!DOCTYPE html>
+<!--
+  设计小结 —— 光晕灵氛 Aura (style-aura)
+
+  来源:designeer.xyz 的 Shaders 区(Orbkit / Paper Shaders / Canvas UI)——那批东西共同的
+  做法是「界面主体不是一个物件,是一团被着色器驱动的光场」。这套风格把它搬到方向 C 上。
+
+  调色板(OLED 真黑打底,光是唯一的材质):
+    --void      #000000  真黑。不是「很深的灰」——手表 OLED 上纯黑像素是不供电的,
+                 这套风格的大面积黑是省电的,不只是好看
+    --veil      #0B0B10  次级面(tabbar/取景窗底),比黑高一级但仍然几乎看不出边界
+    --glow-warm #FF9A5C  它的主色相——暖橙,宠物光晕、「刚到手」、主按钮
+    --glow-cool #5CC8FF  冷青,次要光晕的对位色,只在光晕里出现,不当文字色
+    --glow-lily #A77BFF  紫,光晕第三色,同上
+    --text      #F2EFEA  正文。在纯黑上 APCA Lc ≈ 102,远超正文阈值
+    --text-mute #8C8A96  次级文字,APCA Lc ≈ 50,只给说明不给正文
+                 (对比度照 designeer 的 Color 区 APCA/OKLCH 那套口径取的,不是 WCAG)
+
+  字体全部走系统栈 --sys-sans(不接字体 CDN),数字用 --sys-mono。字重普遍偏细(300-400):
+  在发光背景上粗字会糊成一团光斑。
+
+  布局构想:**没有卡片,没有描边,没有背景色块。** 层级完全由光的强弱表达——
+  重要的东西光更亮更饱和,次要的沉回黑里。这是和已有几套最硬的区别:
+    - vs Glass:Glass 靠毛玻璃模糊 + 素色卡片分层,这套一张卡片都没有
+    - vs Diorama:Diorama 是「隔着玻璃看一个发光的罐子」,有明确的容器边界和玻璃反光,
+      罐内暖罐外冷;这套没有容器,光本身就是界面,元素直接从黑里浮出来
+
+  Signature element:**光晕环 aura**——多层 conic-gradient 叠高斯模糊,缓慢自转 + 呼吸缩放,
+  mix-blend-mode: screen 叠在黑上。它同时承担三件事,所以全篇只有这一种装饰:
+    1. 托住宠物(替代接地阴影——深色屏上画「地上的一摊光」而不是一条白杠,
+       这是上一轮 README 记过的坑)
+    2. 标记「刚到手」(新 = 更亮,不另造印章/邮戳这类标记物)
+    3. 分隔日记条目(光的渐隐代替分割线)
+-->
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>光晕灵氛 Aura · 方向 C</title>
+<style>
+  :root {
+    --sys-sans: -apple-system, "SF Pro Text", "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
+    --sys-mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+
+    --void: #000000;
+    --veil: #0B0B10;
+    --glow-warm: #FF9A5C;
+    --glow-cool: #5CC8FF;
+    --glow-lily: #A77BFF;
+    --text: #F2EFEA;
+    --text-mute: #8C8A96;
+    --hair: rgba(242, 239, 234, .09);
+    --bezel: #121216;
+
+    /* 宠物在发光场里要稍微提亮并压一点饱和,否则暖橙光晕一叠就过曝 */
+    --pet-filter: brightness(1.06) saturate(.94) contrast(1.02);
+    --item-filter: brightness(1.1) saturate(.9);
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--void);
+    font-family: var(--sys-sans);
+    color: var(--text);
+    padding: 46px 20px 72px;
+  }
+
+  .intro { max-width: 760px; margin: 0 auto 34px; position: relative; }
+  .intro .eyebrow {
+    font-family: var(--sys-mono); font-size: 11px; letter-spacing: .12em;
+    color: var(--glow-warm); text-transform: uppercase; margin: 0 0 10px;
+  }
+  .intro h1 { font-size: 28px; font-weight: 300; letter-spacing: .01em; margin: 0 0 10px; }
+  .intro p { font-size: 14px; line-height: 1.75; color: var(--text-mute); margin: 0; max-width: 60ch; }
+
+  .row { max-width: 1200px; margin: 0 auto 50px; }
+  .row > h2 {
+    font-size: 12px; font-weight: 500; letter-spacing: .12em; text-transform: uppercase;
+    color: var(--text-mute); margin: 0 0 20px;
+  }
+  .devices { display: flex; gap: 34px; flex-wrap: wrap; align-items: flex-start; }
+  .device-wrap { display: flex; flex-direction: column; align-items: center; gap: 13px; }
+  .cap { font-size: 12px; letter-spacing: .04em; color: var(--text-mute); }
+
+  /* ---------------------------------------------------------------- 光晕(signature 材质) */
+  .aura {
+    position: absolute; pointer-events: none; border-radius: 50%;
+    background: conic-gradient(from 0deg,
+      var(--g1, var(--glow-warm)), var(--g2, var(--glow-lily)),
+      var(--g3, var(--glow-cool)), var(--g1, var(--glow-warm)));
+    filter: blur(var(--ab, 28px));
+    opacity: var(--ao, .5);
+    mix-blend-mode: screen;
+    animation: auraSpin var(--as, 20s) linear infinite, auraBreath 6.5s ease-in-out infinite;
+  }
+  @keyframes auraSpin { to { rotate: 360deg; } }
+  @keyframes auraBreath { 0%, 100% { scale: 1; } 50% { scale: 1.07; } }
+
+  /* 「刚到手」:不造印章,就是把光开到最亮 + 一行细标签 */
+  .fresh-tag {
+    position: absolute; z-index: 8;
+    font-family: var(--sys-mono); font-size: 8.5px; letter-spacing: .08em;
+    color: var(--void); background: var(--glow-warm);
+    padding: 2.5px 7px; border-radius: 999px; white-space: nowrap;
+    box-shadow: 0 0 14px rgba(255, 154, 92, .75);
+  }
+
+  /* ---------------------------------------------------------------- 手表外框 */
+  .watch-frame {
+    width: 240px; height: 280px; background: var(--bezel); border-radius: 50px;
+    padding: 16px; position: relative; box-shadow: 0 0 0 1px rgba(242,239,234,.06), 0 18px 34px -14px #000;
+  }
+  .watch-frame::after {
+    content: ''; position: absolute; right: -4px; top: 50%; translate: 0 -50%;
+    width: 8px; height: 42px; background: #1C1C22; border-radius: 4px;
+  }
+  .watch-screen {
+    width: 208px; height: 248px; border-radius: 36px; overflow: hidden;
+    background: var(--void); position: relative; color: var(--text);
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+  }
+
+  /* ---------------------------------------------------------------- 手机外框 */
+  .phone-frame {
+    width: 358px; height: 744px; background: var(--bezel); border-radius: 56px;
+    padding: 14px; position: relative; box-shadow: 0 0 0 1px rgba(242,239,234,.06), 0 24px 44px -16px #000;
+  }
+  .phone-screen {
+    width: 330px; height: 716px; border-radius: 44px; overflow: hidden;
+    background: var(--void); position: relative; color: var(--text);
+  }
+  .island { position: absolute; top: 10px; left: 50%; translate: -50% 0; width: 92px; height: 25px; border-radius: 14px; background: #000; z-index: 50; }
+
+  /* ---------------------------------------------------------------- 手表内容 */
+  .w-screen { width: 100%; height: 100%; padding: 16px 10px 14px; position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+  .w-pet-stage { position: relative; height: 118px; width: 100%; display: flex; align-items: center; justify-content: center; }
+  .w-pet-stage img.pet { width: 100px; height: 100px; object-fit: contain; position: relative; z-index: 2; filter: var(--pet-filter); }
+  .w-headline { font-size: 16px; font-weight: 400; letter-spacing: .01em; text-align: center; margin: 8px 0 0; position: relative; z-index: 2; }
+  .w-sub { font-size: 12px; color: var(--text-mute); text-align: center; margin: 4px 0 12px; position: relative; z-index: 2; }
+  .w-btn {
+    font-family: var(--sys-sans); font-size: 13px; font-weight: 500; color: var(--void);
+    border: none; border-radius: 999px; padding: 9px 24px; min-height: 32px;
+    background: var(--glow-warm); position: relative; z-index: 2;
+    box-shadow: 0 0 20px rgba(255, 154, 92, .5);
+  }
+  .w-btn:active { transform: scale(.96); }
+
+  .face-clock { font-family: var(--sys-mono); font-size: 34px; font-weight: 200; text-align: center; margin: 0 0 14px; color: var(--text); position: relative; z-index: 2; }
+  /* 复杂功能:没有卡片底,靠一圈光把宠物圈出来 */
+  .compl { display: flex; align-items: center; gap: 10px; margin: 0 12px; position: relative; z-index: 2; }
+  .compl-ring {
+    width: 34px; height: 34px; border-radius: 50%; position: relative;
+    display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+    box-shadow: inset 0 0 0 1px rgba(255,154,92,.45), 0 0 16px rgba(255,154,92,.3);
+  }
+  .compl-ring img { width: 27px; height: 27px; object-fit: contain; filter: var(--pet-filter); position: relative; z-index: 1; }
+  .compl .t1 { font-size: 10.5px; color: var(--text-mute); letter-spacing: .03em; }
+  .compl .t2 { font-size: 12.5px; font-weight: 500; color: var(--text); }
+
+  /* ---------------------------------------------------------------- 手机内容:通用 */
+  .p-screen { width: 100%; height: 100%; display: flex; flex-direction: column; position: relative; }
+  .p-top { padding: 46px 22px 10px; position: relative; z-index: 2; }
+  .p-title { font-size: 24px; font-weight: 300; letter-spacing: .01em; margin: 0; }
+  .p-sub { font-size: 12.5px; color: var(--text-mute); margin: 7px 0 0; }
+  .p-body { flex: 1; padding: 8px 20px 0; overflow: hidden; position: relative; z-index: 2; }
+
+  /* 图鉴:每件东西自己是一小团光,不是格子。没拿到的只剩一圈极暗的环,不发光 */
+  .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 18px; }
+  .slot {
+    position: relative; aspect-ratio: 1; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .slot img { width: 52%; height: 52%; object-fit: contain; filter: var(--item-filter); position: relative; z-index: 2; }
+  .slot.locked {
+    box-shadow: inset 0 0 0 1px rgba(242,239,234,.1);
+    color: #4A4A52; font-family: var(--sys-mono); font-size: 15px; font-weight: 300;
+  }
+  .slot .fresh-tag { top: -4px; right: -6px; }
+  /* 已收的东西只发暖光(单色相)——小尺寸下三色 conic 会糊成一摊脏彩。
+     整条色谱只留给「刚到手」那一件,这样光的颜色本身也在说话,不只是亮度。 */
+  .slot .aura { --g1: var(--glow-warm); --g2: #B2561E; --g3: var(--glow-warm); }
+
+  /* 套装进度:一条会发光的细线,没有卡片底 */
+  .stat-block { padding: 2px 2px 16px; margin-bottom: 14px; border-bottom: 1px solid var(--hair); }
+  .stat-row { display: flex; align-items: baseline; gap: 13px; margin-bottom: 12px; }
+  .stat-num { font-family: var(--sys-mono); font-size: 28px; font-weight: 200; color: var(--glow-warm); line-height: 1; text-shadow: 0 0 18px rgba(255,154,92,.5); }
+  .stat-num small { font-size: 14px; font-weight: 400; color: var(--text-mute); text-shadow: none; }
+  .stat-title { font-size: 13px; font-weight: 500; margin: 0 0 3px; }
+  .stat-desc { font-size: 11.5px; color: var(--text-mute); line-height: 1.55; margin: 0; }
+  .progress { height: 2px; background: rgba(242,239,234,.1); border-radius: 999px; overflow: hidden; }
+  .progress-fill { height: 100%; background: var(--glow-warm); border-radius: 999px; box-shadow: 0 0 10px rgba(255,154,92,.9); }
+
+  .received { position: relative; display: flex; align-items: center; gap: 14px; padding: 6px 2px; }
+  .received .thumb { position: relative; width: 46px; height: 46px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; }
+  .received .thumb img { width: 40px; height: 40px; object-fit: contain; filter: var(--item-filter); position: relative; z-index: 2; }
+  .received strong { display: block; font-size: 13px; font-weight: 500; margin-bottom: 3px; }
+  .received span.d { font-size: 12px; color: var(--text-mute); line-height: 1.45; }
+  .received .fresh-tag { top: 0; right: 0; }
+
+  /* 日记:条目之间不用线,用一道横向渐隐的光 */
+  .diary-list { margin-top: 4px; display: flex; flex-direction: column; }
+  .diary-row { position: relative; padding: 16px 0 18px; }
+  .diary-row + .diary-row::before {
+    content: ''; position: absolute; left: -6px; right: -6px; top: 0; height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(255,154,92,.4) 32%, rgba(167,123,255,.3) 62%, transparent);
+  }
+  .diary-row time { display: block; font-family: var(--sys-mono); font-size: 11px; color: var(--text-mute); margin-bottom: 8px; letter-spacing: .02em; }
+  .diary-row p { font-size: 14px; line-height: 1.78; margin: 0; color: var(--text); font-weight: 300; }
+  .diary-end { text-align: center; font-size: 11.5px; color: #55555E; margin: 22px 0 0; }
+
+  /* tabbar:没有托盘,图标直接贴在黑上,选中的那个发光 */
+  .tabbar {
+    position: absolute; left: 0; right: 0; bottom: 0; height: 68px; padding-bottom: 8px;
+    display: flex; z-index: 5;
+    background: linear-gradient(180deg, transparent, var(--void) 42%);
+    border-top: 1px solid var(--hair);
+  }
+  .tab {
+    flex: 1; border: none; background: none; display: flex; flex-direction: column;
+    align-items: center; justify-content: center; gap: 5px; font-family: var(--sys-sans);
+    font-size: 10.5px; color: #5C5C66; position: relative;
+  }
+  .tab svg { width: 19px; height: 19px; stroke: #5C5C66; fill: none; }
+  .tab.active { color: var(--glow-warm); }
+  .tab.active svg { stroke: var(--glow-warm); stroke-width: 1.9; filter: drop-shadow(0 0 7px rgba(255,154,92,.8)); }
+  .tab:active { transform: scale(.94); }
+
+  /* 「它」:场景照压暗到几乎看不见,只留一团光里的宠物 */
+  /* 底部留出 tabbar 的高度,并把信息行+按钮钉到底边——否则「它」这屏下半截是一大片空黑 */
+  .screen-pet { padding: 46px 22px 80px; display: flex; flex-direction: column; height: 100%; position: relative; z-index: 2; }
+  .stage {
+    position: relative; margin-top: 14px; height: 272px; border-radius: 26px; overflow: hidden;
+    display: flex; align-items: flex-end; justify-content: center;
+  }
+  .stage img.scene {
+    position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover;
+    filter: brightness(.34) saturate(.6) contrast(1.1);
+  }
+  /* 照片边缘化进黑里,不留硬边——这套风格里任何硬边都是异物 */
+  .stage::after {
+    content: ''; position: absolute; inset: 0; z-index: 3; pointer-events: none;
+    background: radial-gradient(130% 92% at 50% 42%, transparent 38%, rgba(0,0,0,.82) 86%, #000 100%);
+  }
+  .stage img.pet { position: relative; z-index: 4; width: 128px; height: 128px; object-fit: contain; margin-bottom: 34px; filter: var(--pet-filter); }
+  .pic-caption { text-align: center; font-size: 12.5px; color: var(--text-mute); margin: 14px 0 18px; }
+  .info-tag {
+    display: flex; justify-content: space-between; align-items: baseline;
+    padding: 12px 2px; margin: auto 0 18px;
+    border-top: 1px solid var(--hair); border-bottom: 1px solid var(--hair);
+  }
+  .info-tag .k { font-size: 11.5px; color: var(--text-mute); }
+  .info-tag .v { font-size: 12.5px; color: var(--text); font-weight: 500; }
+  .action-row { display: flex; gap: 11px; }
+  .pbtn { border: none; border-radius: 999px; padding: 13px 0; font-family: var(--sys-sans); font-size: 14px; font-weight: 500; }
+  .pbtn.secondary { flex: 1; background: transparent; box-shadow: inset 0 0 0 1px rgba(242,239,234,.22); color: var(--text); }
+  .pbtn.primary { flex: 1.3; background: var(--glow-warm); color: var(--void); box-shadow: 0 0 24px rgba(255,154,92,.45); }
+  .pbtn:active { transform: scale(.97); }
+
+  @media (prefers-reduced-motion: reduce) { * { animation: none !important; } }
+</style>
+</head>
+<body>
+
+<div class="intro">
+  <p class="eyebrow">方向 C · 它自己的生活 — 光晕灵氛 Aura</p>
+  <h1>没有卡片,只有光的强弱</h1>
+  <p>纯黑打底(手表 OLED 上这些像素是不供电的),界面里一张卡片、一道描边都没有——
+    重要的东西光更亮更饱和,次要的沉回黑里。「刚到手」不盖印章,就是把光开到最亮。
+    灵感来自 designeer.xyz 的 Shaders 区:界面主体不是一个物件,是一团被驱动的光场。</p>
+</div>
+
+<section class="row row-watch">
+  <h2>手表 · 三帧光</h2>
+  <div class="devices">
+
+    <div class="device-wrap">
+      <div class="watch-frame"><div class="watch-screen">
+        <div class="w-screen">
+          <div class="w-pet-stage">
+            <div class="aura" style="--ao:.3; --ab:30px; --as:26s; width:150px;height:150px;left:50%;top:48%;translate:-50% -50%;"></div>
+            <img class="pet" style="opacity:.62" src="art/warm-idle.png" alt="宠物">
+          </div>
+          <p class="w-headline">它出门了</p>
+          <p class="w-sub">大概傍晚回来</p>
+          <button class="w-btn">看看它</button>
+        </div>
+      </div></div>
+      <span class="cap">出门了</span>
+    </div>
+
+    <div class="device-wrap">
+      <div class="watch-frame"><div class="watch-screen">
+        <div class="w-screen">
+          <div class="w-pet-stage">
+            <div class="aura" style="--ao:.72; --ab:26px; --as:16s; width:166px;height:166px;left:50%;top:50%;translate:-50% -50%;"></div>
+            <img class="pet" src="art/warm-playful.png" alt="宠物">
+            <div class="fresh-tag" style="top:8px;right:26px">刚到手</div>
+          </div>
+          <p class="w-headline">它回来了</p>
+          <p class="w-sub">带回一颗果子</p>
+          <button class="w-btn">收下</button>
+        </div>
+      </div></div>
+      <span class="cap">回来了</span>
+    </div>
+
+    <div class="device-wrap">
+      <div class="watch-frame"><div class="watch-screen">
+        <div class="w-screen" style="justify-content:center">
+          <div class="aura" style="--ao:.26; --ab:34px; --as:30s; width:180px;height:180px;left:50%;top:56%;translate:-50% -50%;"></div>
+          <div class="face-clock">9:41</div>
+          <div class="compl">
+            <div class="compl-ring"><img src="art/warm-idle.png" alt=""></div>
+            <div><div class="t1">出门中</div><div class="t2">傍晚回来</div></div>
+          </div>
+        </div>
+      </div></div>
+      <span class="cap">复杂功能</span>
+    </div>
+
+  </div>
+</section>
+
+<section class="row row-phone">
+  <h2>手机 · 三页光</h2>
+  <div class="devices">
+
+    <div class="device-wrap">
+      <div class="phone-frame"><div class="phone-screen">
+        <div class="island"></div>
+        <div class="aura" style="--ao:.2; --ab:52px; --as:34s; width:300px;height:300px;left:10%;top:4%;translate:-30% -30%;"></div>
+        <div class="p-screen">
+          <div class="p-top">
+            <h1 class="p-title">它带回来的</h1>
+            <p class="p-sub">7 样 · 还有很多没见过</p>
+          </div>
+          <div class="p-body">
+            <div class="grid">
+              <div class="slot">
+                <div class="aura" style="--ao:.78; --ab:15px; --as:14s; width:84px;height:84px;left:50%;top:50%;translate:-50% -50%; --g2:var(--glow-lily); --g3:var(--glow-cool);"></div>
+                <img src="art/items/berry.png" alt="一颗果子">
+                <div class="fresh-tag">刚到手</div>
+              </div>
+              <div class="slot"><div class="aura" style="--ao:.3; --ab:17px; --as:24s; width:74px;height:74px;left:50%;top:50%;translate:-50% -50%;"></div><img src="art/items/leaf.png" alt="一片叶子"></div>
+              <div class="slot"><div class="aura" style="--ao:.3; --ab:17px; --as:21s; width:74px;height:74px;left:50%;top:50%;translate:-50% -50%;"></div><img src="art/items/stone.png" alt="一块石头"></div>
+              <div class="slot"><div class="aura" style="--ao:.3; --ab:17px; --as:27s; width:74px;height:74px;left:50%;top:50%;translate:-50% -50%;"></div><img src="art/items/feather.png" alt="一根羽毛"></div>
+              <div class="slot"><div class="aura" style="--ao:.3; --ab:17px; --as:19s; width:74px;height:74px;left:50%;top:50%;translate:-50% -50%;"></div><img src="art/items/shell.png" alt="一枚贝壳"></div>
+              <div class="slot"><div class="aura" style="--ao:.3; --ab:17px; --as:23s; width:74px;height:74px;left:50%;top:50%;translate:-50% -50%;"></div><img src="art/items/flower.png" alt="一朵花"></div>
+              <div class="slot"><div class="aura" style="--ao:.3; --ab:17px; --as:29s; width:74px;height:74px;left:50%;top:50%;translate:-50% -50%;"></div><img src="art/items/bottle.png" alt="一个小瓶子"></div>
+              <div class="slot locked">?</div>
+              <div class="slot locked">?</div>
+            </div>
+            <div class="stat-block">
+              <div class="stat-row">
+                <span class="stat-num">4<small>/6</small></span>
+                <div><div class="stat-title">套装 · 林线</div>
+                  <p class="stat-desc">集齐解锁新的散步路线,缺的两样在湖边</p></div>
+              </div>
+              <div class="progress"><div class="progress-fill" style="width:66.6%"></div></div>
+            </div>
+            <div class="received">
+              <div class="thumb">
+                <div class="aura" style="--ao:.7; --ab:13px; --as:15s; width:56px;height:56px;left:50%;top:50%;translate:-50% -50%;"></div>
+                <img src="art/items/berry.png" alt="">
+              </div>
+              <span class="d"><strong>刚收到:一颗果子</strong>它说路边捡的,不太确定能不能吃</span>
+              <div class="fresh-tag">刚到手</div>
+            </div>
+          </div>
+          <nav class="tabbar">
+            <button class="tab active"><svg viewBox="0 0 24 24" stroke-width="1.6"><rect x="4" y="4" width="7" height="7" rx="1"/><rect x="13" y="4" width="7" height="7" rx="1"/><rect x="4" y="13" width="7" height="7" rx="1"/><rect x="13" y="13" width="7" height="7" rx="1"/></svg>图鉴</button>
+            <button class="tab"><svg viewBox="0 0 24 24" stroke-width="1.6"><rect x="5" y="3.5" width="14" height="17" rx="1.2"/><path d="M8.5 9h7M8.5 13h7"/></svg>日记</button>
+            <button class="tab"><svg viewBox="0 0 24 24" stroke-width="1.6"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="2.2"/></svg>它</button>
+          </nav>
+        </div>
+      </div></div>
+      <span class="cap">图鉴</span>
+    </div>
+
+    <div class="device-wrap">
+      <div class="phone-frame"><div class="phone-screen">
+        <div class="island"></div>
+        <div class="aura" style="--ao:.17; --ab:56px; --as:38s; width:280px;height:320px;right:6%;top:3%;translate:30% -24%; --g1:var(--glow-lily); --g2:var(--glow-cool); --g3:var(--glow-warm);"></div>
+        <div class="p-screen">
+          <div class="p-top">
+            <h1 class="p-title">它写的</h1>
+            <p class="p-sub">它自己的视角,不是你的记录</p>
+          </div>
+          <div class="p-body">
+            <div class="diary-list">
+              <div class="diary-row">
+                <time>10 月 11 日 · 傍晚</time>
+                <p>今天走得比平常远。你好像也走了不少,我们大概错过了。带了一颗果子回来。</p>
+              </div>
+              <div class="diary-row">
+                <time>10 月 10 日 · 下午</time>
+                <p>窗台那边太阳很好,躺了一会儿。你一直没回来。</p>
+              </div>
+            </div>
+            <p class="diary-end">再往前就翻不到了 · 它也没打算全记住</p>
+          </div>
+          <nav class="tabbar">
+            <button class="tab"><svg viewBox="0 0 24 24" stroke-width="1.6"><rect x="4" y="4" width="7" height="7" rx="1"/><rect x="13" y="4" width="7" height="7" rx="1"/><rect x="4" y="13" width="7" height="7" rx="1"/><rect x="13" y="13" width="7" height="7" rx="1"/></svg>图鉴</button>
+            <button class="tab active"><svg viewBox="0 0 24 24" stroke-width="1.6"><rect x="5" y="3.5" width="14" height="17" rx="1.2"/><path d="M8.5 9h7M8.5 13h7"/></svg>日记</button>
+            <button class="tab"><svg viewBox="0 0 24 24" stroke-width="1.6"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="2.2"/></svg>它</button>
+          </nav>
+        </div>
+      </div></div>
+      <span class="cap">日记</span>
+    </div>
+
+    <div class="device-wrap">
+      <div class="phone-frame"><div class="phone-screen">
+        <div class="island"></div>
+        <div class="p-screen">
+          <div class="screen-pet">
+            <h1 class="p-title">小团</h1>
+            <p class="p-sub" style="margin-top:6px">在家 · 刚回来</p>
+            <div class="stage">
+              <img class="scene" src="art/scene-room.jpg" alt="">
+              <div class="aura" style="--ao:.6; --ab:30px; --as:22s; width:190px;height:190px;left:50%;bottom:6px;translate:-50% 0; z-index:3"></div>
+              <img class="pet" src="art/warm-calm.png" alt="宠物">
+            </div>
+            <p class="pic-caption">对着什么发呆</p>
+            <div class="info-tag">
+              <span class="k">下次出门</span>
+              <span class="v">明天早上 · 它自己决定的</span>
+            </div>
+            <div class="action-row">
+              <button class="pbtn secondary">给点心</button>
+              <button class="pbtn primary">摸摸</button>
+            </div>
+          </div>
+          <nav class="tabbar">
+            <button class="tab"><svg viewBox="0 0 24 24" stroke-width="1.6"><rect x="4" y="4" width="7" height="7" rx="1"/><rect x="13" y="4" width="7" height="7" rx="1"/><rect x="4" y="13" width="7" height="7" rx="1"/><rect x="13" y="13" width="7" height="7" rx="1"/></svg>图鉴</button>
+            <button class="tab"><svg viewBox="0 0 24 24" stroke-width="1.6"><rect x="5" y="3.5" width="14" height="17" rx="1.2"/><path d="M8.5 9h7M8.5 13h7"/></svg>日记</button>
+            <button class="tab active"><svg viewBox="0 0 24 24" stroke-width="1.6"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="2.2"/></svg>它</button>
+          </nav>
+        </div>
+      </div></div>
+      <span class="cap">它</span>
+    </div>
+
+  </div>
+</section>
+
+</body>
+</html>
