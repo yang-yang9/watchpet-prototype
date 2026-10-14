@@ -1,0 +1,741 @@
+<!DOCTYPE html>
+<!--
+  设计小结 —— 漆器 Lacquer / 莳绘 (style-lacquer)
+
+  来源:designeer.xyz 的 Color 区(OKLCH 调色工具——深色域里把明度压到 0.12~0.2
+  还要让朱红和金各自站得住,靠的是 OKLCH 那种「明度和彩度分开拧」的调法,
+  RGB 直接调会糊成一团黑),以及 3D 区的 Blender / Poly Haven 材质参考
+  (漆面不是纯黑,它是**有反射的暗面**:一层很浅的镜面渐变扫过,边缘压暗)。
+
+  调色板(黑漆 + 朱 + 金,三色,没有第四色):
+    --urushi-1 #15100D  漆底。**不是纯黑**——带极深的褐调,OKLCH 里 L≈0.14 / H≈55,
+                纯黑(#000)在这套里一次都不出现,出现就变成 Aura 的场了
+    --urushi-2 #1E1613  第二层漆,器壁
+    --urushi-3 #281C17  第三层漆,窗内/托座。层级只靠这三层深浅,不靠线也不靠光
+    --shu      #C33C2C  朱。漆器的朱砂,涂上去的实色,分区和主操作
+    --shu-2    #8E2A1F  朱的暗层,实色块的下缘
+    --kin      #C9A14A  金。描金细线、边框、纹样
+    --kin-lit  #E8CE86  洒金的亮点、「刚到手」的点睛
+    --gofun    #EFE7DA  胡粉白,正文
+    --gofun-2  #A79685  次级文字(在 --urushi-1 上对比度 ≈ 6.5:1)
+
+  thesis:**每一屏是一件漆器的表面。** 不透光、不发光——朱和金是涂在漆上的颜料,
+  层级靠漆底的三层深浅 + 描金线的疏密。装饰语言是描金细线框、转角的云纹勾角、
+  菱格纹带,和极细的洒金点(很淡的金色小点,**不是噪点材质**,是数得过来的几粒)。
+  宠物和场景照都住在**描金的圆窗/方窗**里,窗内是第三层漆(暖褐),暖色插画落在
+  暖褐上才像嵌进器物,直接压在黑漆上会像贴错地方。
+
+  排版:标题走系统衬线(Songti SC / Georgia 一类),正文无衬线,字距统一开 .04~.16em。
+  东方感到此为止,不加任何花体、不加竖排、不加印章字体噱头。
+
+  ⚠️ 和三套深色系的区别,一眼要能分清:
+    - vs Vitrail(彩窗):那套是**铅条 + 透光的宝石色玻璃格**——粗 3-4px 的黑铅条分格,
+      色块是从背后透过来的光,所以格子会「亮」。这套**没有铅条、没有背光**:
+      分隔是 1px 的描金细线(细到相反的量级),色块是不透光的漆面,朱红是涂层不是光。
+      玻璃的层级来自透光强弱,漆器的层级来自漆的深浅。
+    - vs Aura:那套是纯黑底上弥散的彩色光场,**没有边框也没有线条**,全靠模糊。
+      这套每一块都有明确的金色硬边细线和朱红实色块,全篇没有一处 blur。
+    - vs Celestial:那套是靛蓝 + 金的**天文图纸**,金用来画刻度、轨道、坐标,是图表语言。
+      这套是黑红金的**器物表面**,金用来描边和画纹样,不量任何东西——
+      纹样的疏密**不绑定任何数值**(产品红线:不显示内部性格/健康数值)。
+
+  屏上出现的数字只有:7 样、4/6、9:41 / 09:41、日记日期(10-11 / 10-10)。
+  图鉴格不编号,纹样不计数。
+
+  深色风格的收底:每一屏底部都压一条菱格纹带或实体内容,不留裸黑带——
+  黑底上的空白读起来是「没做完」,不是留白。
+  动效只有一种:洒金点和「刚到手」金边的极缓呼吸,fill-mode: both 保证终态可见;
+  prefers-reduced-motion 下全关。
+-->
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>漆器 Lacquer · 方向 C</title>
+<style>
+  :root {
+    --sys-sans: -apple-system, "SF Pro Text", "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
+    --sys-serif: "Songti SC", "Noto Serif CJK SC", "Source Han Serif SC", "SF Pro Display", Georgia, "Times New Roman", serif;
+
+    --urushi-0: #0B0806;
+    --urushi-1: #15100D;
+    --urushi-2: #1E1613;
+    --urushi-3: #281C17;
+    --shu:      #C33C2C;
+    --shu-2:    #8E2A1F;
+    --kin:      #C9A14A;
+    --kin-lit:  #E8CE86;
+    --gofun:    #EFE7DA;
+    --gofun-2:  #A79685;
+
+    --kin-line:  rgba(201, 161, 74, .62);
+    --kin-faint: rgba(201, 161, 74, .30);
+    --kin-ghost: rgba(201, 161, 74, .16);
+
+    /* 漆面反光:一道很浅的镜面渐变扫过表面,下缘压暗。
+       ⚠️ 这是 background-image,叠色一律用 background-color,别用 background 简写。 */
+    --sheen:
+      linear-gradient(151deg,
+        rgba(255, 238, 214, .085) 0%,
+        rgba(255, 238, 214, .028) 17%,
+        rgba(255, 238, 214, 0) 42%,
+        rgba(0, 0, 0, .22) 78%,
+        rgba(0, 0, 0, .34) 100%);
+
+    /* 洒金:数得过来的几粒金点,不是噪点材质。位置写死,不随机。 */
+    --makie:
+      radial-gradient(circle at 11% 13%, var(--kin-lit) 0 1px, transparent 1.7px),
+      radial-gradient(circle at 23% 31%, rgba(232, 206, 134, .70) 0 .9px, transparent 1.5px),
+      radial-gradient(circle at 8% 54%, rgba(232, 206, 134, .55) 0 .8px, transparent 1.4px),
+      radial-gradient(circle at 34% 76%, rgba(232, 206, 134, .62) 0 .9px, transparent 1.5px),
+      radial-gradient(circle at 57% 9%, rgba(232, 206, 134, .50) 0 .8px, transparent 1.4px),
+      radial-gradient(circle at 72% 43%, rgba(232, 206, 134, .66) 0 .9px, transparent 1.5px),
+      radial-gradient(circle at 88% 22%, rgba(232, 206, 134, .52) 0 .8px, transparent 1.4px),
+      radial-gradient(circle at 93% 67%, rgba(232, 206, 134, .60) 0 .9px, transparent 1.5px),
+      radial-gradient(circle at 64% 88%, rgba(232, 206, 134, .48) 0 .8px, transparent 1.4px),
+      radial-gradient(circle at 44% 52%, rgba(232, 206, 134, .40) 0 .7px, transparent 1.3px);
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background-color: var(--urushi-0);
+    background-image: var(--sheen);
+    background-attachment: fixed;
+    font-family: var(--sys-sans);
+    color: var(--gofun);
+    padding: 46px 20px 64px;
+    letter-spacing: .02em;
+  }
+
+  /* ---------------------------------------------------------------- 页头 */
+  .intro { max-width: 780px; margin: 0 auto 18px; }
+  .intro .eyebrow {
+    font-size: 11px; letter-spacing: .22em; color: var(--kin);
+    margin: 0 0 12px; text-transform: uppercase;
+  }
+  .intro h1 {
+    font-family: var(--sys-serif); font-size: 29px; font-weight: 600;
+    letter-spacing: .05em; margin: 0 0 12px; color: var(--gofun);
+  }
+  .intro p {
+    font-size: 14px; line-height: 1.85; color: var(--gofun-2);
+    margin: 0; max-width: 62ch; letter-spacing: .03em;
+  }
+  .intro p b { color: var(--kin-lit); font-weight: 600; }
+  .intro p em { color: var(--shu); font-style: normal; font-weight: 600; }
+
+  /* 页头下的描金分隔:细线 + 中央菱形 */
+  .rule {
+    max-width: 780px; margin: 26px auto 42px; height: 9px; position: relative;
+  }
+  .rule::before {
+    content: ''; position: absolute; left: 0; right: 0; top: 4px; height: 1px;
+    background-image: linear-gradient(90deg, transparent, var(--kin-line) 12%, var(--kin-line) 88%, transparent);
+  }
+  .rule::after {
+    content: ''; position: absolute; left: 50%; top: 0; width: 9px; height: 9px;
+    translate: -50% 0; rotate: 45deg;
+    border: 1px solid var(--kin); background-color: var(--urushi-0);
+  }
+
+  .row { max-width: 1200px; margin: 0 auto 52px; }
+  .row > h2 {
+    font-family: var(--sys-serif); font-size: 13px; font-weight: 500;
+    letter-spacing: .3em; color: var(--kin); margin: 0 0 22px;
+  }
+  .devices { display: flex; gap: 34px; flex-wrap: wrap; align-items: flex-start; }
+  .device-wrap { display: flex; flex-direction: column; align-items: center; gap: 13px; }
+  .cap { font-size: 11px; letter-spacing: .18em; color: var(--gofun-2); }
+
+  .back {
+    display: inline-block; max-width: 780px; margin: 8px auto 0;
+    font-size: 12.5px; letter-spacing: .12em; color: var(--kin);
+    text-decoration: none; border-bottom: 1px solid var(--kin-faint); padding-bottom: 3px;
+  }
+  .foot-wrap { max-width: 780px; margin: 0 auto; }
+
+  /* ---------------------------------------------------------------- 漆面 */
+  .urushi {
+    background-color: var(--urushi-1);
+    background-image: var(--sheen), var(--makie);
+  }
+  .urushi-2 {
+    background-color: var(--urushi-2);
+    background-image: var(--sheen);
+  }
+
+  /* 描金细线框 */
+  .kinline { border: 1px solid var(--kin-faint); }
+
+  /* 转角云纹勾角(signature 1):四角的小几何纹样,CSS/SVG 画,克制 */
+  .corner { position: absolute; width: 15px; height: 15px; stroke: var(--kin); fill: none; stroke-width: 1.1; opacity: .85; pointer-events: none; z-index: 6; }
+  .corner.tl { left: 6px; top: 6px; }
+  .corner.tr { right: 6px; top: 6px; rotate: 90deg; }
+  .corner.br { right: 6px; bottom: 6px; rotate: 180deg; }
+  .corner.bl { left: 6px; bottom: 6px; rotate: 270deg; }
+
+  /* 菱格纹带(signature 2):收底用。疏密是固定的,不绑任何数值 */
+  .lattice {
+    background-image:
+      repeating-linear-gradient(45deg, var(--kin-ghost) 0 1px, transparent 1px 10px),
+      repeating-linear-gradient(-45deg, var(--kin-ghost) 0 1px, transparent 1px 10px);
+    background-color: transparent;
+  }
+  .lattice.fade {
+    -webkit-mask-image: linear-gradient(180deg, transparent, #000 60%, #000);
+    mask-image: linear-gradient(180deg, transparent, #000 60%, #000);
+  }
+  .lattice.fade-up {
+    -webkit-mask-image: linear-gradient(0deg, transparent, #000 70%, #000);
+    mask-image: linear-gradient(0deg, transparent, #000 70%, #000);
+  }
+
+  /* 描金窗:宠物与物品的托座。窗内是第三层漆(暖褐),不是黑 */
+  .win {
+    position: relative; overflow: hidden;
+    background-color: var(--urushi-3);
+    background-image: linear-gradient(161deg, rgba(255, 234, 206, .10), rgba(255, 234, 206, .015) 46%, rgba(0, 0, 0, .28));
+    border: 1px solid var(--kin-faint);
+    display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+  }
+  .win.round { border-radius: 50%; }
+  /* 窗沿的第二道金线(描金是两道:外粗内细) */
+  .win.round::after {
+    content: ''; position: absolute; inset: 4px; border-radius: 50%;
+    border: 1px solid var(--kin-ghost); pointer-events: none;
+  }
+  .win img { position: relative; z-index: 2; object-fit: contain; filter: drop-shadow(0 2px 5px rgba(0, 0, 0, .55)); }
+
+  /* 「刚到手」的点睛:朱底金字的小印,金边极缓呼吸 */
+  /* ⚠️ line-height:1 会把衬线中文的下半截切掉(截图里「新」被削平过),给到 1.3 */
+  .seal {
+    font-family: var(--sys-serif); font-size: 9.5px; font-weight: 600; letter-spacing: .1em;
+    color: var(--kin-lit); background-color: var(--shu-2);
+    border: 1px solid var(--kin); padding: 2px 5px; line-height: 1.3;
+    white-space: nowrap;
+    animation: sealglow 5.5s ease-in-out infinite both;
+  }
+  @keyframes sealglow {
+    0%, 100% { border-color: var(--kin-faint); color: var(--kin); }
+    50% { border-color: var(--kin-lit); color: var(--kin-lit); }
+  }
+
+  /* ---------------------------------------------------------------- 手表外框 */
+  .watch-frame {
+    width: 240px; height: 280px; background-color: #0A0706; border-radius: 50px;
+    padding: 16px; position: relative;
+    box-shadow: inset 0 1px 0 rgba(201, 161, 74, .16);
+  }
+  .watch-frame::after {
+    content: ''; position: absolute; right: -4px; top: 50%; translate: 0 -50%;
+    width: 8px; height: 42px; background-color: #1A1310; border-radius: 4px;
+  }
+  .watch-screen {
+    width: 208px; height: 248px; border-radius: 36px; overflow: hidden;
+    position: relative; color: var(--gofun);
+  }
+
+  /* ---------------------------------------------------------------- 手机外框 */
+  .phone-frame {
+    width: 358px; height: 744px; background-color: #0A0706; border-radius: 56px;
+    padding: 14px; position: relative;
+    box-shadow: inset 0 1px 0 rgba(201, 161, 74, .16);
+  }
+  .phone-screen {
+    width: 330px; height: 716px; border-radius: 44px; overflow: hidden;
+    position: relative; color: var(--gofun);
+  }
+  .island {
+    position: absolute; top: 10px; left: 50%; translate: -50% 0;
+    width: 92px; height: 25px; border-radius: 14px; background-color: #070504; z-index: 50;
+  }
+
+  /* ---------------------------------------------------------------- 手表内容 */
+  /* ⚠️ 圆角 36px:顶边 y≈11px 处左右各被啃进约 10px。右内边距给到 19px,
+     否则右上角的「09:41」会被切成「09:4」——上一轮真的发生过。 */
+  .w-screen {
+    width: 100%; height: 100%; padding: 15px 19px 0;
+    display: flex; flex-direction: column; position: relative;
+  }
+  .w-slug {
+    display: flex; justify-content: space-between; align-items: center;
+    font-size: 8.5px; letter-spacing: .2em; color: var(--gofun-2);
+    padding-bottom: 7px; position: relative;
+  }
+  .w-slug::after {
+    content: ''; position: absolute; left: 0; right: 0; bottom: 0; height: 1px;
+    background-image: linear-gradient(90deg, var(--kin-line), var(--kin-ghost) 72%, transparent);
+  }
+  .w-slug .t { font-variant-numeric: tabular-nums; color: var(--kin); letter-spacing: .1em; }
+  .w-stage {
+    margin: 10px auto 0; width: 96px; height: 96px;
+  }
+  .w-stage img.pet { width: 77px; height: 77px; }
+  .w-headline {
+    font-family: var(--sys-serif); font-size: 17px; font-weight: 600;
+    letter-spacing: .09em; margin: 10px 0 0; text-align: center; line-height: 1.3;
+  }
+  .w-sub {
+    font-size: 10.5px; color: var(--gofun-2); margin: 4px 0 0;
+    text-align: center; letter-spacing: .08em; line-height: 1.3;
+  }
+  /* ⚠️ 表屏只有 248px:按钮下缘留 19px,否则按钮被屏幕底边切掉(第一轮截图里真的切了),
+     菱格收底带压在按钮之下,不重叠 */
+  .w-foot { margin-top: auto; padding-bottom: 19px; }
+  .w-btn {
+    width: 100%; font-family: var(--sys-serif); font-size: 12.5px; font-weight: 600;
+    letter-spacing: .3em; text-indent: .3em; color: var(--gofun);
+    border: 1px solid var(--kin); border-radius: 3px;
+    padding: 9px 0; min-height: 34px;
+    background-color: var(--shu);
+    background-image: linear-gradient(176deg, rgba(255, 236, 214, .18), rgba(0, 0, 0, .22));
+  }
+  .w-btn.ghost {
+    background-color: transparent;
+    background-image: none;
+    border-color: var(--kin-line); color: var(--kin-lit);
+  }
+  .w-btn:active { translate: 0 1px; }
+  /* 收底:按钮下压一条菱格纹,屏幕底部不留裸黑 */
+  .w-hem {
+    position: absolute; left: 0; right: 0; bottom: 0; height: 16px; z-index: 0;
+  }
+
+  /* 表盘 */
+  .face { width: 100%; height: 100%; padding: 22px 19px 0; display: flex; flex-direction: column; position: relative; }
+  .face-top { font-size: 8.5px; letter-spacing: .24em; color: var(--gofun-2); text-align: center; margin: 2px 0 0; }
+  .face-clock {
+    font-family: var(--sys-serif); font-size: 46px; font-weight: 600;
+    letter-spacing: .02em; margin: 6px 0 0; text-align: center;
+    font-variant-numeric: tabular-nums; color: var(--gofun);
+  }
+  .face-rule { height: 9px; position: relative; margin: 8px 0 13px; }
+  .face-rule::before {
+    content: ''; position: absolute; left: 6px; right: 6px; top: 4px; height: 1px;
+    background-image: linear-gradient(90deg, transparent, var(--kin-line) 20%, var(--kin-line) 80%, transparent);
+  }
+  .face-rule::after {
+    content: ''; position: absolute; left: 50%; top: 0; width: 9px; height: 9px;
+    translate: -50% 0; rotate: 45deg;
+    border: 1px solid var(--kin); background-color: var(--shu-2);
+  }
+  .compl {
+    display: flex; align-items: center; gap: 10px; padding: 9px 10px;
+    border: 1px solid var(--kin-ghost); border-radius: 4px;
+    background-color: var(--urushi-2);
+    background-image: linear-gradient(166deg, rgba(255, 236, 214, .07), rgba(0, 0, 0, .2));
+  }
+  .compl .win { width: 34px; height: 34px; }
+  .compl .win img { width: 27px; height: 27px; }
+  .compl .t1 { font-size: 8px; letter-spacing: .22em; color: var(--kin); }
+  .compl .t2 { font-size: 12.5px; margin-top: 3px; letter-spacing: .06em; }
+  /* 表盘收底:菱格纹带 + 一条朱线,把下半屏吃掉 */
+  .face-hem {
+    margin-top: auto; height: 46px; position: relative;
+  }
+  .face-hem .band { position: absolute; left: -19px; right: -19px; bottom: 0; height: 34px; }
+  /* 朱线不要贴到 bottom:0——表屏圆角会把两端啃掉,看上去像断线。抬 8px、两端内缩 */
+  .face-hem .band::before {
+    content: ''; position: absolute; left: 34px; right: 34px; bottom: 8px; height: 3px;
+    background-color: var(--shu-2);
+    background-image: linear-gradient(90deg, transparent, var(--shu) 28%, var(--shu) 72%, transparent);
+  }
+
+  /* ---------------------------------------------------------------- 手机内容:通用 */
+  .p-screen { width: 100%; height: 100%; display: flex; flex-direction: column; position: relative; }
+  .p-top { padding: 46px 22px 0; position: relative; }
+  .p-slug { font-size: 9px; letter-spacing: .3em; color: var(--kin); margin: 0 0 9px; }
+  .p-title {
+    font-family: var(--sys-serif); font-size: 25px; font-weight: 600;
+    letter-spacing: .1em; margin: 0; color: var(--gofun);
+  }
+  .p-sub { font-size: 11px; color: var(--gofun-2); margin: 8px 0 0; letter-spacing: .08em; }
+  .p-top .hr { height: 1px; margin-top: 13px; background-image: linear-gradient(90deg, var(--kin-line), var(--kin-ghost) 70%, transparent); }
+  .p-body { flex: 1; padding: 15px 22px 0; display: flex; flex-direction: column; overflow: hidden; }
+
+  /* 图鉴:描金细线分格的漆盘。没有铅条,线是 1px 的金 */
+  .tray {
+    display: grid; grid-template-columns: repeat(3, 1fr);
+    border: 1px solid var(--kin-faint); border-radius: 3px; overflow: hidden;
+    background-color: var(--urushi-2);
+    background-image: var(--sheen), var(--makie);
+  }
+  .cell {
+    position: relative; aspect-ratio: 1;
+    display: flex; align-items: center; justify-content: center;
+    border-right: 1px solid rgba(201, 161, 74, .24); border-bottom: 1px solid rgba(201, 161, 74, .24);
+    background-image: linear-gradient(159deg, rgba(255, 236, 214, .05), rgba(0, 0, 0, .16));
+  }
+  .cell:nth-child(3n) { border-right: none; }
+  .cell:nth-child(n+7) { border-bottom: none; }
+  .cell img { width: 54%; height: 54%; object-fit: contain; filter: drop-shadow(0 2px 4px rgba(0, 0, 0, .5)); }
+  .cell.locked { background-color: rgba(0, 0, 0, .3); background-image: none; }
+  /* 未见过的:一个空的描金菱形,不是数值也不是进度 */
+  .cell.locked i { width: 11px; height: 11px; rotate: 45deg; border: 1px solid var(--kin-faint); }
+  .cell .seal { position: absolute; right: 4px; bottom: 4px; z-index: 4; font-size: 8px; padding: 1.5px 4px 2px; }
+
+  /* 套装:朱格 + 描金空格 */
+  .set { padding: 15px 0 0; margin-top: 15px; border-top: 1px solid var(--kin-ghost); }
+  .set-head { display: flex; align-items: baseline; justify-content: space-between; }
+  .set-label { font-size: 10px; letter-spacing: .24em; color: var(--kin); }
+  .set-val { font-family: var(--sys-serif); font-size: 23px; font-weight: 600; font-variant-numeric: tabular-nums; letter-spacing: .02em; }
+  .set-val small { font-size: 13px; color: var(--gofun-2); font-weight: 400; }
+  .bars { display: flex; gap: 5px; margin: 11px 0 10px; }
+  .bars i {
+    flex: 1; height: 8px; border: 1px solid var(--kin-ghost); border-radius: 1px;
+    background-color: transparent;
+  }
+  .bars i.on {
+    background-color: var(--shu);
+    background-image: linear-gradient(176deg, rgba(255, 236, 214, .22), rgba(0, 0, 0, .2));
+    border-color: var(--kin-faint);
+  }
+  .set-desc { font-size: 11.5px; color: var(--gofun-2); line-height: 1.7; margin: 0; letter-spacing: .04em; }
+
+  /* 刚收到 */
+  .got {
+    display: flex; align-items: center; gap: 12px; margin-top: 14px;
+    padding: 11px 12px; border-radius: 4px;
+    border: 1px solid var(--kin-faint);
+    background-color: var(--urushi-2);
+    background-image: linear-gradient(162deg, rgba(255, 236, 214, .08), rgba(0, 0, 0, .22));
+  }
+  .got .win { width: 46px; height: 46px; border-radius: 3px; }
+  .got .win img { width: 33px; height: 33px; }
+  .got .txt strong { display: block; font-size: 13px; font-weight: 600; margin-bottom: 4px; letter-spacing: .06em; }
+  .got .txt span { font-size: 11.5px; color: var(--gofun-2); line-height: 1.55; letter-spacing: .03em; }
+  .got .seal { align-self: flex-start; margin-left: auto; }
+
+  /* 日记:一页漆板,日期是朱底金字的小牌 */
+  .entry { padding-bottom: 17px; }
+  .entry + .entry { margin-top: 15px; border-top: 1px solid var(--kin-ghost); padding-top: 16px; }
+  .entry time {
+    display: inline-block; font-family: var(--sys-serif); font-size: 10px;
+    letter-spacing: .18em; color: var(--kin-lit);
+    border: 1px solid var(--kin-faint); border-left: 2px solid var(--shu);
+    padding: 3px 8px; margin-bottom: 11px;
+    background-color: rgba(142, 42, 31, .28);
+  }
+  .entry p { font-size: 13.5px; line-height: 1.95; margin: 0; letter-spacing: .04em; color: var(--gofun); }
+  .diary-end { font-size: 10.5px; letter-spacing: .1em; color: var(--gofun-2); margin: 2px 0 0; }
+  /* 收底:莳绘纹样板。下半页不留裸黑带,用菱格 + 云纹 + 洒金收掉 */
+  .makie-panel {
+    flex: 1; min-height: 120px; margin: 16px -22px 0; position: relative;
+    border-top: 1px solid var(--kin-ghost);
+    background-image: var(--makie);
+    background-color: transparent;
+  }
+  .makie-panel .lat { position: absolute; inset: 0; }
+  .makie-panel .motif {
+    position: absolute; left: 50%; top: 50%; translate: -50% -50%;
+    width: 104px; height: 104px; stroke: var(--kin); fill: none; stroke-width: 1.1; opacity: .8;
+  }
+  .makie-panel .motif .ring { stroke: var(--kin-faint); }
+  .makie-panel .motif .shu { fill: var(--shu); stroke: none; }
+
+  /* tabbar:漆底 + 一条描金线托底,选中的那格是朱 */
+  .tabbar {
+    position: absolute; left: 0; right: 0; bottom: 0; height: 62px; padding-bottom: 6px;
+    display: flex; z-index: 5;
+    background-color: var(--urushi-2);
+    background-image: linear-gradient(180deg, rgba(0, 0, 0, .34), rgba(0, 0, 0, 0));
+    border-top: 1px solid var(--kin-faint);
+  }
+  .tab {
+    flex: 1; border: none; background: none; display: flex; flex-direction: column;
+    align-items: center; justify-content: center; gap: 5px;
+    font-family: var(--sys-sans); font-size: 9.5px; letter-spacing: .18em; color: var(--gofun-2);
+    position: relative;
+  }
+  .tab svg { width: 18px; height: 18px; stroke: var(--gofun-2); fill: none; }
+  .tab.active { color: var(--kin-lit); }
+  .tab.active svg { stroke: var(--kin-lit); }
+  .tab.active::before {
+    content: ''; position: absolute; left: 50%; top: 0; translate: -50% 0;
+    width: 34px; height: 2px; background-color: var(--shu);
+  }
+  .tab:active { opacity: .7; }
+
+  /* 「它」:场景照住在描金方窗里,四角有云纹勾角 */
+  .screen-pet { padding: 46px 22px 74px; display: flex; flex-direction: column; height: 100%; }
+  .scene-win {
+    position: relative; margin-top: 14px; height: 286px; border-radius: 4px; overflow: hidden;
+    border: 1px solid var(--kin-faint);
+    display: flex; align-items: flex-end; justify-content: center;
+    background-color: var(--urushi-3);
+  }
+  .scene-win img.scene {
+    position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover;
+    filter: saturate(.62) brightness(.52) contrast(1.06) sepia(.22);
+  }
+  /* 漆面压在照片上:照片要读成「画在漆板上的图」,不是贴上去的相片 */
+  .scene-win::before {
+    content: ''; position: absolute; inset: 0; z-index: 2; pointer-events: none;
+    background-color: rgba(21, 16, 13, .34);
+    background-image: var(--sheen);
+  }
+  .scene-win img.pet { position: relative; z-index: 4; width: 124px; height: 124px; object-fit: contain; margin-bottom: 16px; filter: drop-shadow(0 4px 10px rgba(0, 0, 0, .6)); }
+  .scene-cap {
+    position: absolute; left: 0; right: 0; bottom: 0; z-index: 5;
+    display: flex; justify-content: space-between; align-items: baseline;
+    padding: 7px 11px 8px; font-size: 9px; letter-spacing: .2em; color: var(--gofun-2);
+    border-top: 1px solid var(--kin-ghost);
+    background-color: rgba(11, 8, 6, .72);
+  }
+  .scene-cap b { color: var(--kin-lit); font-weight: 600; }
+  .pic-caption { font-size: 12.5px; color: var(--gofun-2); margin: 14px 0 0; letter-spacing: .05em; }
+  /* 收底:图说和「下次出门」之间原本是一条 130px 的裸黑带,读起来像没做完。
+     用一条全宽的菱格 + 洒金把它吃掉。 */
+  .pet-hem {
+    flex: 1; min-height: 34px; margin: 12px -22px 2px; position: relative;
+    background-image: var(--makie);
+    background-color: transparent;
+  }
+  .pet-hem .lat { position: absolute; inset: 0; }
+  .kv {
+    display: flex; justify-content: space-between; align-items: baseline;
+    margin-top: auto; padding: 13px 0;
+    border-top: 1px solid var(--kin-faint); border-bottom: 1px solid var(--kin-faint);
+  }
+  .kv .k { font-size: 9.5px; letter-spacing: .24em; color: var(--kin); }
+  .kv .v { font-size: 12.5px; letter-spacing: .05em; }
+  .action-row { display: flex; gap: 11px; margin-top: 15px; }
+  .pbtn {
+    border-radius: 3px; padding: 13px 0; font-family: var(--sys-serif);
+    font-size: 13px; font-weight: 600; letter-spacing: .3em; text-indent: .3em;
+  }
+  .pbtn.secondary { flex: 1; background-color: transparent; border: 1px solid var(--kin-faint); color: var(--kin-lit); }
+  .pbtn.primary {
+    flex: 1.3; border: 1px solid var(--kin); color: var(--gofun);
+    background-color: var(--shu);
+    background-image: linear-gradient(176deg, rgba(255, 236, 214, .18), rgba(0, 0, 0, .22));
+  }
+  .pbtn:active { translate: 0 1px; }
+
+  .nw { white-space: nowrap; }
+
+  @media (prefers-reduced-motion: reduce) {
+    * { animation: none !important; }
+    .seal { border-color: var(--kin); color: var(--kin-lit); }
+  }
+</style>
+</head>
+<body>
+
+<div class="intro">
+  <p class="eyebrow">方向 C · 它自己的生活 — 漆器 Lacquer / 莳绘</p>
+  <h1>当成一件黑漆描金的器物来做</h1>
+  <p>底不是纯黑,是带极深褐调的黑漆,表面有一层很浅的镜面反光扫过。
+    <em>朱</em>做分区和主操作,<b>金</b>只做细线、窗沿和「刚到手」的点睛,
+    另有数得过来的几粒洒金。层级靠三层漆的深浅和描金线的疏密——
+    <b>不是透光的玻璃格,也不是弥散的光场</b>:这里的红和金是涂上去的颜料,
+    每一块都有硬边。纹样的疏密不绑定任何数值。</p>
+</div>
+<div class="rule"></div>
+
+<section class="row row-watch">
+  <h2>手表 · 三面漆板</h2>
+  <div class="devices">
+
+    <div class="device-wrap">
+      <div class="watch-frame"><div class="watch-screen urushi">
+        <svg class="corner tl" viewBox="0 0 16 16"><path d="M15 1H5.5A4.5 4.5 0 0 0 1 5.5V15"/><path d="M5.6 4.2a2.6 2.6 0 1 0 2.6 2.6"/></svg>
+        <svg class="corner tr" viewBox="0 0 16 16"><path d="M15 1H5.5A4.5 4.5 0 0 0 1 5.5V15"/><path d="M5.6 4.2a2.6 2.6 0 1 0 2.6 2.6"/></svg>
+        <div class="w-screen">
+          <div class="w-slug"><span>状态 · 外出</span><span class="t">09:41</span></div>
+          <div class="w-stage win round">
+            <img class="pet" style="opacity:.62" src="art/warm-idle.png" alt="宠物">
+          </div>
+          <p class="w-headline">它出门了</p>
+          <p class="w-sub">大概傍晚回来</p>
+          <div class="w-foot"><button class="w-btn ghost">看看它</button></div>
+          <div class="w-hem lattice fade"></div>
+        </div>
+      </div></div>
+      <span class="cap">出门了</span>
+    </div>
+
+    <div class="device-wrap">
+      <div class="watch-frame"><div class="watch-screen urushi">
+        <svg class="corner tl" viewBox="0 0 16 16"><path d="M15 1H5.5A4.5 4.5 0 0 0 1 5.5V15"/><path d="M5.6 4.2a2.6 2.6 0 1 0 2.6 2.6"/></svg>
+        <svg class="corner tr" viewBox="0 0 16 16"><path d="M15 1H5.5A4.5 4.5 0 0 0 1 5.5V15"/><path d="M5.6 4.2a2.6 2.6 0 1 0 2.6 2.6"/></svg>
+        <div class="w-screen">
+          <div class="w-slug"><span>状态 · 已归</span><span class="seal">新</span></div>
+          <div class="w-stage win round">
+            <img class="pet" src="art/warm-playful.png" alt="宠物">
+          </div>
+          <p class="w-headline">它回来了</p>
+          <p class="w-sub">带回一颗果子</p>
+          <div class="w-foot"><button class="w-btn">收下</button></div>
+          <div class="w-hem lattice fade"></div>
+        </div>
+      </div></div>
+      <span class="cap">回来了</span>
+    </div>
+
+    <div class="device-wrap">
+      <div class="watch-frame"><div class="watch-screen urushi">
+        <svg class="corner tl" viewBox="0 0 16 16"><path d="M15 1H5.5A4.5 4.5 0 0 0 1 5.5V15"/><path d="M5.6 4.2a2.6 2.6 0 1 0 2.6 2.6"/></svg>
+        <svg class="corner tr" viewBox="0 0 16 16"><path d="M15 1H5.5A4.5 4.5 0 0 0 1 5.5V15"/><path d="M5.6 4.2a2.6 2.6 0 1 0 2.6 2.6"/></svg>
+        <div class="face">
+          <p class="face-top">今天</p>
+          <p class="face-clock">9:41</p>
+          <div class="face-rule"></div>
+          <div class="compl">
+            <div class="win round"><img src="art/warm-idle.png" alt=""></div>
+            <div><div class="t1">出门中</div><div class="t2">傍晚回来</div></div>
+          </div>
+          <div class="face-hem">
+            <div class="band lattice fade-up"></div>
+          </div>
+        </div>
+      </div></div>
+      <span class="cap">复杂功能</span>
+    </div>
+
+  </div>
+</section>
+
+<section class="row row-phone">
+  <h2>手机 · 三页漆板</h2>
+  <div class="devices">
+
+    <div class="device-wrap">
+      <div class="phone-frame"><div class="phone-screen urushi">
+        <div class="island"></div>
+        <svg class="corner bl" viewBox="0 0 16 16"><path d="M15 1H5.5A4.5 4.5 0 0 0 1 5.5V15"/><path d="M5.6 4.2a2.6 2.6 0 1 0 2.6 2.6"/></svg>
+        <div class="p-screen">
+          <div class="p-top">
+            <p class="p-slug">图鉴</p>
+            <h1 class="p-title">它带回来的</h1>
+            <p class="p-sub">7 样 · 还有很多没见过</p>
+            <div class="hr"></div>
+          </div>
+          <div class="p-body">
+            <div class="tray">
+              <div class="cell"><img src="art/items/berry.png" alt="一颗果子"><span class="seal">新</span></div>
+              <div class="cell"><img src="art/items/leaf.png" alt="一片叶子"></div>
+              <div class="cell"><img src="art/items/stone.png" alt="一块石头"></div>
+              <div class="cell"><img src="art/items/feather.png" alt="一根羽毛"></div>
+              <div class="cell"><img src="art/items/shell.png" alt="一枚贝壳"></div>
+              <div class="cell"><img src="art/items/flower.png" alt="一朵花"></div>
+              <div class="cell"><img src="art/items/bottle.png" alt="一个小瓶子"></div>
+              <div class="cell locked"><i></i></div>
+              <div class="cell locked"><i></i></div>
+            </div>
+            <div class="set">
+              <div class="set-head">
+                <span class="set-label">套装 · 林线</span>
+                <span class="set-val">4<small>/6</small></span>
+              </div>
+              <div class="bars"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i></i><i></i></div>
+              <p class="set-desc"><span class="nw">集齐解锁新的散步路线,</span><span class="nw">缺的两样在湖边</span></p>
+            </div>
+            <div class="got">
+              <div class="win"><img src="art/items/berry.png" alt=""></div>
+              <div class="txt">
+                <strong>刚收到:一颗果子</strong>
+                <span class="nw">它说路边捡的,不太确定能不能吃</span>
+              </div>
+              <span class="seal">新</span>
+            </div>
+          </div>
+          <nav class="tabbar">
+            <button class="tab active"><svg viewBox="0 0 24 24" stroke-width="1.5"><rect x="4" y="4" width="7" height="7"/><rect x="13" y="4" width="7" height="7"/><rect x="4" y="13" width="7" height="7"/><rect x="13" y="13" width="7" height="7"/></svg>图鉴</button>
+            <button class="tab"><svg viewBox="0 0 24 24" stroke-width="1.5"><rect x="5" y="3.5" width="14" height="17"/><path d="M8.5 9h7M8.5 13h7"/></svg>日记</button>
+            <button class="tab"><svg viewBox="0 0 24 24" stroke-width="1.5"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="2.2"/></svg>它</button>
+          </nav>
+        </div>
+      </div></div>
+      <span class="cap">图鉴</span>
+    </div>
+
+    <div class="device-wrap">
+      <div class="phone-frame"><div class="phone-screen urushi">
+        <div class="island"></div>
+        <div class="p-screen">
+          <div class="p-top">
+            <p class="p-slug">日记</p>
+            <h1 class="p-title">它写的</h1>
+            <p class="p-sub">它自己的视角,不是你的记录</p>
+            <div class="hr"></div>
+          </div>
+          <div class="p-body">
+            <div class="entry">
+              <time>10-11 傍晚</time>
+              <p><span class="nw">今天走得比平常远。</span><span class="nw">你好像也走了不少,</span><span class="nw">我们大概错过了。</span><span class="nw">带了一颗果子回来。</span></p>
+            </div>
+            <div class="entry">
+              <time>10-10 下午</time>
+              <p><span class="nw">窗台那边太阳很好,</span><span class="nw">躺了一会儿。</span><span class="nw">你一直没回来。</span></p>
+            </div>
+            <p class="diary-end"><span class="nw">再往前就翻不到了 ·</span> <span class="nw">它也没打算全记住</span></p>
+            <div class="makie-panel">
+              <div class="lat lattice fade"></div>
+              <svg class="motif" viewBox="0 0 80 80">
+                <circle class="ring" cx="40" cy="40" r="33"/>
+                <path d="M40 12c-8 0-12 4.5-12 9.5s3.5 7.5 8 7.5 6.5-2 6.5-4.5-2-3.5-3.5-3.5"/>
+                <path d="M40 68c8 0 12-4.5 12-9.5s-3.5-7.5-8-7.5-6.5 2-6.5 4.5 2 3.5 3.5 3.5"/>
+                <path d="M12 40c0-8 4.5-12 9.5-12s7.5 3.5 7.5 8-2 6.5-4.5 6.5-3.5-2-3.5-3.5"/>
+                <path d="M68 40c0 8-4.5 12-9.5 12s-7.5-3.5-7.5-8 2-6.5 4.5-6.5 3.5 2 3.5 3.5"/>
+                <rect class="shu" x="36" y="36" width="8" height="8" transform="rotate(45 40 40)"/>
+              </svg>
+            </div>
+          </div>
+          <nav class="tabbar">
+            <button class="tab"><svg viewBox="0 0 24 24" stroke-width="1.5"><rect x="4" y="4" width="7" height="7"/><rect x="13" y="4" width="7" height="7"/><rect x="4" y="13" width="7" height="7"/><rect x="13" y="13" width="7" height="7"/></svg>图鉴</button>
+            <button class="tab active"><svg viewBox="0 0 24 24" stroke-width="1.5"><rect x="5" y="3.5" width="14" height="17"/><path d="M8.5 9h7M8.5 13h7"/></svg>日记</button>
+            <button class="tab"><svg viewBox="0 0 24 24" stroke-width="1.5"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="2.2"/></svg>它</button>
+          </nav>
+        </div>
+      </div></div>
+      <span class="cap">日记</span>
+    </div>
+
+    <div class="device-wrap">
+      <div class="phone-frame"><div class="phone-screen urushi">
+        <div class="island"></div>
+        <div class="p-screen">
+          <div class="screen-pet">
+            <p class="p-slug">它</p>
+            <h1 class="p-title">小团</h1>
+            <p class="p-sub">在家 · 刚回来</p>
+            <div class="scene-win">
+              <svg class="corner tl" viewBox="0 0 16 16"><path d="M15 1H5.5A4.5 4.5 0 0 0 1 5.5V15"/><path d="M5.6 4.2a2.6 2.6 0 1 0 2.6 2.6"/></svg>
+              <svg class="corner tr" viewBox="0 0 16 16"><path d="M15 1H5.5A4.5 4.5 0 0 0 1 5.5V15"/><path d="M5.6 4.2a2.6 2.6 0 1 0 2.6 2.6"/></svg>
+              <img class="scene" src="art/scene-room.jpg" alt="">
+              <img class="pet" src="art/warm-calm.png" alt="宠物">
+              <div class="scene-cap"><span>室内 · 窝边</span><span>状态 <b>在家</b></span></div>
+            </div>
+            <p class="pic-caption">对着什么发呆</p>
+            <div class="pet-hem"><div class="lat lattice fade"></div></div>
+            <div class="kv">
+              <span class="k">下次出门</span>
+              <span class="v"><span class="nw">明天早上 ·</span> <span class="nw">它自己决定的</span></span>
+            </div>
+            <div class="action-row">
+              <button class="pbtn secondary">给点心</button>
+              <button class="pbtn primary">摸摸</button>
+            </div>
+          </div>
+          <nav class="tabbar">
+            <button class="tab"><svg viewBox="0 0 24 24" stroke-width="1.5"><rect x="4" y="4" width="7" height="7"/><rect x="13" y="4" width="7" height="7"/><rect x="4" y="13" width="7" height="7"/><rect x="13" y="13" width="7" height="7"/></svg>图鉴</button>
+            <button class="tab"><svg viewBox="0 0 24 24" stroke-width="1.5"><rect x="5" y="3.5" width="14" height="17"/><path d="M8.5 9h7M8.5 13h7"/></svg>日记</button>
+            <button class="tab active"><svg viewBox="0 0 24 24" stroke-width="1.5"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="2.2"/></svg>它</button>
+          </nav>
+        </div>
+      </div></div>
+      <span class="cap">它</span>
+    </div>
+
+  </div>
+</section>
+
+<div class="foot-wrap">
+  <a class="back" href="styles.html">← 返回风格总览</a>
+</div>
+
+</body>
+</html>

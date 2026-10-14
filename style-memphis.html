@@ -1,0 +1,812 @@
+<!DOCTYPE html>
+<!--
+  设计小结 —— 孟菲斯 Memphis 80s (style-memphis)
+
+  风格命题:把每一屏当成 1982 年米兰孟菲斯设计集团的一块印刷品/家具贴面来排。
+  语言是**不听话**:互相打架的糖果色、图案碎片散落、形状歪着摆、粗黑描边、
+  故意不对齐。但内容必须仍然好读——所以定一条铁律:
+  **图案只许待在背景和边角,文字永远落在干净的实色块上。**
+
+  灵感来源:designeer.xyz 的 Utilities 区 Tabbied(生成式图案:把几何碎片撒在版面上,
+  每次生成都不一样)+ Galleries 区 wwwtf.site(实验性界面合集,刻意反网格、反对齐)。
+  两边共同的气质是「版面可以不守规矩,只要内容还认得出来」。
+
+  调色板(糖果色,不是三原色。黑是描边不是底色):
+    --mint     #3FD9BE / --mint-p   #9DEDDC   薄荷绿
+    --salmon   #FF7A6E / --salmon-p #FFB3AA   鲑鱼粉
+    --blue     #2C5BFF / --blue-p   #A8BEFF   电光蓝
+    --mustard  #FFC524 / --mustard-p#FFE08A   芥末黄
+    --black    #141017  描边 / 文字 / 硬投影,永远 2.5~3px 实心,无模糊
+    --white    #FFFCF4  屏底与承载文字的干净实色块
+    --page     #F2EDF7  淡紫页底(80 年代配色里的那种发紫的白)
+  深色上只用白字的组合只有两个:黑底、电光蓝底。糖果淡色上一律黑字。
+
+  图案碎片的词汇表(signature,全是 CSS/内联 SVG,零外部资源):
+    波浪线 squiggle / 锯齿 zigzag / 同心圆弧 arcs / 散落小方块 chips /
+    圆点阵 dots / 斜条纹 stripes。
+  它们只出现在:块与块之间的空当、色块内部的角落(文字够不到的地方)、
+  屏幕边缘(被圆角切掉一半正好)。每一处都 pointer-events:none 且压在内容层之下。
+
+  歪斜:用 CSS 的独立 `rotate` 属性(不是 transform),角度 0.7°~2.5°,
+  **刻意都不一样、刻意不互为相反数**——互为相反数会读成「对称」,那就又规整了。
+  入场动效只动独立的 `scale` 和 `opacity`,所以不会把 `rotate` 覆盖掉。
+
+  ⚠️ 和库里三套容易被混为一谈的风格的区别,先说清楚:
+
+    - vs swiss(瑞士网格):那套是**理性**的——栏网格真的画出来、三原色、形状大而少、
+      严格对齐、直角正交、留白是版面的一部分。这套是**反理性**的:
+      糖果色不是三原色(薄荷/鲑鱼/芥末这三个颜色在包豪斯体系里根本不存在)、
+      形状小而多(一屏十几个碎片 vs 一屏两三个构成元素)、
+      **没有任何一条对齐线**——每个块都歪一个互不相同的角度,
+      而且歪的量刚好够看出来、不够让人以为是 bug。
+      swiss 的几何形是「构成」,这套的几何形是「乱撒的纸屑」。
+
+    - vs terrazzo(水磨石):那套是**均匀铺满的 chip 肌理**,是一种材质——
+      chip 极小、极密、严格重复的 tile、五色混撒成石面,看的是「表面」。
+      这套是**离散的图形碎片**:一屏只有十来个,每一个都大一个数量级、
+      有自己的形状和性格(这是一条波浪线、那是三道同心弧),能被一个个指认出来。
+      水磨石是背景材质,孟菲斯碎片是前景图形,只是礼貌地待在后面。
+
+    - vs bento(便当格):那套是满屏 edge-to-edge 的圆角 tile 马赛克,
+      6px 砖缝,严格正交网格,一个旋转角度都没有,tile 彼此严丝合缝。
+      这套的色块**彼此错位**:有留白(块与块之间露出屏底)、有 3px 粗黑描边、
+      有 5px 实心硬投影(不是阴影,是错版的第二层色块)、每块都歪着。
+      bento 是拼好的盒子,这套是摊在桌上还没收的一堆卡片。
+
+  产品原则守卫:屏幕上出现的数字只有客观事实——7 样、4/6、9:41 / 09:41、日记日期。
+  装饰图形(弧线的道数、方块的个数、条纹的疏密)**不绑定任何数值**,
+  不显示任何性格/健康的内部数值,也不用图案去暗示「进度」或「分数」。
+  套装的 4/6 用 6 个等大方块表示,填 4 空 2,是事实的直接复述,不是发明的进度条。
+-->
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>孟菲斯 Memphis 80s · 方向 C</title>
+<style>
+  :root {
+    --sys-sans: -apple-system, "SF Pro Display", "SF Pro Text", "PingFang SC",
+                "Hiragino Sans GB", "Microsoft YaHei", system-ui, sans-serif;
+
+    --black: #141017;
+    --white: #FFFCF4;
+    --page: #F2EDF7;
+    --muted: #554D5E;
+
+    --mint: #3FD9BE;
+    --mint-p: #9DEDDC;
+    --salmon: #FF7A6E;
+    --salmon-p: #FFB3AA;
+    --blue: #2C5BFF;
+    --blue-p: #A8BEFF;
+    --mustard: #FFC524;
+    --mustard-p: #FFE08A;
+
+    --bezel: #141017;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    /* 用 background-color + background-image 分开写:简写 background 会把圆点图案盖掉 */
+    background-color: var(--page);
+    background-image:
+      radial-gradient(circle at center, rgba(20,16,23,.10) 0 1.4px, transparent 1.6px);
+    background-size: 26px 26px;
+    font-family: var(--sys-sans);
+    color: var(--black);
+    padding: 46px 20px 76px;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* ================================================== 页头 */
+  .intro { max-width: 760px; margin: 0 auto 18px; position: relative; }
+  .intro .eyebrow {
+    display: inline-block; margin: 0 0 14px;
+    background-color: var(--mint); border: 3px solid var(--black);
+    padding: 5px 11px; font-size: 11px; font-weight: 800; letter-spacing: .06em;
+    box-shadow: 4px 4px 0 var(--black); rotate: -1.3deg;
+  }
+  .intro h1 {
+    font-size: 31px; font-weight: 800; letter-spacing: -.03em; margin: 6px 0 12px;
+    line-height: 1.26;
+  }
+  .intro h1 em {
+    font-style: normal;
+    background-image: linear-gradient(transparent 56%, var(--mustard) 56%, var(--mustard) 94%, transparent 94%);
+  }
+  .intro p {
+    font-size: 14px; line-height: 1.8; color: var(--muted); margin: 0; max-width: 62ch;
+    background-color: var(--white); border: 3px solid var(--black); padding: 13px 15px;
+    box-shadow: 5px 5px 0 var(--salmon-p); rotate: .35deg;
+  }
+  .intro p b { color: var(--black); font-weight: 800; }
+  .back {
+    display: inline-block; margin-top: 18px; text-decoration: none;
+    background-color: var(--white); border: 3px solid var(--black);
+    padding: 7px 13px; font-size: 12px; font-weight: 800; color: var(--black);
+    box-shadow: 4px 4px 0 var(--blue); rotate: -.9deg;
+  }
+
+  /* 分隔条:不是一条线,是一排歪着的糖果块 */
+  .rule { max-width: 760px; margin: 30px auto 42px; display: flex; gap: 9px; align-items: center; }
+  .rule i { display: block; height: 15px; border: 3px solid var(--black); }
+  .rule i:nth-child(1) { flex: 2.2; background-color: var(--salmon); rotate: -1.1deg; }
+  .rule i:nth-child(2) { flex: .7; background-color: var(--mustard); rotate: 1.8deg; }
+  .rule i:nth-child(3) { flex: 3.4; background-color: var(--blue-p); rotate: -.5deg; }
+  .rule i:nth-child(4) { width: 15px; flex: none; border-radius: 50%; background-color: var(--mint); }
+  .rule i:nth-child(5) { flex: 1.3; background-color: var(--white); rotate: 1.2deg;
+    background-image: repeating-linear-gradient(45deg, var(--black) 0 3px, transparent 3px 8px); }
+
+  .row { max-width: 1200px; margin: 0 auto 54px; }
+  .row > h2 {
+    display: inline-block; margin: 0 0 22px;
+    font-size: 11.5px; font-weight: 800; letter-spacing: .14em;
+    background-color: var(--mustard); border: 3px solid var(--black);
+    padding: 5px 10px; box-shadow: 3px 3px 0 var(--black); rotate: -1.1deg;
+  }
+  .devices { display: flex; gap: 36px; flex-wrap: wrap; align-items: flex-start; }
+  .device-wrap { display: flex; flex-direction: column; align-items: center; gap: 14px; }
+  .cap {
+    font-size: 11px; font-weight: 800; letter-spacing: .08em; color: var(--black);
+    background-color: var(--white); border: 2.5px solid var(--black); padding: 3px 10px;
+    rotate: 1.4deg;
+  }
+
+  /* ================================================== 图案碎片(signature) */
+  .deco { position: absolute; inset: 0; z-index: 0; pointer-events: none; overflow: hidden; }
+  .frag { position: absolute; pointer-events: none; }
+  svg.ink { display: block; fill: none; stroke: var(--black); stroke-width: 3;
+            stroke-linecap: round; stroke-linejoin: round; overflow: visible; }
+  svg.ink.thin { stroke-width: 2.4; }
+  .sq { border: 2.5px solid var(--black); }
+  .ci { border-radius: 50%; border: 2.5px solid var(--black); }
+  .dotfield {
+    background-image: radial-gradient(circle at center, var(--black) 0 1.5px, transparent 1.7px);
+    background-size: 9px 9px;
+  }
+  .stripefield {
+    background-image: repeating-linear-gradient(48deg, var(--black) 0 3px, transparent 3px 9px);
+  }
+
+  /* 入场:只动独立的 scale / opacity,不碰 rotate,所以歪斜不会被动画抹平。
+     both 保证终态可见——截图工具只等固定时间,不等动画真的播完。 */
+  @keyframes pop { from { opacity: 0; scale: .93; } to { opacity: 1; scale: 1; } }
+  .pop { animation: pop .42s cubic-bezier(.2,.9,.3,1.08) both; }
+  .d1 { animation-delay: .06s; } .d2 { animation-delay: .12s; }
+  .d3 { animation-delay: .18s; } .d4 { animation-delay: .24s; }
+
+  /* ================================================== 设备外框 */
+  .watch-frame {
+    width: 240px; height: 280px; background: var(--bezel); border-radius: 50px;
+    padding: 16px; position: relative;
+  }
+  .watch-frame::after {
+    content: ''; position: absolute; right: -4px; top: 50%; translate: 0 -50%;
+    width: 8px; height: 42px; background: #0C0910; border-radius: 4px;
+  }
+  .watch-screen {
+    width: 208px; height: 248px; border-radius: 36px; overflow: hidden;
+    background-color: var(--white); position: relative; color: var(--black);
+  }
+  .phone-frame {
+    width: 358px; height: 744px; background: var(--bezel); border-radius: 56px;
+    padding: 14px; position: relative;
+  }
+  .phone-screen {
+    width: 330px; height: 716px; border-radius: 44px; overflow: hidden;
+    background-color: var(--white); position: relative; color: var(--black);
+  }
+  .island { position: absolute; top: 10px; left: 50%; translate: -50% 0; width: 92px; height: 25px;
+            border-radius: 14px; background: #0C0910; z-index: 50; }
+
+  /* ================================================== 手表内容 */
+  /* 顶边 16px 起步、左右 16px 内边距:36px 圆角在 y=16 处只啃进约 6px,
+     右上角的时间块文字离右边缘 23px,不会被切成「09:4」。 */
+  .w-screen { width: 100%; height: 100%; padding: 16px 16px 16px;
+              display: flex; flex-direction: column; position: relative; z-index: 1; }
+  .w-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 6px; }
+  .chip {
+    border: 2.5px solid var(--black); padding: 3px 7px;
+    font-size: 8.5px; font-weight: 800; letter-spacing: .05em; white-space: nowrap;
+  }
+  .chip.state { background-color: var(--mint-p); rotate: -1.7deg; }
+  .chip.time { background-color: var(--black); color: var(--white); rotate: 1.4deg;
+               font-variant-numeric: tabular-nums; letter-spacing: .03em; }
+  .chip.new { background-color: var(--mustard); rotate: 2.2deg; box-shadow: 3px 3px 0 var(--black); }
+
+  .w-plate {
+    position: relative; height: 88px; margin-top: 9px;
+    border: 3px solid var(--black); background-color: var(--mint-p);
+    display: flex; align-items: center; justify-content: center;
+    rotate: -1.8deg; box-shadow: 5px 5px 0 var(--salmon);
+  }
+  .w-plate.warm { background-color: var(--mustard-p); rotate: 1.6deg; box-shadow: 5px 5px 0 var(--blue); }
+  .w-plate img.pet { width: 76px; height: 76px; object-fit: contain; position: relative; z-index: 2; }
+
+  .w-headline { font-size: 16.5px; font-weight: 800; letter-spacing: -.015em; margin: 10px 0 0; }
+  .w-headline span {
+    background-image: linear-gradient(transparent 58%, var(--mustard) 58%, var(--mustard) 95%, transparent 95%);
+  }
+  .w-sub { font-size: 11px; font-weight: 600; color: var(--muted); margin: 3px 0 0; }
+  .w-foot { margin-top: auto; position: relative; }
+  .w-btn {
+    width: 100%; font-family: inherit; font-size: 12px; font-weight: 800; letter-spacing: .1em;
+    color: var(--black); border: 3px solid var(--black); border-radius: 0;
+    padding: 9px 0; min-height: 36px; background-color: var(--mustard);
+    box-shadow: 4px 4px 0 var(--black); rotate: .9deg;
+  }
+  .w-btn.b2 { background-color: var(--mint); rotate: -1.1deg; }
+  .w-btn:active { translate: 2px 2px; box-shadow: 1px 1px 0 var(--black); }
+
+  /* 表盘。时间不是浮在装饰上的,是钉在一块自己的实色牌子上——
+     上一轮把薄荷方块摆在数字背后,方块的右边缘正好从「9」和「:」之间切过去,
+     数字一半在薄荷上一半在屏底,读着别扭。装饰不许压文字,这是那条规矩的直接后果。 */
+  .face { width: 100%; height: 100%; padding: 22px 17px 20px;
+          display: flex; flex-direction: column; justify-content: center;
+          align-items: flex-start; position: relative; z-index: 1; }
+  .face-clock {
+    font-size: 44px; font-weight: 800; letter-spacing: -.04em; margin: 0;
+    font-variant-numeric: tabular-nums; position: relative; z-index: 2;
+    background-color: var(--mustard-p); border: 3px solid var(--black);
+    padding: 3px 13px 5px; rotate: -1.7deg; box-shadow: 5px 5px 0 var(--mint);
+  }
+  .face-wave { margin: 14px 0 13px; align-self: stretch; }
+  .compl {
+    display: flex; align-items: center; gap: 10px; align-self: stretch;
+    background-color: var(--white); border: 3px solid var(--black);
+    padding: 9px 10px; rotate: -1.3deg; box-shadow: 5px 5px 0 var(--blue-p);
+  }
+  .compl-win {
+    width: 34px; height: 34px; flex-shrink: 0; border: 2.5px solid var(--black);
+    background-color: var(--mustard-p); display: flex; align-items: center; justify-content: center;
+    rotate: 2.6deg;
+  }
+  .compl-win img { width: 26px; height: 26px; object-fit: contain; }
+  .compl .t1 { font-size: 8.5px; font-weight: 800; letter-spacing: .1em; color: var(--muted); }
+  .compl .t2 { font-size: 13px; font-weight: 800; margin-top: 2px; }
+
+  /* ================================================== 手机内容:通用 */
+  .p-screen { width: 100%; height: 100%; display: flex; flex-direction: column; position: relative; }
+  .p-top { padding: 46px 20px 0; position: relative; z-index: 2; }
+  /* align-self 不能省:「它」那屏的 .p-kicker 直接挂在 flex column 容器里,
+     没有它就会被拉成满屏宽的一条蓝带,inline-block 救不了 flex item。 */
+  .p-kicker {
+    display: inline-block; align-self: flex-start;
+    border: 2.5px solid var(--black); padding: 4px 9px;
+    font-size: 9.5px; font-weight: 800; letter-spacing: .12em;
+    background-color: var(--salmon-p); rotate: -2deg; box-shadow: 3px 3px 0 var(--black);
+  }
+  .p-kicker.k2 { background-color: var(--mint-p); rotate: 1.8deg; }
+  .p-kicker.k3 { background-color: var(--blue-p); rotate: -1.5deg; }
+  .p-title { font-size: 25px; font-weight: 800; letter-spacing: -.03em; margin: 11px 0 0; }
+  .p-sub { font-size: 11.5px; font-weight: 600; color: var(--muted); margin: 7px 0 0; }
+  .p-wave { margin-top: 11px; }
+  .p-body { flex: 1; padding: 11px 20px 0; position: relative; overflow: hidden; z-index: 1; }
+
+  /* 页头角上的贴纸:在标题右侧的空当里,够不到任何文字 */
+  .corner-sticker { position: absolute; z-index: 3; }
+
+  /* ---- 图鉴:歪着摆的色块,块与块之间露出屏底 */
+  /* aspect-ratio 是横的 1.3 不是 1:正方形格子把三行撑到把「刚收到」那张卡
+     顶进 tabbar 里去了(第一轮截图实拍)。横着压扁反而更孟菲斯——
+     格子本来就不该是整齐的方块。 */
+  .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 13px; }
+  .slot {
+    position: relative; aspect-ratio: 1.3; border: 3px solid var(--black);
+    display: flex; align-items: center; justify-content: center;
+  }
+  .slot img { width: 50%; height: 68%; object-fit: contain; position: relative; z-index: 2; }
+  .slot:nth-child(1) { background-color: var(--mint-p); rotate: -2.3deg; }
+  .slot:nth-child(2) { background-color: var(--mustard-p); rotate: 1.6deg; }
+  .slot:nth-child(3) { background-color: var(--blue-p); rotate: -1.1deg; }
+  .slot:nth-child(4) { background-color: var(--salmon-p); rotate: 2.4deg; }
+  .slot:nth-child(5) { background-color: var(--blue-p); rotate: -1.8deg; }
+  .slot:nth-child(6) { background-color: var(--mint-p); rotate: 1.1deg; }
+  .slot:nth-child(7) { background-color: var(--mustard-p); rotate: -2.5deg; }
+  .slot.locked {
+    background-color: var(--white);
+    background-image: repeating-linear-gradient(45deg, rgba(20,16,23,.13) 0 5px, transparent 5px 11px);
+  }
+  .slot:nth-child(8) { rotate: 1.9deg; }
+  .slot:nth-child(9) { rotate: -1.4deg; }
+  .slot.locked .dash { width: 16px; height: 3px; background: var(--black); }
+  /* 角落的小图案:只占色块的一个角,物品图在 z-index 2,压不住它也不被它压 */
+  .slot .corner-dots {
+    position: absolute; left: 5px; bottom: 5px; width: 24px; height: 15px; z-index: 1; opacity: .45;
+  }
+  .slot .corner-zig { position: absolute; right: 4px; top: 4px; width: 26px; z-index: 1; opacity: .5; }
+  .slot .newtag {
+    position: absolute; right: -8px; top: -9px; z-index: 6;
+    background-color: var(--mustard); border: 2.5px solid var(--black);
+    font-size: 8px; font-weight: 800; letter-spacing: .08em; padding: 2px 5px;
+    rotate: 7deg; box-shadow: 2.5px 2.5px 0 var(--black);
+  }
+
+  /* ---- 套装块 */
+  .block {
+    position: relative; border: 3px solid var(--black); background-color: var(--white);
+    padding: 10px 13px 11px; rotate: -.8deg; box-shadow: 5px 5px 0 var(--mint);
+    margin-bottom: 13px; z-index: 1;
+  }
+  .block-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+  .block-label {
+    font-size: 9.5px; font-weight: 800; letter-spacing: .1em;
+    background-color: var(--mint-p); border: 2.5px solid var(--black); padding: 3px 7px; rotate: -1.6deg;
+  }
+  .block-val { font-size: 25px; font-weight: 800; letter-spacing: -.04em;
+               font-variant-numeric: tabular-nums; rotate: 1.4deg; }
+  .block-val small { font-size: 14px; color: var(--muted); font-weight: 800; }
+  .seg { display: flex; gap: 6px; margin: 10px 0 8px; }
+  .seg i { flex: 1; height: 13px; border: 2.5px solid var(--black); background-color: var(--white); }
+  .seg i.on { background-color: var(--salmon); }
+  .seg i:nth-child(1) { rotate: -2.4deg; } .seg i:nth-child(2) { rotate: 1.7deg; }
+  .seg i:nth-child(3) { rotate: -1.2deg; } .seg i:nth-child(4) { rotate: 2.2deg; }
+  .seg i:nth-child(5) { rotate: -1.8deg; } .seg i:nth-child(6) { rotate: 1.1deg; }
+  .block-desc { font-size: 11.5px; font-weight: 600; color: var(--muted); line-height: 1.6; margin: 0; }
+
+  /* ---- 刚收到 */
+  .received {
+    position: relative; display: flex; align-items: center; gap: 11px;
+    border: 3px solid var(--black); background-color: var(--salmon-p);
+    padding: 10px 12px; rotate: 1deg; box-shadow: 5px 5px 0 var(--black); z-index: 1;
+  }
+  .received .win {
+    width: 46px; height: 46px; flex-shrink: 0; border: 2.5px solid var(--black);
+    background-color: var(--white); display: flex; align-items: center; justify-content: center;
+    rotate: -3deg;
+  }
+  .received .win img { width: 33px; height: 33px; object-fit: contain; }
+  .received .txt strong { display: block; font-size: 13px; font-weight: 800; margin-bottom: 3px; }
+  .received .txt span { font-size: 11.5px; font-weight: 600; color: #4B3F3C; line-height: 1.5; }
+  .received .newtag {
+    align-self: flex-start; margin-left: auto; flex-shrink: 0;
+    background-color: var(--mustard); border: 2.5px solid var(--black);
+    font-size: 8px; font-weight: 800; letter-spacing: .08em; padding: 2px 5px; rotate: 5deg;
+  }
+
+  /* ---- 日记 */
+  .diary-row {
+    position: relative; border: 3px solid var(--black); background-color: var(--white);
+    padding: 11px 13px 13px; margin-bottom: 18px; z-index: 1;
+  }
+  .diary-row:nth-of-type(1) { rotate: -1.1deg; box-shadow: 5px 5px 0 var(--mustard); }
+  .diary-row:nth-of-type(2) { rotate: 1.2deg; box-shadow: 5px 5px 0 var(--blue-p); }
+  .diary-row time {
+    display: inline-block; font-size: 9.5px; font-weight: 800; letter-spacing: .1em;
+    background-color: var(--black); color: var(--white); padding: 3px 8px; margin-bottom: 9px;
+    rotate: -2.2deg;
+  }
+  .diary-row:nth-of-type(2) time { background-color: var(--salmon); color: var(--black); rotate: 1.9deg; }
+  .diary-row p { font-size: 13.5px; font-weight: 500; line-height: 1.85; margin: 0; }
+  .diary-end {
+    display: inline-block; font-size: 10px; font-weight: 800; letter-spacing: .06em;
+    color: var(--black); background-color: var(--white);
+    border: 2.5px solid var(--black); padding: 5px 9px; margin: 0; rotate: -1.4deg;
+    position: relative; z-index: 2;
+  }
+
+  /* ---- 「它」 */
+  .screen-pet { padding: 46px 20px 76px; display: flex; flex-direction: column; height: 100%;
+                position: relative; z-index: 1; }
+  .plate {
+    position: relative; margin-top: 15px; border: 3px solid var(--black);
+    rotate: -1.1deg; box-shadow: 7px 7px 0 var(--mustard); z-index: 2;
+  }
+  .plate-img {
+    position: relative; height: 238px; overflow: hidden;
+    display: flex; align-items: flex-end; justify-content: center;
+    background-color: var(--mint-p);
+  }
+  .plate-img img.scene { position: absolute; inset: 0; width: 100%; height: 100%;
+                         object-fit: cover; filter: saturate(.72) contrast(1.06); }
+  .plate-img img.pet { position: relative; z-index: 4; width: 118px; height: 118px;
+                       object-fit: contain; margin-bottom: 14px; }
+  .plate-cap {
+    display: flex; justify-content: space-between; align-items: center; gap: 8px;
+    border-top: 3px solid var(--black); background-color: var(--white);
+    padding: 7px 10px; font-size: 9.5px; font-weight: 800; letter-spacing: .08em;
+  }
+  .plate-cap b { background-color: var(--mint); border: 2px solid var(--black);
+                 padding: 2px 6px; font-weight: 800; rotate: 1.8deg; display: inline-block; }
+  .pic-caption {
+    display: inline-block; align-self: flex-start; font-size: 12.5px; font-weight: 700;
+    color: var(--black); background-color: var(--mustard-p);
+    border: 2.5px solid var(--black); padding: 6px 10px; margin: 14px 0 0; rotate: 1.3deg;
+    position: relative; z-index: 2;
+  }
+  .kv {
+    display: flex; justify-content: space-between; align-items: center; gap: 8px;
+    border: 3px solid var(--black); background-color: var(--white);
+    padding: 11px 12px; margin-top: auto; rotate: -.6deg;
+    box-shadow: 5px 5px 0 var(--salmon-p); position: relative; z-index: 2;
+  }
+  .kv .k { font-size: 9.5px; font-weight: 800; letter-spacing: .1em; color: var(--muted); }
+  .kv .v { font-size: 12.5px; font-weight: 800; }
+  .action-row { display: flex; gap: 11px; margin-top: 16px; position: relative; z-index: 2; }
+  .pbtn {
+    font-family: inherit; border: 3px solid var(--black); border-radius: 0;
+    padding: 13px 0; font-size: 12.5px; font-weight: 800; letter-spacing: .08em;
+    box-shadow: 4px 4px 0 var(--black);
+  }
+  .pbtn.secondary { flex: 1; background-color: var(--white); color: var(--black); rotate: -1.4deg; }
+  .pbtn.primary { flex: 1.3; background-color: var(--blue); color: var(--white); rotate: 1.1deg; }
+  .pbtn:active { translate: 2px 2px; box-shadow: 1px 1px 0 var(--black); }
+
+  /* ---- tabbar:不是一条 bar,是三张错位的卡片躺在黑线上 */
+  .tabbar {
+    position: absolute; left: 0; right: 0; bottom: 0; height: 62px;
+    padding: 7px 11px 13px; display: flex; gap: 8px;
+    background-color: var(--white); border-top: 3px solid var(--black); z-index: 10;
+  }
+  .tab {
+    flex: 1; font-family: inherit; border: 2.5px solid transparent; background: none;
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px;
+    font-size: 9.5px; font-weight: 800; letter-spacing: .06em; color: var(--muted);
+    border-radius: 0; padding: 0;
+  }
+  .tab svg { width: 19px; height: 19px; stroke: var(--muted); fill: none; stroke-width: 2.4; }
+  .tab.active { color: var(--black); border-color: var(--black); background-color: var(--salmon-p); }
+  .tab.active svg { stroke: var(--black); stroke-width: 2.8; }
+  .tab.active.t1 { rotate: -2deg; background-color: var(--mint-p); }
+  .tab.active.t2 { rotate: 1.7deg; background-color: var(--mustard-p); }
+  .tab.active.t3 { rotate: -1.6deg; background-color: var(--salmon-p); }
+  .tab:active { opacity: .7; }
+
+  .nb { white-space: nowrap; }
+
+  @media (prefers-reduced-motion: reduce) {
+    * { animation: none !important; }
+    .pop { opacity: 1; scale: 1; }
+  }
+</style>
+</head>
+<body>
+
+<div class="intro">
+  <span class="frag" style="right:-66px; top:-16px; width:46px; height:46px; rotate:16deg;">
+    <span class="sq" style="display:block; width:100%; height:100%; background-color:var(--mint);"></span>
+  </span>
+  <span class="frag" style="right:-78px; top:62px;">
+    <svg class="ink" width="62" height="30" viewBox="0 0 62 30" aria-hidden="true">
+      <path d="M3 27 A 25 25 0 0 1 59 27" stroke="#FF7A6E"/>
+      <path d="M14 27 A 15 15 0 0 1 48 27" stroke="#2C5BFF"/>
+      <path d="M24 27 A 6 6 0 0 1 38 27"/>
+    </svg>
+  </span>
+  <span class="frag" style="left:-72px; top:30px;">
+    <svg class="ink" width="54" height="22" viewBox="0 0 54 22" aria-hidden="true">
+      <polyline points="2,19 10,4 18,19 26,4 34,19 42,4 50,19"/>
+    </svg>
+  </span>
+  <span class="frag ci" style="left:-62px; top:116px; width:26px; height:26px; background-color:var(--mustard);"></span>
+
+  <p class="eyebrow">方向 C · 它自己的生活 — 孟菲斯 MEMPHIS 80s</p>
+  <h1>当成 1982 年米兰的一块<em>贴面</em>来排</h1>
+  <p>互相打架的糖果色(薄荷 / 鲑鱼粉 / 电光蓝 / 芥末黄)、3px 粗黑描边、5px 实心硬投影,
+    每一块都歪一个<b>互不相同</b>的小角度——没有任何一条对齐线。
+    波浪线、锯齿、同心圆弧、散落的方块和圆点撒在版面空当里,
+    但<b>文字永远落在干净的实色块上</b>,图案只待在背景和边角。
+    <b>和 swiss 的区别:</b>那套是理性的栏网格、三原色、形状大而少、严格对齐;
+    这套反过来——糖果色不是三原色,形状小而多,歪得刚好够看出来。
+    <b>和 terrazzo 的区别:</b>那套是均匀铺满的 chip 肌理(一种材质),
+    这套是十来个能被一个个指认出来的离散图形。
+    <b>和 bento 的区别:</b>那套是严丝合缝的 tile 马赛克,零旋转;
+    这套的色块彼此错位、留白、带描边,是摊在桌上还没收的一堆卡片。</p>
+  <a class="back" href="styles.html">← 返回风格对照 styles.html</a>
+</div>
+
+<div class="rule"><i></i><i></i><i></i><i></i><i></i></div>
+
+<section class="row row-watch">
+  <h2>手表 · 三帧</h2>
+  <div class="devices">
+
+    <!-- 手表 1:出门了 -->
+    <div class="device-wrap">
+      <div class="watch-frame"><div class="watch-screen">
+        <div class="deco">
+          <!-- 斜条纹压在「大概傍晚回来」底下过,第一轮截图里字的左半边脏了。
+               挪到按钮下方——按钮是实色块,盖住也读得清。 -->
+          <span class="frag stripefield" style="left:-16px; bottom:-10px; width:62px; height:46px; opacity:.16; rotate:-9deg;"></span>
+          <span class="frag dotfield" style="right:6px; top:118px; width:40px; height:26px; opacity:.3;"></span>
+          <span class="frag ci" style="right:-24px; bottom:-26px; width:92px; height:92px; background-color:var(--mint-p);"></span>
+          <span class="frag sq" style="left:8px; top:120px; width:13px; height:13px; background-color:var(--salmon); rotate:22deg;"></span>
+        </div>
+        <div class="w-screen">
+          <div class="w-top">
+            <span class="chip state">状态 · 外出</span>
+            <span class="chip time">09:41</span>
+          </div>
+          <div class="w-plate pop d1">
+            <svg class="ink thin frag" style="left:6px; bottom:5px; opacity:.5;" width="52" height="14" viewBox="0 0 52 14" aria-hidden="true">
+              <path d="M2 7 Q 8 1 14 7 T 26 7 T 38 7 T 50 7"/>
+            </svg>
+            <img class="pet" style="opacity:.62" src="art/warm-idle.png" alt="宠物">
+          </div>
+          <p class="w-headline"><span>它出门了</span></p>
+          <p class="w-sub">大概傍晚回来</p>
+          <div class="w-foot"><button class="w-btn pop d3">看看它</button></div>
+        </div>
+      </div></div>
+      <span class="cap">出门了</span>
+    </div>
+
+    <!-- 手表 2:回来了 -->
+    <div class="device-wrap">
+      <div class="watch-frame"><div class="watch-screen">
+        <div class="deco">
+          <!-- 锯齿本来在 left:-10/top:112,整条被色块压在底下,只从边上露出一个「∨」,
+               读成渲染残留。挪到色块右下方的空当里,整条都看得见。 -->
+          <span class="frag" style="right:-14px; top:144px;">
+            <svg class="ink" width="60" height="22" viewBox="0 0 60 22" aria-hidden="true">
+              <polyline points="2,19 10,4 18,19 26,4 34,19 42,4 50,19 58,4" stroke="#2C5BFF" opacity=".7"/>
+            </svg>
+          </span>
+          <span class="frag sq" style="right:26px; bottom:58px; width:15px; height:15px; background-color:var(--mint); rotate:-18deg;"></span>
+          <span class="frag" style="left:-30px; bottom:-30px; width:84px; height:84px; border-radius:50%; border:3px solid var(--black); background-color:var(--mustard-p);"></span>
+        </div>
+        <div class="w-screen">
+          <div class="w-top">
+            <span class="chip state" style="background-color:var(--salmon-p);">状态 · 已归</span>
+            <span class="chip new">New</span>
+          </div>
+          <div class="w-plate warm pop d1">
+            <span class="frag dotfield" style="right:6px; top:6px; width:26px; height:17px; opacity:.4;"></span>
+            <img class="pet" src="art/warm-playful.png" alt="宠物">
+          </div>
+          <p class="w-headline"><span>它回来了</span></p>
+          <p class="w-sub">带回一颗果子</p>
+          <div class="w-foot"><button class="w-btn b2 pop d3">收下</button></div>
+        </div>
+      </div></div>
+      <span class="cap">回来了</span>
+    </div>
+
+    <!-- 手表 3:复杂功能 -->
+    <div class="device-wrap">
+      <div class="watch-frame"><div class="watch-screen">
+        <div class="deco">
+          <span class="frag ci" style="right:14px; top:34px; width:30px; height:30px; background-color:var(--salmon-p);"></span>
+          <span class="frag sq" style="right:22px; top:74px; width:17px; height:17px; background-color:var(--blue); rotate:16deg;"></span>
+          <span class="frag stripefield" style="right:-14px; top:156px; width:54px; height:40px; opacity:.14; rotate:7deg;"></span>
+          <span class="frag sq" style="left:-8px; bottom:28px; width:34px; height:34px; background-color:var(--mustard); rotate:20deg;"></span>
+          <span class="frag dotfield" style="left:24px; bottom:14px; width:46px; height:18px; opacity:.3;"></span>
+        </div>
+        <div class="face">
+          <p class="face-clock">9:41</p>
+          <div class="face-wave">
+            <svg class="ink" width="174" height="13" viewBox="0 0 174 13" aria-hidden="true">
+              <path d="M2 7 Q 12 0 22 7 T 42 7 T 62 7 T 82 7 T 102 7 T 122 7 T 142 7 T 162 7"/>
+            </svg>
+          </div>
+          <div class="compl pop d2">
+            <div class="compl-win"><img src="art/warm-idle.png" alt=""></div>
+            <div><div class="t1">出门中</div><div class="t2">傍晚回来</div></div>
+          </div>
+        </div>
+      </div></div>
+      <span class="cap">复杂功能</span>
+    </div>
+
+  </div>
+</section>
+
+<section class="row row-phone">
+  <h2>手机 · 三页</h2>
+  <div class="devices">
+
+    <!-- 手机 1:图鉴 -->
+    <div class="device-wrap">
+      <div class="phone-frame"><div class="phone-screen">
+        <div class="island"></div>
+        <div class="p-screen">
+          <div class="deco">
+            <!-- 这一屏的「图案」由九块互相打架的色块自己承担,屏底不再撒大图形:
+                 试过在右边放一个淡薄荷圆,它有一半压在格子底下,露出来的那半读成污渍而不是形。
+                 碎片要么整个看得见,要么就别放。 -->
+            <span class="frag stripefield" style="left:-20px; top:300px; width:52px; height:70px; opacity:.1; rotate:-10deg;"></span>
+          </div>
+
+          <div class="p-top">
+            <span class="frag corner-sticker sq" style="right:22px; top:52px; width:34px; height:34px; background-color:var(--mustard); rotate:14deg;"></span>
+            <span class="frag corner-sticker" style="right:62px; top:98px;">
+              <svg class="ink thin" width="38" height="16" viewBox="0 0 38 16" aria-hidden="true">
+                <polyline points="2,13 8,3 14,13 20,3 26,13 32,3" stroke="#FF7A6E"/>
+              </svg>
+            </span>
+            <span class="p-kicker">图鉴</span>
+            <h1 class="p-title">它带回来的</h1>
+            <p class="p-sub"><span class="nb">7 样</span> · <span class="nb">还有很多没见过</span></p>
+            <div class="p-wave">
+              <svg class="ink" width="290" height="14" viewBox="0 0 290 14" aria-hidden="true">
+                <path d="M2 8 Q 14 0 26 8 T 50 8 T 74 8 T 98 8 T 122 8 T 146 8 T 170 8 T 194 8 T 218 8 T 242 8 T 266 8 T 288 8"/>
+              </svg>
+            </div>
+          </div>
+
+          <div class="p-body">
+            <div class="grid">
+              <div class="slot pop">
+                <svg class="ink thin corner-zig" width="26" height="12" viewBox="0 0 26 12" aria-hidden="true"><polyline points="1,10 6,2 11,10 16,2 21,10 25,4"/></svg>
+                <img src="art/items/berry.png" alt="一颗果子">
+                <span class="newtag">New</span>
+              </div>
+              <div class="slot pop"><span class="corner-dots dotfield"></span><img src="art/items/leaf.png" alt="一片叶子"></div>
+              <div class="slot pop"><img src="art/items/stone.png" alt="一块石头"></div>
+              <div class="slot pop d1"><img src="art/items/feather.png" alt="一根羽毛"></div>
+              <div class="slot pop d1"><span class="corner-dots dotfield"></span><img src="art/items/shell.png" alt="一枚贝壳"></div>
+              <div class="slot pop d1">
+                <svg class="ink thin corner-zig" width="26" height="12" viewBox="0 0 26 12" aria-hidden="true"><polyline points="1,10 6,2 11,10 16,2 21,10 25,4"/></svg>
+                <img src="art/items/flower.png" alt="一朵花">
+              </div>
+              <div class="slot pop d2"><img src="art/items/bottle.png" alt="一个小瓶子"></div>
+              <div class="slot locked pop d2"><i class="dash"></i></div>
+              <div class="slot locked pop d2"><i class="dash"></i></div>
+            </div>
+
+            <div class="block pop d3">
+              <div class="block-head">
+                <span class="block-label">套装 · 林线</span>
+                <span class="block-val">4<small>/6</small></span>
+              </div>
+              <div class="seg"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i></i><i></i></div>
+              <p class="block-desc"><span class="nb">集齐解锁新的散步路线,</span><span class="nb">缺的两样在湖边</span></p>
+            </div>
+
+            <div class="received pop d4">
+              <div class="win"><img src="art/items/berry.png" alt=""></div>
+              <div class="txt">
+                <strong>刚收到:一颗果子</strong>
+                <span><span class="nb">它说路边捡的,</span><span class="nb">不太确定能不能吃</span></span>
+              </div>
+              <span class="newtag">New</span>
+            </div>
+          </div>
+
+          <nav class="tabbar">
+            <button class="tab active t1"><svg viewBox="0 0 24 24"><rect x="4" y="4" width="7" height="7"/><rect x="13" y="4" width="7" height="7"/><rect x="4" y="13" width="7" height="7"/><rect x="13" y="13" width="7" height="7"/></svg>图鉴</button>
+            <button class="tab"><svg viewBox="0 0 24 24"><rect x="5" y="3.5" width="14" height="17"/><path d="M8.5 9h7M8.5 13h7"/></svg>日记</button>
+            <button class="tab"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="2.4"/></svg>它</button>
+          </nav>
+        </div>
+      </div></div>
+      <span class="cap">图鉴</span>
+    </div>
+
+    <!-- 手机 2:日记 -->
+    <div class="device-wrap">
+      <div class="phone-frame"><div class="phone-screen">
+        <div class="island"></div>
+        <div class="p-screen">
+          <div class="p-top">
+            <span class="frag corner-sticker ci" style="right:24px; top:54px; width:32px; height:32px; background-color:var(--mint);"></span>
+            <span class="frag corner-sticker sq" style="right:66px; top:88px; width:18px; height:18px; background-color:var(--blue); rotate:18deg;"></span>
+            <span class="p-kicker k2">日记</span>
+            <h1 class="p-title">它写的</h1>
+            <p class="p-sub"><span class="nb">它自己的视角,</span><span class="nb">不是你的记录</span></p>
+            <div class="p-wave">
+              <svg class="ink" width="290" height="14" viewBox="0 0 290 14" aria-hidden="true">
+                <path d="M2 8 Q 14 0 26 8 T 50 8 T 74 8 T 98 8 T 122 8 T 146 8 T 170 8 T 194 8 T 218 8 T 242 8 T 266 8 T 288 8"/>
+              </svg>
+            </div>
+          </div>
+
+          <div class="p-body">
+            <div class="diary-row pop">
+              <time>10-11 傍晚</time>
+              <p><span class="nb">今天走得比平常远。</span><span class="nb">你好像也走了不少,</span><span class="nb">我们大概错过了。</span><span class="nb">带了一颗果子回来。</span></p>
+            </div>
+            <div class="diary-row pop d2">
+              <time>10-10 下午</time>
+              <p><span class="nb">窗台那边太阳很好,</span><span class="nb">躺了一会儿。</span><span class="nb">你一直没回来。</span></p>
+            </div>
+            <p class="diary-end"><span class="nb">再往前就翻不到了</span> · <span class="nb">它也没打算全记住</span></p>
+
+            <!-- 下半页的空:用图案碎片填,不是用内容填。
+                 孟菲斯本来就是「版面剩下的地方撒纸屑」,这里是这套风格最该发挥的地方。 -->
+            <div class="frag" style="left:0; right:0; bottom:0; top:auto; height:250px;">
+              <span class="frag" style="left:6px; top:36px;">
+                <svg class="ink" width="118" height="60" viewBox="0 0 118 60" aria-hidden="true">
+                  <path d="M4 56 A 55 55 0 0 1 114 56" stroke="#FF7A6E"/>
+                  <path d="M24 56 A 35 35 0 0 1 94 56" stroke="#2C5BFF"/>
+                  <path d="M44 56 A 15 15 0 0 1 74 56" stroke="#FFC524"/>
+                  <path d="M52 56 A 7 7 0 0 1 66 56"/>
+                </svg>
+              </span>
+              <span class="frag" style="right:14px; top:14px;">
+                <svg class="ink" width="92" height="24" viewBox="0 0 92 24" aria-hidden="true">
+                  <polyline points="3,21 12,4 21,21 30,4 39,21 48,4 57,21 66,4 75,21 84,4"/>
+                </svg>
+              </span>
+              <span class="frag sq" style="right:28px; top:62px; width:40px; height:40px; background-color:var(--mint); rotate:17deg;"></span>
+              <span class="frag ci" style="right:84px; top:100px; width:22px; height:22px; background-color:var(--mustard);"></span>
+              <span class="frag dotfield" style="left:130px; top:24px; width:56px; height:34px; opacity:.5;"></span>
+              <span class="frag sq" style="left:24px; top:116px; width:24px; height:24px; background-color:var(--blue-p); rotate:-14deg;"></span>
+              <span class="frag stripefield" style="right:-18px; top:130px; width:92px; height:52px; opacity:.16; rotate:-8deg;"></span>
+              <span class="frag" style="left:70px; top:132px;">
+                <svg class="ink" width="124" height="18" viewBox="0 0 124 18" aria-hidden="true">
+                  <path d="M3 10 Q 13 1 23 10 T 43 10 T 63 10 T 83 10 T 103 10 T 121 10"/>
+                </svg>
+              </span>
+              <span class="frag ci" style="left:-26px; top:150px; width:66px; height:66px; background-color:var(--salmon-p);"></span>
+            </div>
+          </div>
+
+          <nav class="tabbar">
+            <button class="tab"><svg viewBox="0 0 24 24"><rect x="4" y="4" width="7" height="7"/><rect x="13" y="4" width="7" height="7"/><rect x="4" y="13" width="7" height="7"/><rect x="13" y="13" width="7" height="7"/></svg>图鉴</button>
+            <button class="tab active t2"><svg viewBox="0 0 24 24"><rect x="5" y="3.5" width="14" height="17"/><path d="M8.5 9h7M8.5 13h7"/></svg>日记</button>
+            <button class="tab"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="2.4"/></svg>它</button>
+          </nav>
+        </div>
+      </div></div>
+      <span class="cap">日记</span>
+    </div>
+
+    <!-- 手机 3:它 -->
+    <div class="device-wrap">
+      <div class="phone-frame"><div class="phone-screen">
+        <div class="island"></div>
+        <div class="p-screen">
+          <div class="deco">
+            <span class="frag stripefield" style="left:-16px; top:452px; width:60px; height:60px; opacity:.13; rotate:9deg;"></span>
+            <span class="frag" style="right:16px; top:470px;">
+              <svg class="ink" width="74" height="38" viewBox="0 0 74 38" aria-hidden="true">
+                <path d="M3 34 A 34 34 0 0 1 71 34" stroke="#2C5BFF"/>
+                <path d="M17 34 A 20 20 0 0 1 57 34" stroke="#FF7A6E"/>
+                <path d="M30 34 A 7 7 0 0 1 44 34"/>
+              </svg>
+            </span>
+            <!-- 这几个碎片必须落在「对着什么发呆」和「下次出门」之间那条 60px 的空带里
+                 (y ≈ 466~528)。放低 10px 就会被下面那张实色卡压掉一半,
+                 读成渲染残留而不是图形——上一轮截图实拍。 -->
+            <span class="frag sq" style="left:28px; top:474px; width:26px; height:26px; background-color:var(--mustard); rotate:21deg;"></span>
+            <span class="frag ci" style="left:90px; top:496px; width:17px; height:17px; background-color:var(--mint);"></span>
+            <span class="frag dotfield" style="left:128px; top:462px; width:52px; height:26px; opacity:.4;"></span>
+          </div>
+
+          <div class="screen-pet">
+            <span class="frag corner-sticker sq" style="right:20px; top:50px; width:30px; height:30px; background-color:var(--salmon); rotate:-16deg;"></span>
+            <span class="frag corner-sticker" style="right:58px; top:92px;">
+              <svg class="ink thin" width="42" height="14" viewBox="0 0 42 14" aria-hidden="true">
+                <path d="M2 8 Q 9 1 16 8 T 30 8 T 40 8" stroke="#2C5BFF"/>
+              </svg>
+            </span>
+            <span class="p-kicker k3">它</span>
+            <h1 class="p-title">小团</h1>
+            <p class="p-sub"><span class="nb">在家</span> · <span class="nb">刚回来</span></p>
+
+            <div class="plate pop d1">
+              <div class="plate-img">
+                <img class="scene" src="art/scene-room.jpg" alt="">
+                <img class="pet" src="art/warm-calm.png" alt="宠物">
+              </div>
+              <div class="plate-cap"><span>室内 · 窝边</span><span>状态 <b>在家</b></span></div>
+            </div>
+
+            <p class="pic-caption">对着什么发呆</p>
+
+            <div class="kv pop d3">
+              <span class="k">下次出门</span>
+              <span class="v nb">明天早上 · 它自己决定的</span>
+            </div>
+            <div class="action-row">
+              <button class="pbtn secondary pop d4">给点心</button>
+              <button class="pbtn primary pop d4">摸摸</button>
+            </div>
+          </div>
+
+          <nav class="tabbar">
+            <button class="tab"><svg viewBox="0 0 24 24"><rect x="4" y="4" width="7" height="7"/><rect x="13" y="4" width="7" height="7"/><rect x="4" y="13" width="7" height="7"/><rect x="13" y="13" width="7" height="7"/></svg>图鉴</button>
+            <button class="tab"><svg viewBox="0 0 24 24"><rect x="5" y="3.5" width="14" height="17"/><path d="M8.5 9h7M8.5 13h7"/></svg>日记</button>
+            <button class="tab active t3"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="2.4"/></svg>它</button>
+          </nav>
+        </div>
+      </div></div>
+      <span class="cap">它</span>
+    </div>
+
+  </div>
+</section>
+
+</body>
+</html>

@@ -1,0 +1,627 @@
+<!DOCTYPE html>
+<!--
+  设计小结 —— 硬件面板 Hardware Panel (style-panel)
+
+  来源:designeer.xyz 的 Interface Design 区 Lab01 / UI Labs 那批「器物感」实验
+  （把界面当成一件有重量的东西来做,而不是一张平面排版）,加上 Desktop 区的工业设计语言。
+  实物参照是 Teenage Engineering OP-1 和 Braun / Dieter Rams 的消费电子:
+  浅灰机身 + 哑光注塑件 + 丝印标签 + 一块凹下去的深色显示窗 + 克制的几个彩色键帽。
+
+  调色板(机身一个灰阶家族 + 两个键帽色,仅此而已):
+    --shell    #D5D1C8  米灰机身。暖灰不是纯灰——ABS 注塑件放久了就是这个调子
+    --shell-up #E2DFD7  / --shell-dn #B7B2A7  机身的受光面与背光面
+    --ink      #35332D  丝印主字。**不是纯黑**:丝印白漆/深灰漆打在哑光塑料上没有纯黑
+    --silk     #78746A  次级丝印
+    --win      #1D201B  显示窗底。偏绿的深色,像旧 LCD 的偏振片,不是纯黑
+    --lcd      #E6E3D4  窗内字
+    --orange   #DE5A1E  主操作键帽(TE 橙)。全篇只给「收下 / 摸摸 / 当前选中 / 新到」
+    --blue     #2C569F  次级彩色键帽,只在 tabbar 不出现,用在图鉴的「刚收到」标记侧
+
+  层级怎么来:**全部靠实体细节,不靠线框也不靠色块**。
+    - 键帽:上缘 1px 内高光 + 下方 2px 实色侧壁 + 一层投影 = 有厚度,能按
+    - 凹槽:上暗下亮两条 1px(`--groove`),不是 border——真机上分型线就长这样
+    - 显示窗:inset 投影 + 下沿一条外高光,窗内叠一层 3px 网格当点阵/段码质感
+    - 插座(未解锁的格子):inset 投影但没有侧壁,所以读成「空的坑」而不是「暗的键」
+
+  和 instrument 的区别(必须成立,否则两套撞):
+    instrument 是**屏幕里的测量仪表**——纯黑底、酸黄绿、刻度尺、tabular 读数,
+    完全平面、零材质、零光影,分层靠线的粗细。
+    这套是**一台物理机器的外壳**——浅色机身占满屏幕,深色只出现在凹下去的那一小块窗里;
+    有厚度的按键、有方向的光(光源恒定在正上方)、有凹槽和螺丝;
+    字是丝印在塑料上的,不是像素点亮的。**没有一根刻度线**,因为这套不测量任何东西。
+  和 chrome 的区别:chrome 是镜面亮光金属 + 镭射虹彩 + 高光扫过;这套是哑光注塑件,
+    高光只有键帽上缘那 1px,整机不反射环境。
+  和 tonal 的区别:tonal 是纯平的 Material 色调阶梯,同一块面是同一个色值;
+    这套每一块面都有上下渐变和投影,离开光影就垮。
+
+  ⚠️ 这套风格自带的产品风险,和 instrument 那条是一类但来源不同:
+  面板语言会**引诱人画假数值**——电量条、电平表、带刻度的旋钮、型号里随手编的编号。
+  所以这一版里:没有旋钮和推子(有也不绑值),型号丝印不带数字,
+  屏幕上出现的数字只有方向 C 本来就有的客观量——件数(7 样)、套装内容(4/6)、时钟、日期。
+  指示灯只表示「有/无」这种二值,不表示程度。CLAUDE.md 的红线:不显示内部性格/健康数值。
+-->
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>硬件面板 Hardware Panel · 方向 C</title>
+<style>
+  :root {
+    --sys-sans: -apple-system, "SF Pro Text", "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
+    --sys-mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+
+    --desk: #BCB7AB;
+    --shell: #D5D1C8;
+    --shell-up: #E2DFD7;
+    --shell-dn: #B7B2A7;
+    --ink: #35332D;
+    --silk: #78746A;
+    --silk-dim: #9A958A;
+
+    --win: #1D201B;
+    --lcd: #E6E3D4;
+    --lcd-dim: #949A88;
+
+    --orange: #DE5A1E;
+    --orange-dn: #9E3A0E;
+    --blue: #2C569F;
+    --blue-dn: #1A3669;
+
+    --edge-hi: rgba(255,255,255,.85);
+    --edge-lo: rgba(52,46,34,.24);
+    --bezel: #1A1A1C;
+
+    /* 注塑件的微纹。⚠️ 用 background-image,叠底色时务必 background-color,
+       background: 简写会把纹理盖掉(本仓库已知坑) */
+    --mold: repeating-linear-gradient(45deg, rgba(255,255,255,.20) 0 1px, rgba(40,34,24,.022) 1px 3px);
+    /* 机身受光:光源恒定在正上方 */
+    --lit: linear-gradient(180deg, rgba(255,255,255,.40), rgba(255,255,255,0) 26%, rgba(52,46,34,.05));
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background-color: var(--desk);
+    background-image: var(--mold);
+    font-family: var(--sys-sans);
+    color: var(--ink);
+    padding: 46px 20px 72px;
+  }
+
+  /* ---------------------------------------------------------------- 页头 */
+  .intro { max-width: 760px; margin: 0 auto 16px; }
+  .intro .eyebrow {
+    font-size: 10.5px; letter-spacing: .2em; text-transform: uppercase;
+    color: var(--orange); margin: 0 0 10px; text-shadow: 0 1px 0 rgba(255,255,255,.6);
+  }
+  .intro h1 { font-size: 28px; font-weight: 600; letter-spacing: -.02em; margin: 0 0 10px; text-shadow: 0 1px 0 rgba(255,255,255,.5); }
+  .intro p { font-size: 14px; line-height: 1.75; color: #5E5A51; margin: 0; max-width: 60ch; }
+  .intro p b { color: var(--ink); font-weight: 600; }
+  .back {
+    display: inline-block; margin-top: 16px; font-size: 12.5px; color: var(--ink);
+    text-decoration: none; padding: 7px 13px; border-radius: 5px;
+    background-color: var(--shell-up);
+    background-image: var(--lit);
+    box-shadow: 0 2px 0 var(--shell-dn), 0 3px 5px rgba(45,40,30,.18), inset 0 1px 0 rgba(255,255,255,.9);
+  }
+  .rule {
+    max-width: 760px; margin: 24px auto 40px; height: 2px;
+    background-image: linear-gradient(180deg, var(--edge-lo) 0 1px, var(--edge-hi) 1px 2px);
+  }
+
+  .row { max-width: 1200px; margin: 0 auto 50px; }
+  .row > h2 {
+    font-size: 10.5px; font-weight: 600; letter-spacing: .2em;
+    text-transform: uppercase; color: var(--silk); margin: 0 0 20px;
+    text-shadow: 0 1px 0 rgba(255,255,255,.6);
+  }
+  .devices { display: flex; gap: 34px; flex-wrap: wrap; align-items: flex-start; }
+  .device-wrap { display: flex; flex-direction: column; align-items: center; gap: 13px; }
+  .cap { font-size: 10.5px; letter-spacing: .14em; color: var(--silk); text-shadow: 0 1px 0 rgba(255,255,255,.55); }
+
+  /* ================================================================ 零件库 */
+
+  /* 丝印:小号大写、字距拉开,下沿一道白边 = 漆打在有纹理的塑料上 */
+  .silk {
+    font-size: 8.5px; letter-spacing: .2em; text-transform: uppercase;
+    color: var(--silk); text-shadow: 0 1px 0 rgba(255,255,255,.65);
+  }
+  .silk.lg { font-size: 9.5px; }
+  .silk.dim { color: var(--silk-dim); }
+
+  /* 凹槽:上暗下亮两条 1px,不是 border */
+  .groove {
+    height: 2px; flex-shrink: 0;
+    background-image: linear-gradient(180deg, var(--edge-lo) 0 1px, var(--edge-hi) 1px 2px);
+  }
+  /* 散热栅:同一道凹槽重复,用来填掉大面积空机身 */
+  .grille {
+    background-image: repeating-linear-gradient(180deg,
+      var(--edge-lo) 0 1px, var(--edge-hi) 1px 2px, transparent 2px 7px);
+  }
+
+  /* 螺丝:少用。一字槽,受光同机身 */
+  .screw {
+    width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; position: relative;
+    background-image: linear-gradient(145deg, #CAC6BC, #A39E93);
+    box-shadow: inset 0 1px 1px rgba(255,255,255,.55), inset 0 -1px 1px rgba(40,34,24,.28), 0 1px 0 rgba(255,255,255,.7);
+  }
+  .screw::after {
+    content: ''; position: absolute; left: 1.5px; right: 1.5px; top: 50%; height: 1px;
+    background-color: rgba(44,38,28,.55); rotate: 34deg;
+  }
+
+  /* 指示灯:只表示有/无,不表示程度 */
+  .lamp {
+    width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0;
+    background-color: #9B9789;
+    box-shadow: inset 0 1px 1.5px rgba(30,26,18,.5), 0 1px 0 rgba(255,255,255,.72);
+  }
+  .lamp.on {
+    background-color: var(--orange);
+    box-shadow: inset 0 -1px 1.5px rgba(120,40,8,.6), 0 0 6px rgba(222,90,30,.6), 0 1px 0 rgba(255,255,255,.5);
+  }
+
+  /* 显示窗:凹进去的深色窗,窗内一层 3px 点阵网格 + 一道斜向玻璃反光 */
+  .win {
+    position: relative; overflow: hidden; border-radius: 4px;
+    background-color: var(--win);
+    box-shadow:
+      inset 0 3px 6px rgba(0,0,0,.6),
+      inset 0 0 0 1px rgba(0,0,0,.45),
+      0 1px 0 var(--edge-hi);
+    animation: win-on .5s ease-out both;
+  }
+  .win::after {
+    content: ''; position: absolute; inset: 0; pointer-events: none; z-index: 6;
+    background-image:
+      linear-gradient(158deg, rgba(255,255,255,.085) 0 32%, rgba(255,255,255,0) 52%),
+      repeating-linear-gradient(0deg, rgba(0,0,0,.20) 0 1px, rgba(0,0,0,0) 1px 3px),
+      repeating-linear-gradient(90deg, rgba(0,0,0,.20) 0 1px, rgba(0,0,0,0) 1px 3px);
+  }
+  /* 窗里有中文正文时把点阵压淡,否则 13px 的字会被网格啃花 */
+  .win.text::after {
+    background-image:
+      linear-gradient(158deg, rgba(255,255,255,.07) 0 32%, rgba(255,255,255,0) 52%),
+      repeating-linear-gradient(0deg, rgba(0,0,0,.10) 0 1px, rgba(0,0,0,0) 1px 4px);
+  }
+  /* 大幅照片同理:3px 网格压在照片上会读成「脏」,不是「显示窗」 */
+  .win.photo::after {
+    background-image:
+      linear-gradient(158deg, rgba(255,255,255,.09) 0 30%, rgba(255,255,255,0) 50%),
+      repeating-linear-gradient(0deg, rgba(0,0,0,.11) 0 1px, rgba(0,0,0,0) 1px 4px);
+  }
+  @keyframes win-on { from { opacity: .35; } to { opacity: 1; } }
+
+  .win-ink { color: var(--lcd); text-shadow: 0 0 7px rgba(230,227,212,.2); position: relative; z-index: 2; }
+  .win-dim { color: var(--lcd-dim); position: relative; z-index: 2; }
+
+  /* 插座:凹坑,没有侧壁,所以不会被读成「暗的按键」 */
+  .socket {
+    border-radius: 6px;
+    background-color: #BFBBB1;
+    box-shadow: inset 0 2px 4px rgba(42,36,26,.38), inset 0 0 0 1px rgba(42,36,26,.12), 0 1px 0 var(--edge-hi);
+  }
+
+  /* 键帽:上缘 1px 内高光 + 2px 实色侧壁 + 投影 */
+  .key {
+    border: 0; cursor: pointer; font-family: var(--sys-sans);
+    border-radius: 6px; color: var(--ink);
+    background-color: var(--cap, #E3E0D7);
+    background-image: linear-gradient(180deg, rgba(255,255,255,.72), rgba(255,255,255,.04) 46%, rgba(52,46,34,.07));
+    box-shadow:
+      inset 0 1px 0 rgba(255,255,255,.9),
+      0 2px 0 var(--cap-dn, #B2ADA2),
+      0 4px 6px rgba(45,40,30,.22);
+  }
+  .key:active {
+    translate: 0 2px;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.6), 0 0 0 var(--cap-dn, #B2ADA2), 0 1px 3px rgba(45,40,30,.3);
+  }
+  .key.accent { --cap: var(--orange); --cap-dn: var(--orange-dn); color: #FFF2EA; }
+  .key.accent { text-shadow: 0 1px 0 rgba(120,40,8,.45); }
+  .key.blue { --cap: var(--blue); --cap-dn: var(--blue-dn); color: #EDF2FB; }
+  .key-label { font-size: 12px; font-weight: 600; letter-spacing: .1em; }
+
+  /* ---------------------------------------------------------------- 手表外框 */
+  .watch-frame {
+    width: 240px; height: 280px; background-color: var(--bezel); border-radius: 50px;
+    padding: 16px; position: relative;
+  }
+  .watch-frame::after {
+    content: ''; position: absolute; right: -4px; top: 50%; translate: 0 -50%;
+    width: 8px; height: 42px; background-color: #0E0E10; border-radius: 4px;
+  }
+  .watch-screen {
+    width: 208px; height: 248px; border-radius: 36px; overflow: hidden;
+    position: relative; color: var(--ink);
+    background-color: var(--shell);
+  }
+
+  /* ---------------------------------------------------------------- 手机外框 */
+  .phone-frame {
+    width: 358px; height: 744px; background-color: var(--bezel); border-radius: 56px;
+    padding: 14px; position: relative;
+  }
+  .phone-screen {
+    width: 330px; height: 716px; border-radius: 44px; overflow: hidden;
+    position: relative; color: var(--ink);
+    background-color: var(--shell);
+  }
+  .island { position: absolute; top: 10px; left: 50%; translate: -50% 0; width: 92px; height: 25px; border-radius: 14px; background-color: #0E0E10; z-index: 50; }
+
+  /* 屏幕内容本身就是一块机身面板 */
+  .panel {
+    width: 100%; height: 100%; position: relative;
+    background-color: var(--shell);
+    background-image: var(--lit), var(--mold);
+  }
+
+  /* ---------------------------------------------------------------- 手表内容 */
+  /* ⚠️ 表屏圆角 36,顶边附近左右各被啃进约 10px。右侧时间留足内边距,否则 09:41 被切成 09:4 */
+  .w-screen { padding: 17px 19px 14px; display: flex; flex-direction: column; }
+  .w-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+  .w-clock { font-family: var(--sys-mono); font-size: 9.5px; letter-spacing: .06em; color: var(--silk); font-variant-numeric: tabular-nums; text-shadow: 0 1px 0 rgba(255,255,255,.6); }
+  .w-flag { display: flex; align-items: center; gap: 5px; }
+  .w-win { height: 100px; margin-top: 9px; display: flex; align-items: center; justify-content: center; }
+  .w-win img { width: 84px; height: 84px; object-fit: contain; position: relative; z-index: 2; }
+  .w-headline { font-size: 16px; font-weight: 600; letter-spacing: -.01em; margin: 11px 0 0; text-shadow: 0 1px 0 rgba(255,255,255,.5); }
+  .w-sub { font-size: 11px; color: var(--silk); margin: 4px 0 0; }
+  .w-foot { margin-top: auto; }
+  .w-foot .key { width: 100%; min-height: 36px; padding: 10px 0; }
+
+  /* 表盘 */
+  .face { padding: 16px 16px 14px; display: flex; flex-direction: column; height: 100%; }
+  .face-win { height: 94px; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+  .face-clock { font-family: var(--sys-mono); font-size: 42px; font-weight: 700; letter-spacing: -.03em; margin: 0; font-variant-numeric: tabular-nums; }
+  .compl { display: flex; align-items: center; gap: 10px; margin-top: 14px; }
+  .compl-win { width: 38px; height: 38px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; }
+  .compl-win img { width: 31px; height: 31px; object-fit: contain; position: relative; z-index: 2; }
+  .compl .t2 { font-size: 12.5px; font-weight: 600; margin-top: 3px; text-shadow: 0 1px 0 rgba(255,255,255,.5); }
+  .face-foot { margin-top: auto; display: flex; align-items: flex-end; gap: 10px; }
+  .face-foot .grille { flex: 1; height: 15px; }
+
+  /* ---------------------------------------------------------------- 手机内容:通用 */
+  .p-screen { width: 100%; height: 100%; display: flex; flex-direction: column; position: relative; }
+  .p-top { padding: 46px 20px 0; }
+  .p-slug { display: flex; align-items: center; gap: 7px; margin: 0 0 9px; }
+  .p-title { font-size: 24px; font-weight: 700; letter-spacing: -.025em; margin: 0; text-shadow: 0 1px 0 rgba(255,255,255,.55); }
+  .p-sub { font-size: 11.5px; color: var(--silk); margin: 7px 0 0; }
+  .p-top .groove { margin-top: 13px; }
+  .p-body { flex: 1; padding: 14px 20px 0; overflow: hidden; }
+  .nb { white-space: nowrap; }
+
+  /* 图鉴:3×3 键盘。解锁的是键帽,没解锁的是空插座 */
+  .pad { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+  .pad .key, .pad .socket { aspect-ratio: 1; position: relative; display: flex; align-items: center; justify-content: center; }
+  .pad .key img { width: 56%; height: 56%; object-fit: contain; }
+  .pad .socket i { width: 13px; height: 2px; border-radius: 1px; background-color: #9D9A90; box-shadow: 0 1px 0 rgba(255,255,255,.6); }
+  .pad .lamp { position: absolute; right: 6px; top: 6px; }
+
+  /* 套装:标签丝印 + 一块小读数窗 + 一排指示灯(灯只表示有/无) */
+  .block { margin-top: 16px; }
+  .block .groove { margin-bottom: 11px; }
+  .block-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+  .block-win { padding: 3px 9px 4px; border-radius: 3px; }
+  .block-val { font-family: var(--sys-mono); font-size: 15px; font-weight: 700; letter-spacing: .02em; font-variant-numeric: tabular-nums; }
+  .lamps { display: flex; gap: 7px; margin: 11px 0 9px; }
+  .block-desc { font-size: 11.5px; color: var(--silk); line-height: 1.6; margin: 0; }
+
+  /* 刚收到 */
+  .recv-groove { margin: 16px 0 13px; }
+  .received { display: flex; align-items: center; gap: 12px; }
+  .recv-win { width: 48px; height: 48px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; }
+  .recv-win img { width: 34px; height: 34px; object-fit: contain; position: relative; z-index: 2; }
+  .received .txt strong { display: block; font-size: 13px; font-weight: 600; margin-bottom: 3px; text-shadow: 0 1px 0 rgba(255,255,255,.5); }
+  .received .txt span { font-size: 11.5px; color: var(--silk); line-height: 1.5; }
+  .tag-new { display: flex; flex-direction: column; align-items: center; gap: 4px; margin-left: auto; align-self: flex-start; }
+
+  /* 日记:两条都在同一块显示窗里。
+     显示窗的尺寸是机器定的、和内容多少无关,所以「只有两条」不会读成「这页没排完」——
+     这是面板语言比排版语言占便宜的地方,halftone 那套得专门加页脚才圈得住同一块空白。 */
+  .log-win {
+    height: 400px; padding: 18px 16px; border-radius: 5px;
+    display: flex; flex-direction: column; justify-content: space-between;
+  }
+  .log-entry .date { font-family: var(--sys-mono); font-size: 9.5px; letter-spacing: .16em; display: block; margin-bottom: 9px; }
+  .log-entry p { font-size: 13px; line-height: 1.85; margin: 0; }
+  .log-entry.past p { color: #BCBEAF; }
+  /* 窗里的分隔槽:暗的那条更暗、亮的那条只剩一点点——凹槽在深色面上就是这样 */
+  .log-div {
+    height: 2px; position: relative; z-index: 2;
+    background-image: linear-gradient(180deg, rgba(0,0,0,.55) 0 1px, rgba(255,255,255,.11) 1px 2px);
+  }
+  .log-end { margin: 0; font-size: 10.5px; letter-spacing: .04em; }
+  .plate-foot { display: flex; align-items: center; gap: 12px; margin-top: 18px; }
+  .plate-foot .grille { flex: 1; height: 44px; }
+
+  /* 它:场景照压在玻璃窗后面 */
+  .screen-pet { padding: 46px 20px 76px; display: flex; flex-direction: column; height: 100%; }
+  .view { height: 338px; margin-top: 15px; border-radius: 5px; display: flex; align-items: flex-end; justify-content: center; }
+  .view img.scene { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; opacity: .82; }
+  .view img.pet { position: relative; z-index: 4; width: 120px; height: 120px; object-fit: contain; margin-bottom: 16px; }
+  .view-cap {
+    display: flex; justify-content: space-between; align-items: center;
+    margin-top: 9px;
+  }
+  .view-cap .st { display: flex; align-items: center; gap: 6px; }
+  .pic-caption { font-size: 12.5px; color: var(--silk); margin: 11px 0 0; }
+  .kv { margin-top: auto; }
+  .kv .groove { margin-bottom: 11px; }
+  .kv .line { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+  .kv .v { font-size: 12.5px; font-weight: 600; text-shadow: 0 1px 0 rgba(255,255,255,.5); }
+  .action-row { display: flex; gap: 10px; margin-top: 15px; }
+  .action-row .key { padding: 13px 0; }
+  .action-row .key.secondary { flex: 1; }
+  .action-row .key.accent { flex: 1.3; }
+
+  /* tabbar:三颗键,选中的那颗是按下去锁住的(凹进去),不是高亮 */
+  .tabbar {
+    position: absolute; left: 0; right: 0; bottom: 0; height: 68px; z-index: 5;
+    padding: 9px 12px 16px; display: flex; gap: 8px;
+    background-color: #CDC9C0;
+    background-image: var(--mold);
+    box-shadow: inset 0 1px 0 var(--edge-hi), 0 -1px 0 var(--edge-lo);
+  }
+  .tab {
+    flex: 1; border: 0; border-radius: 6px; cursor: pointer;
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px;
+    font-family: var(--sys-sans); font-size: 10px; letter-spacing: .12em; color: var(--silk);
+    background-color: #E1DED5;
+    background-image: linear-gradient(180deg, rgba(255,255,255,.7), rgba(255,255,255,.04) 46%, rgba(52,46,34,.07));
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.9), 0 2px 0 #B2ADA2, 0 3px 5px rgba(45,40,30,.2);
+  }
+  .tab svg { width: 17px; height: 17px; stroke: var(--silk); fill: none; }
+  .tab.active {
+    color: var(--orange); background-color: #C6C2B9;
+    background-image: linear-gradient(180deg, rgba(52,46,34,.10), rgba(255,255,255,.12));
+    box-shadow: inset 0 2px 4px rgba(42,36,26,.4), inset 0 -1px 0 rgba(255,255,255,.35), 0 1px 0 var(--edge-hi);
+    translate: 0 2px;
+  }
+  .tab.active svg { stroke: var(--orange); }
+  .tab:active { translate: 0 2px; }
+
+  @media (prefers-reduced-motion: reduce) {
+    * { animation: none !important; }
+  }
+</style>
+</head>
+<body>
+
+<div class="intro">
+  <p class="eyebrow">方向 C · 它自己的生活 — 硬件面板 Hardware Panel</p>
+  <h1>当成一台机器的面板来做</h1>
+  <p>米灰的注塑机身、丝印的小标签、一块凹下去的显示窗,还有几颗真的有厚度的按键。
+    层级全靠<b>高光、投影和凹槽</b>这些实体细节——不是线框,也不是色块。
+    <b>和「读数仪表」的区别:</b>那套是屏幕里的测量仪,纯黑、平面、全是刻度;
+    这套是机器的外壳,浅色、有光有影、<b>一根刻度都没有</b>——它不测量任何东西。
+    旋钮和推子一律不画,因为面板语言最容易引诱人编出假数值。</p>
+  <a class="back" href="styles.html">← 返回风格对照</a>
+</div>
+<div class="rule"></div>
+
+<section class="row row-watch">
+  <h2>手表 · 三块面板</h2>
+  <div class="devices">
+
+    <div class="device-wrap">
+      <div class="watch-frame"><div class="watch-screen">
+        <div class="panel">
+          <div class="w-screen">
+            <div class="w-head">
+              <span class="silk">状态 · 外出</span>
+              <span class="w-clock">09:41</span>
+            </div>
+            <div class="groove" style="margin-top:8px"></div>
+            <div class="win w-win">
+              <img src="art/warm-idle.png" alt="宠物" style="opacity:.6">
+            </div>
+            <p class="w-headline">它出门了</p>
+            <p class="w-sub">大概傍晚回来</p>
+            <div class="w-foot"><button class="key"><span class="key-label">看看它</span></button></div>
+          </div>
+        </div>
+      </div></div>
+      <span class="cap">出门了</span>
+    </div>
+
+    <div class="device-wrap">
+      <div class="watch-frame"><div class="watch-screen">
+        <div class="panel">
+          <div class="w-screen">
+            <div class="w-head">
+              <span class="silk">状态 · 已归</span>
+              <span class="w-flag"><i class="lamp on"></i><span class="silk">New</span></span>
+            </div>
+            <div class="groove" style="margin-top:8px"></div>
+            <div class="win w-win">
+              <img src="art/warm-playful.png" alt="宠物">
+            </div>
+            <p class="w-headline">它回来了</p>
+            <p class="w-sub">带回一颗果子</p>
+            <div class="w-foot"><button class="key accent"><span class="key-label">收下</span></button></div>
+          </div>
+        </div>
+      </div></div>
+      <span class="cap">回来了</span>
+    </div>
+
+    <div class="device-wrap">
+      <div class="watch-frame"><div class="watch-screen">
+        <div class="panel">
+          <div class="face">
+            <div class="win face-win">
+              <p class="face-clock win-ink">9:41</p>
+            </div>
+            <div class="compl">
+              <div class="win compl-win"><img src="art/warm-idle.png" alt=""></div>
+              <div>
+                <div class="silk">出门中</div>
+                <div class="t2">傍晚回来</div>
+              </div>
+            </div>
+            <div class="face-foot">
+              <span class="silk dim">Panel</span>
+              <div class="grille"></div>
+              <i class="screw"></i>
+            </div>
+          </div>
+        </div>
+      </div></div>
+      <span class="cap">复杂功能</span>
+    </div>
+
+  </div>
+</section>
+
+<section class="row row-phone">
+  <h2>手机 · 三块面板</h2>
+  <div class="devices">
+
+    <div class="device-wrap">
+      <div class="phone-frame"><div class="phone-screen">
+        <div class="island"></div>
+        <div class="panel">
+          <div class="p-screen">
+            <div class="p-top">
+              <p class="p-slug"><span class="silk lg">图鉴 · Collection</span></p>
+              <h1 class="p-title">它带回来的</h1>
+              <p class="p-sub">7 样 · 还有很多没见过</p>
+              <div class="groove"></div>
+            </div>
+            <div class="p-body">
+              <div class="pad">
+                <button class="key"><img src="art/items/berry.png" alt="一颗果子"><i class="lamp on"></i></button>
+                <button class="key"><img src="art/items/leaf.png" alt="一片叶子"></button>
+                <button class="key"><img src="art/items/stone.png" alt="一块石头"></button>
+                <button class="key"><img src="art/items/feather.png" alt="一根羽毛"></button>
+                <button class="key"><img src="art/items/shell.png" alt="一枚贝壳"></button>
+                <button class="key"><img src="art/items/flower.png" alt="一朵花"></button>
+                <button class="key"><img src="art/items/bottle.png" alt="一个小瓶子"></button>
+                <div class="socket"><i></i></div>
+                <div class="socket"><i></i></div>
+              </div>
+
+              <div class="block">
+                <div class="groove"></div>
+                <div class="block-head">
+                  <span class="silk lg">套装 · 林线</span>
+                  <span class="win block-win"><span class="block-val win-ink">4/6</span></span>
+                </div>
+                <div class="lamps">
+                  <i class="lamp on"></i><i class="lamp on"></i><i class="lamp on"></i>
+                  <i class="lamp on"></i><i class="lamp"></i><i class="lamp"></i>
+                </div>
+                <p class="block-desc"><span class="nb">集齐解锁新的散步路线,</span><span class="nb">缺的两样在湖边</span></p>
+              </div>
+
+              <div class="groove recv-groove"></div>
+              <div class="received">
+                <div class="win recv-win"><img src="art/items/berry.png" alt=""></div>
+                <div class="txt">
+                  <strong>刚收到:一颗果子</strong>
+                  <span><span class="nb">它说路边捡的,</span><span class="nb">不太确定能不能吃</span></span>
+                </div>
+                <span class="tag-new"><i class="lamp on"></i><span class="silk">New</span></span>
+              </div>
+            </div>
+            <nav class="tabbar">
+              <button class="tab active"><svg viewBox="0 0 24 24" stroke-width="1.7"><rect x="4" y="4" width="7" height="7"/><rect x="13" y="4" width="7" height="7"/><rect x="4" y="13" width="7" height="7"/><rect x="13" y="13" width="7" height="7"/></svg>图鉴</button>
+              <button class="tab"><svg viewBox="0 0 24 24" stroke-width="1.7"><rect x="5" y="3.5" width="14" height="17"/><path d="M8.5 9h7M8.5 13h7"/></svg>日记</button>
+              <button class="tab"><svg viewBox="0 0 24 24" stroke-width="1.7"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="2.2"/></svg>它</button>
+            </nav>
+          </div>
+        </div>
+      </div></div>
+      <span class="cap">图鉴</span>
+    </div>
+
+    <div class="device-wrap">
+      <div class="phone-frame"><div class="phone-screen">
+        <div class="island"></div>
+        <div class="panel">
+          <div class="p-screen">
+            <div class="p-top">
+              <p class="p-slug"><span class="silk lg">日记 · Log</span></p>
+              <h1 class="p-title">它写的</h1>
+              <p class="p-sub">它自己的视角,不是你的记录</p>
+              <div class="groove"></div>
+            </div>
+            <div class="p-body">
+              <div class="win text log-win">
+                <div class="log-entry">
+                  <span class="date win-dim">10-11 傍晚</span>
+                  <p class="win-ink"><span class="nb">今天走得比平常远。</span><span class="nb">你好像也走了不少,</span><span class="nb">我们大概错过了。</span><span class="nb">带了一颗果子回来。</span></p>
+                </div>
+                <div class="log-div"></div>
+                <div class="log-entry past">
+                  <span class="date win-dim">10-10 下午</span>
+                  <p><span class="nb">窗台那边太阳很好,</span><span class="nb">躺了一会儿。</span><span class="nb">你一直没回来。</span></p>
+                </div>
+                <div class="log-div"></div>
+                <p class="log-end win-dim"><span class="nb">再往前就翻不到了 ·</span> <span class="nb">它也没打算全记住</span></p>
+              </div>
+              <div class="plate-foot">
+                <i class="screw"></i>
+                <div class="grille"></div>
+                <span class="silk dim">Panel</span>
+                <div class="grille"></div>
+                <i class="screw"></i>
+              </div>
+            </div>
+            <nav class="tabbar">
+              <button class="tab"><svg viewBox="0 0 24 24" stroke-width="1.7"><rect x="4" y="4" width="7" height="7"/><rect x="13" y="4" width="7" height="7"/><rect x="4" y="13" width="7" height="7"/><rect x="13" y="13" width="7" height="7"/></svg>图鉴</button>
+              <button class="tab active"><svg viewBox="0 0 24 24" stroke-width="1.7"><rect x="5" y="3.5" width="14" height="17"/><path d="M8.5 9h7M8.5 13h7"/></svg>日记</button>
+              <button class="tab"><svg viewBox="0 0 24 24" stroke-width="1.7"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="2.2"/></svg>它</button>
+            </nav>
+          </div>
+        </div>
+      </div></div>
+      <span class="cap">日记</span>
+    </div>
+
+    <div class="device-wrap">
+      <div class="phone-frame"><div class="phone-screen">
+        <div class="island"></div>
+        <div class="panel">
+          <div class="p-screen">
+            <div class="screen-pet">
+              <p class="p-slug"><span class="silk lg">它 · Creature</span></p>
+              <h1 class="p-title">小团</h1>
+              <p class="p-sub">在家 · 刚回来</p>
+              <div class="win photo view">
+                <img class="scene" src="art/scene-room.jpg" alt="">
+                <img class="pet" src="art/warm-calm.png" alt="宠物">
+              </div>
+              <div class="view-cap">
+                <span class="silk">室内 · 窝边</span>
+                <span class="st"><i class="lamp on"></i><span class="silk">状态 在家</span></span>
+              </div>
+              <p class="pic-caption">对着什么发呆</p>
+              <div class="kv">
+                <div class="groove"></div>
+                <div class="line">
+                  <span class="silk">下次出门</span>
+                  <span class="v">明天早上 · 它自己决定的</span>
+                </div>
+                <div class="action-row">
+                  <button class="key secondary"><span class="key-label">给点心</span></button>
+                  <button class="key accent"><span class="key-label">摸摸</span></button>
+                </div>
+              </div>
+            </div>
+            <nav class="tabbar">
+              <button class="tab"><svg viewBox="0 0 24 24" stroke-width="1.7"><rect x="4" y="4" width="7" height="7"/><rect x="13" y="4" width="7" height="7"/><rect x="4" y="13" width="7" height="7"/><rect x="13" y="13" width="7" height="7"/></svg>图鉴</button>
+              <button class="tab"><svg viewBox="0 0 24 24" stroke-width="1.7"><rect x="5" y="3.5" width="14" height="17"/><path d="M8.5 9h7M8.5 13h7"/></svg>日记</button>
+              <button class="tab active"><svg viewBox="0 0 24 24" stroke-width="1.7"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="2.2"/></svg>它</button>
+            </nav>
+          </div>
+        </div>
+      </div></div>
+      <span class="cap">它</span>
+    </div>
+
+  </div>
+</section>
+
+</body>
+</html>

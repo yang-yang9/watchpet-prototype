@@ -1,0 +1,675 @@
+<!DOCTYPE html>
+<!--
+  设计小结 —— 票据存根 Receipt / Stub (style-receipt)
+
+  来源:designeer.xyz 的 Type 区 Departure Mono(窄体点阵等宽,收银机打出来的那种字)
+  和 Utilities 区 Ray.so(把内容裱进一张「纸」里,只靠留白和边界说话)。
+  气质是:**它不是一个界面,它是一张刚从机器里吐出来的纸。**
+
+  调色板(近乎无色,只有三个值):
+    --paper   #F7F4ED  微暖的白,略偏灰。热敏纸不是纯白,也不是米黄
+    --ink     #211E19  打印头的黑,带一点暖,不是 #000
+    --red     #B63A2E  印章红。**全篇只用在「刚收到」这一个强调上**,别的地方一点都不许有
+    --desk    #D6CFBF  纸后面的那层东西(撕口咬进去露出来的就是它)
+  没有第四个颜色,没有渐变,没有阴影,没有模糊。
+
+  字体:**全篇等宽**(ui-monospace / SF Mono / Menlo / Consolas,中文回落到系统黑体)。
+  不是「标签用等宽、正文用无衬线」那种混排——收银机只有一种字。
+
+  Signature element 有四个,都是票据工艺本身的产物,不是装饰:
+    1. **撕口**:纸的下沿被一排半圆齿咬掉,露出后面的 --desk。用 radial-gradient
+       画齿(不是 border-image、不是 mask-composite,那两条在小尺寸上会糊)。
+       手表是一张被撕下来的短票;手机是正联 + 底部的存根联,中间一条打孔虚线。
+    2. **点线引导 leader dots**:「项目 ⋯⋯⋯⋯ 值」单栏左右对齐。这是票据排版的全部骨架,
+       这套里所有的键值对都长这样——没有卡片、没有色块、没有分栏。
+    3. **淡灰戳记**:「副本 / 存根」双线框,旋转十来度,盖在版心外的空白上。
+    4. **伪条码**:纯 CSS 粗细线条,**不编码任何数据**,下面也不写号码。
+       (这套风格最容易诱发的事就是编一个单号、一个金额、一个百分比。一个都不许有:
+        屏幕上出现的数字只有 7 样、4/6、9:41、日期——全是产品里真有的客观事实。
+        内部的性格/健康数值本来也不许显示给用户。)
+
+  和已有三套的区别(先说清楚,免得被当成同一个东西):
+    - **和 halftone(Riso 双色套印)**:那套是印刷品——有网点栅格、有第二个滚筒的套色、
+      有套准标记,图像靠点的疏密表达灰阶。这套是**热敏打印件**:无网点、无套色、
+      无第二版,灰阶就是灰阶。halftone 的秩序来自对齐到印张页边距的 2px 墨线分区;
+      这套的秩序来自**虚线撕口 + 等宽明细行**——横向的虚线和一行行的点线引导。
+    - **和 swiss(瑞士网格海报)**:那套是几何构成的版面,大色块、多栏、字号差着量级。
+      这套是**单栏流水账**,从上到下一行接一行,没有任何几何色块,字号只有三档。
+    - **和 instrument(黑底仪表)**:那套是黑底 + 酸黄绿读数的仪表盘,发光的。
+      这套是白纸上的黑字,不发光——同样是等宽字,一个在屏幕上亮着,一个是印出来的。
+-->
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>票据存根 Receipt / Stub · 方向 C</title>
+<style>
+  :root {
+    /* 全篇只有等宽。中文回落到系统黑体,这是 Departure Mono 在没有 CDN 的机器上
+       唯一诚实的替代——拉开字距模拟点阵打印头的间隙。 */
+    --mono: ui-monospace, "SF Mono", Menlo, Consolas, "PingFang SC", "Microsoft YaHei", monospace;
+
+    --paper: #F7F4ED;
+    --paper-2: #EFEBE0;
+    --desk: #D6CFBF;
+    --desk-2: #CDC5B3;
+    --ink: #211E19;
+    --ink-60: #6B6358;
+    --ink-40: #978F81;
+    --ink-25: #BDB5A5;
+    --red: #B63A2E;
+    --bezel: #1A1815;
+
+    /* 热敏纸的纸纹:极淡的横向纤维 + 更淡的纵向。**只能作为 background-image 叠在
+       background-color 上**——写成 background: 简写会把它自己覆盖掉。 */
+    --fiber:
+      repeating-linear-gradient(0deg, rgba(60,48,30,.022) 0 0.5px, rgba(0,0,0,0) 0.5px 3px),
+      repeating-linear-gradient(90deg, rgba(60,48,30,.015) 0 0.5px, rgba(0,0,0,0) 0.5px 4px);
+
+    /* 打印件:去色、略提亮,暖一点点。没有网点。 */
+    --print: grayscale(1) sepia(.16) saturate(1.15) contrast(1.06) brightness(1.03);
+
+    /* 伪条码:手写的粗细线条,周期 164px。不编码任何东西,下面也不写号码。 */
+    --bars: linear-gradient(90deg,
+      var(--ink) 0 2px, var(--paper) 2px 5px,
+      var(--ink) 5px 6px, var(--paper) 6px 8px,
+      var(--ink) 8px 11px, var(--paper) 11px 13px,
+      var(--ink) 13px 14px, var(--paper) 14px 17px,
+      var(--ink) 17px 19px, var(--paper) 19px 20px,
+      var(--ink) 20px 21px, var(--paper) 21px 24px,
+      var(--ink) 24px 27px, var(--paper) 27px 29px,
+      var(--ink) 29px 30px, var(--paper) 30px 33px,
+      var(--ink) 33px 35px, var(--paper) 35px 37px,
+      var(--ink) 37px 40px, var(--paper) 40px 41px,
+      var(--ink) 41px 42px, var(--paper) 42px 45px,
+      var(--ink) 45px 46px, var(--paper) 46px 49px,
+      var(--ink) 49px 52px, var(--paper) 52px 53px,
+      var(--ink) 53px 55px, var(--paper) 55px 58px,
+      var(--ink) 58px 59px, var(--paper) 59px 61px,
+      var(--ink) 61px 64px, var(--paper) 64px 66px,
+      var(--ink) 66px 67px, var(--paper) 67px 70px,
+      var(--ink) 70px 72px, var(--paper) 72px 73px,
+      var(--ink) 73px 76px, var(--paper) 76px 79px,
+      var(--ink) 79px 80px, var(--paper) 80px 82px,
+      var(--ink) 82px 84px, var(--paper) 84px 87px,
+      var(--ink) 87px 88px, var(--paper) 88px 91px,
+      var(--ink) 91px 94px, var(--paper) 94px 95px,
+      var(--ink) 95px 96px, var(--paper) 96px 99px,
+      var(--ink) 99px 101px, var(--paper) 101px 104px,
+      var(--ink) 104px 105px, var(--paper) 105px 107px,
+      var(--ink) 107px 110px, var(--paper) 110px 112px,
+      var(--ink) 112px 113px, var(--paper) 113px 116px,
+      var(--ink) 116px 118px, var(--paper) 118px 119px,
+      var(--ink) 119px 122px, var(--paper) 122px 125px,
+      var(--ink) 125px 126px, var(--paper) 126px 128px,
+      var(--ink) 128px 130px, var(--paper) 130px 133px,
+      var(--ink) 133px 134px, var(--paper) 134px 136px,
+      var(--ink) 136px 139px, var(--paper) 139px 141px,
+      var(--ink) 141px 142px, var(--paper) 142px 145px,
+      var(--ink) 145px 147px, var(--paper) 147px 148px,
+      var(--ink) 148px 151px, var(--paper) 151px 154px,
+      var(--ink) 154px 155px, var(--paper) 155px 157px,
+      var(--ink) 157px 160px, var(--paper) 160px 164px);
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background-color: var(--desk);
+    background-image: var(--fiber);
+    font-family: var(--mono);
+    color: var(--ink);
+    padding: 46px 20px 72px;
+  }
+
+  /* ---------------------------------------------------------------- 页头说明 */
+  .intro { max-width: 760px; margin: 0 auto 16px; }
+  .back {
+    display: inline-block; font-size: 11px; color: var(--ink-60); text-decoration: none;
+    border: 1px dashed var(--ink-40); padding: 5px 11px; margin-bottom: 18px;
+    background-color: var(--paper); letter-spacing: .04em;
+  }
+  .back:hover { border-style: solid; color: var(--ink); }
+  .intro .eyebrow {
+    font-size: 10.5px; letter-spacing: .18em; color: var(--ink-60);
+    text-transform: uppercase; margin: 0 0 10px;
+  }
+  .intro h1 { font-size: 25px; font-weight: 700; letter-spacing: -.01em; margin: 0 0 12px; }
+  .intro p { font-size: 12.5px; line-height: 1.95; color: var(--ink-60); margin: 0; max-width: 62ch; }
+  .intro p b { color: var(--ink); font-weight: 700; }
+  .rule { max-width: 760px; margin: 22px auto 40px; border-top: 1px dashed var(--ink-40); }
+
+  .row { max-width: 1200px; margin: 0 auto 50px; }
+  .row > h2 {
+    font-size: 10.5px; font-weight: 500; letter-spacing: .2em;
+    text-transform: uppercase; color: var(--ink-60); margin: 0 0 20px;
+  }
+  .devices { display: flex; gap: 34px; flex-wrap: wrap; align-items: flex-start; }
+  .device-wrap { display: flex; flex-direction: column; align-items: center; gap: 13px; }
+  .cap { font-size: 10.5px; letter-spacing: .12em; color: var(--ink-60); }
+
+  /* ---------------------------------------------------------------- 设备外框 */
+  .watch-frame {
+    width: 240px; height: 280px; background-color: var(--bezel); border-radius: 50px;
+    padding: 16px; position: relative;
+  }
+  .watch-frame::after {
+    content: ''; position: absolute; right: -4px; top: 50%; translate: 0 -50%;
+    width: 8px; height: 42px; background-color: #0E0D0B; border-radius: 4px;
+  }
+  .watch-screen {
+    width: 208px; height: 248px; border-radius: 36px; overflow: hidden;
+    background-color: var(--desk-2); position: relative; color: var(--ink);
+  }
+  .phone-frame {
+    width: 358px; height: 744px; background-color: var(--bezel); border-radius: 56px;
+    padding: 14px; position: relative;
+  }
+  .phone-screen {
+    width: 330px; height: 716px; border-radius: 44px; overflow: hidden;
+    background-color: var(--desk-2); position: relative; color: var(--ink);
+  }
+  .island {
+    position: absolute; top: 10px; left: 50%; translate: -50% 0;
+    width: 92px; height: 25px; border-radius: 14px; background-color: #0E0D0B; z-index: 50;
+  }
+
+  /* ---------------------------------------------------------------- 纸 + 撕口(signature 1) */
+  .paper {
+    background-color: var(--paper);
+    background-image: var(--fiber);
+    position: absolute; left: 0; right: 0;
+  }
+  /* 半圆齿咬进纸的下沿/上沿,齿里露出来的是 --desk-2。
+     用 radial-gradient 画,不用 mask——mask-composite 在 7px 高的条上会糊成灰带。 */
+  .tear {
+    position: absolute; left: 0; right: 0; height: 7px; z-index: 8; pointer-events: none;
+    background-color: transparent;
+    background-image: radial-gradient(4.7px 4.7px at 4.5px var(--ty), var(--desk-2) 0 4.4px, rgba(0,0,0,0) 4.9px);
+    background-size: 9px 7px; background-repeat: repeat-x;
+  }
+  .tear.bot { bottom: 0; --ty: 100%; }
+  .tear.top { top: 0; --ty: 0%; }
+
+  /* 打孔虚线:正联和存根联之间的骑缝线,两端各一个圆孔 */
+  .perf { position: relative; border-top: 1px dashed var(--ink-25); margin: 0; }
+  .perf::before, .perf::after {
+    content: ''; position: absolute; top: -5px; width: 10px; height: 10px;
+    border-radius: 50%; background-color: var(--desk-2);
+  }
+  .perf::before { left: -5px; }
+  .perf::after { right: -5px; }
+
+  /* ---------------------------------------------------------------- 点线引导(signature 2) */
+  .ld { display: flex; align-items: flex-end; gap: 7px; font-size: 11.5px; line-height: 1.5; }
+  .ld .k { color: var(--ink-60); white-space: nowrap; letter-spacing: .04em; }
+  .ld .d { flex: 1 1 auto; min-width: 14px; height: 0; border-bottom: 1px dotted var(--ink-25); margin-bottom: 4px; }
+  .ld .v { white-space: nowrap; font-weight: 700; letter-spacing: .01em; }
+
+  /* 虚线分区 */
+  .hr-d { border-top: 1px dashed var(--ink-25); }
+
+  /* ---------------------------------------------------------------- 戳记(signature 3) */
+  .mark {
+    position: absolute; z-index: 9; pointer-events: none;
+    border: 1.5px solid var(--ink-40); padding: 5px 9px 4px;
+    font-size: 11px; font-weight: 700; letter-spacing: .3em; text-indent: .3em;
+    color: var(--ink-40); rotate: -11deg; opacity: .72;
+    background-color: transparent;
+  }
+  .mark::after {
+    content: ''; position: absolute; inset: 2.5px; border: 0.5px solid var(--ink-40);
+  }
+  /* 印章红:全篇唯一的彩色,只给「刚收到」 */
+  .mark.hot {
+    border-color: var(--red); color: var(--red); opacity: .9;
+    letter-spacing: .22em; text-indent: .22em; rotate: -8deg;
+  }
+  .mark.hot::after { border-color: var(--red); }
+  .mark.inline { position: static; rotate: -6deg; flex-shrink: 0; }
+
+  /* ---------------------------------------------------------------- 伪条码(signature 4) */
+  .barcode {
+    height: 26px; width: 100%;
+    background-color: var(--paper);
+    background-image: var(--bars);
+    background-size: 164px 100%; background-repeat: repeat-x;
+  }
+  .barcode.sm { height: 12px; background-size: 123px 100%; }
+  .foot-note {
+    font-size: 8.5px; letter-spacing: .26em; color: var(--ink-40);
+    text-align: center; margin: 6px 0 0; text-indent: .26em;
+  }
+
+  /* ---------------------------------------------------------------- 手表内容 */
+  /* 竖向预算很紧:208×248 的屏去掉底部 15px 的撕口留白,内容只剩 204px。
+     票头 21 + 图框 72 + 标题 21 + 副题 19 + 页脚 59 = 192,留 12px 余量。
+     任何一项再长一点,.w-foot 的按钮和条码就会压到撕口上——第一版就是这么溢出的。 */
+  .w-paper { top: 0; bottom: 15px; display: flex; flex-direction: column; padding: 17px 18px 15px; }
+  .w-head {
+    display: flex; justify-content: space-between; align-items: baseline;
+    font-size: 8.5px; letter-spacing: .16em; color: var(--ink-60);
+    padding: 0 1px 7px; text-transform: uppercase;
+  }
+  .w-head .t { font-weight: 700; color: var(--ink); letter-spacing: .06em; font-size: 10px; }
+  .w-head .hot { color: var(--red); font-weight: 700; letter-spacing: .1em; font-size: 9px; border: 1px solid var(--red); padding: 1px 4px; }
+  .w-art {
+    height: 64px; display: flex; align-items: center; justify-content: center;
+    border-bottom: 1px dashed var(--ink-25); margin-bottom: 8px;
+  }
+  .w-art img { width: 68px; height: 68px; object-fit: contain; filter: var(--print); }
+  .w-title { font-size: 15.5px; font-weight: 700; letter-spacing: .01em; margin: 0; }
+  .w-sub { font-size: 10.5px; color: var(--ink-60); margin: 5px 0 0; letter-spacing: .03em; }
+  .w-foot { margin-top: auto; padding-top: 9px; }
+  .w-btn {
+    width: 100%; font-family: inherit; font-size: 11px; font-weight: 700; letter-spacing: .24em;
+    text-indent: .24em; color: var(--paper); border: none; border-radius: 0;
+    padding: 8px 0; min-height: 30px; background-color: var(--ink);
+  }
+  .w-btn:active { opacity: .78; }
+  .w-foot .barcode { margin-top: 8px; }
+
+  /* 表盘 */
+  .w-face { top: 0; bottom: 15px; display: flex; flex-direction: column; justify-content: flex-start; padding: 30px 18px 15px; }
+  .face-head { font-size: 8.5px; letter-spacing: .2em; color: var(--ink-40); margin: 0 0 4px; }
+  .face-clock { font-size: 42px; font-weight: 700; letter-spacing: -.03em; margin: 0; font-variant-numeric: tabular-nums; }
+  .face-rule { border-top: 1px dashed var(--ink-25); margin: 12px 0 13px; }
+  .compl { display: flex; align-items: center; gap: 10px; }
+  .compl-win {
+    width: 34px; height: 34px; flex-shrink: 0; border: 1px dashed var(--ink-25);
+    display: flex; align-items: center; justify-content: center; overflow: hidden;
+  }
+  .compl-win img { width: 28px; height: 28px; object-fit: contain; filter: var(--print); }
+  .compl .col { flex: 1; min-width: 0; }
+  .compl .t1 { font-size: 8.5px; letter-spacing: .18em; color: var(--ink-60); text-transform: uppercase; }
+  .compl .t2 { font-size: 12.5px; font-weight: 700; margin-top: 3px; }
+  .w-face .barcode { margin-top: auto; }
+
+  /* ---------------------------------------------------------------- 手机:正联 + 存根联 */
+  .p-main { top: 0; bottom: 70px; display: flex; flex-direction: column; padding: 44px 18px 12px; }
+
+  /* 票头居中——这是和 swiss/halftone 左对齐版面最直观的分别:收银机的抬头在正中 */
+  .p-head { text-align: center; position: relative; }
+  .p-slug { font-size: 9px; letter-spacing: .4em; color: var(--ink-60); margin: 0 0 9px; text-indent: .4em; }
+  .p-title { font-size: 22px; font-weight: 700; letter-spacing: .06em; margin: 0; text-indent: .06em; }
+  .p-sub { font-size: 10.5px; color: var(--ink-60); margin: 8px 0 0; letter-spacing: .06em; }
+  .p-head .mark { right: 2px; top: 24px; }
+  .p-head .hr-d { margin-top: 13px; }
+
+  .p-body { flex: 1; display: flex; flex-direction: column; min-height: 0; }
+
+  /* 明细行:缩略图 + 名称 + 点线 + 状态 */
+  .items { list-style: none; margin: 11px 0 0; padding: 0; }
+  .items li { display: flex; align-items: center; gap: 9px; height: 30px; }
+  .items .th {
+    width: 24px; height: 24px; flex-shrink: 0; display: flex; align-items: center; justify-content: center;
+  }
+  .items .th img { width: 100%; height: 100%; object-fit: contain; filter: var(--print); }
+  .items .th.empty { border: 1px dashed var(--ink-25); }
+  .items .nm { font-size: 12px; white-space: nowrap; letter-spacing: .02em; }
+  .items .d { flex: 1 1 auto; min-width: 14px; height: 0; border-bottom: 1px dotted var(--ink-25); position: relative; top: 5px; }
+  .items .v { font-size: 10px; letter-spacing: .1em; color: var(--ink-60); white-space: nowrap; }
+  .items .v.dim { color: var(--ink-40); }
+  .items .v.hot { color: var(--red); font-weight: 700; border: 1px solid var(--red); padding: 1px 5px; letter-spacing: .06em; }
+
+  .sect { margin-top: 12px; padding-top: 12px; border-top: 1px dashed var(--ink-25); }
+  .boxes { display: flex; gap: 5px; margin: 9px 0 8px; }
+  .boxes i { width: 17px; height: 10px; border: 1px solid var(--ink); }
+  .boxes i.on { background-color: var(--ink); }
+  .note { font-size: 11px; color: var(--ink-60); line-height: 1.6; margin: 0; letter-spacing: .02em; }
+
+  .recv { display: flex; align-items: center; gap: 11px; }
+  .recv .win {
+    width: 42px; height: 42px; flex-shrink: 0; border: 1px dashed var(--ink-25);
+    display: flex; align-items: center; justify-content: center;
+  }
+  .recv .win img { width: 32px; height: 32px; object-fit: contain; filter: var(--print); }
+  .recv .txt { flex: 1; min-width: 0; }
+  .recv .txt strong { display: block; font-size: 12.5px; font-weight: 700; margin-bottom: 4px; letter-spacing: .02em; }
+  .recv .txt span { font-size: 10.5px; color: var(--ink-60); line-height: 1.5; }
+  .p-main .tail { margin-top: auto; padding-top: 14px; }
+
+  /* 存根联:撕下来的那一截,导航住在上面 */
+  .p-stub { bottom: 0; height: 62px; padding: 0; display: flex; align-items: stretch; }
+  .tabbar { display: flex; width: 100%; padding: 9px 0 10px; }
+  .tab {
+    flex: 1; border: none; background: none; font-family: inherit;
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 5px;
+    font-size: 9.5px; letter-spacing: .12em; color: var(--ink-40); padding: 0;
+  }
+  .tab svg { width: 17px; height: 17px; stroke: var(--ink-40); fill: none; }
+  .tab .u { width: 16px; height: 2px; background-color: transparent; margin-top: 1px; }
+  .tab.active { color: var(--ink); font-weight: 700; }
+  .tab.active svg { stroke: var(--ink); stroke-width: 2; }
+  .tab.active .u { background-color: var(--ink); }
+  .tab:active { opacity: .6; }
+
+  /* ---------------------------------------------------------------- 日记:两张存根 */
+  /* 日记这页内容最少。试过把纸裁短(.short),结果下面空出一大片 --desk,读成「坏了」
+     而不是「这张票就这么长」。所以纸照样走到底,靠放大存根 + 底部条码压住版心,
+     中间那段空白就只是空白的纸。 */
+  .stub {
+    display: flex; border: 1px dashed var(--ink-40); margin-top: 17px;
+    background-color: var(--paper-2);
+  }
+  .stub-side {
+    width: 27px; flex-shrink: 0; border-right: 1px dashed var(--ink-40);
+    display: flex; align-items: center; justify-content: center;
+  }
+  .stub-side span {
+    writing-mode: vertical-rl; font-size: 9px; letter-spacing: .34em;
+    color: var(--ink-40); text-indent: .34em;
+  }
+  .stub-main { flex: 1; min-width: 0; padding: 14px 13px 17px; }
+  .stub-head {
+    display: flex; align-items: baseline; justify-content: space-between;
+    border-bottom: 1px dotted var(--ink-25); padding-bottom: 9px; margin-bottom: 12px;
+  }
+  .stub-head time { font-size: 11px; font-weight: 700; letter-spacing: .1em; }
+  .stub-head .cpy { font-size: 8.5px; letter-spacing: .22em; color: var(--ink-40); text-indent: .22em; }
+  .stub-main p { font-size: 13px; line-height: 2.1; margin: 0; letter-spacing: .01em; }
+  .diary-end { font-size: 10px; color: var(--ink-40); margin: 26px 0 0; text-align: center; letter-spacing: .06em; }
+  /* 「以下空白」是单据本来就有的一行话。日记这页内容最少,下半张纸必然是空的——
+     与其让它读成「排版没排完」,不如用票据自己的说法把这段空白声明掉。 */
+  .blank-note {
+    display: flex; align-items: center; gap: 11px; margin: 22px 0 0;
+    font-size: 9px; letter-spacing: .3em; text-indent: .3em; color: var(--ink-40);
+  }
+  .blank-note::before, .blank-note::after { content: ''; flex: 1; border-top: 1px dashed var(--ink-25); }
+
+  /* ---------------------------------------------------------------- 它 */
+  .photo { margin-top: 13px; border: 1px dashed var(--ink-40); padding: 7px; }
+  .photo-win {
+    position: relative; height: 238px; overflow: hidden;
+    display: flex; align-items: flex-end; justify-content: center; background-color: var(--paper-2);
+  }
+  .photo-win img.scene {
+    position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover;
+    filter: grayscale(1) sepia(.2) contrast(1.12) brightness(1.1); opacity: .9;
+  }
+  .photo-win img.pet {
+    position: relative; z-index: 2; width: 118px; height: 118px; object-fit: contain;
+    margin-bottom: 12px; filter: var(--print);
+  }
+  .photo-cap {
+    display: flex; justify-content: space-between; align-items: baseline;
+    font-size: 8.5px; letter-spacing: .16em; color: var(--ink-60); padding: 7px 1px 1px;
+    text-transform: uppercase;
+  }
+  .kv-list { margin-top: 14px; padding-top: 12px; border-top: 1px dashed var(--ink-25); }
+  .kv-list .ld + .ld { margin-top: 9px; }
+  .act { display: flex; gap: 9px; margin-top: 15px; }
+  .pbtn {
+    font-family: inherit; border-radius: 0; padding: 12px 0;
+    font-size: 11px; font-weight: 700; letter-spacing: .2em; text-indent: .2em;
+  }
+  .pbtn.secondary { flex: 1; background-color: transparent; border: 1px solid var(--ink); color: var(--ink); }
+  .pbtn.primary { flex: 1.25; background-color: var(--ink); border: 1px solid var(--ink); color: var(--paper); }
+  .pbtn:active { opacity: .78; }
+
+  /* ---------------------------------------------------------------- 出纸动效 */
+  /* 纸从打印机里走出来。终态必须可见:fill-mode both,延迟全部 ≤ .5s。 */
+  @keyframes feed { from { transform: translateY(-9px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+  .paper { animation: feed .52s cubic-bezier(.2,.7,.3,1) both; }
+  .p-stub { animation-delay: .16s; }
+  @media (prefers-reduced-motion: reduce) {
+    * { animation: none !important; transition: none !important; }
+  }
+</style>
+</head>
+<body>
+
+<div class="intro">
+  <a class="back" href="styles.html">← 返回风格对照</a>
+  <p class="eyebrow">方向 C · 它自己的生活 — 票据存根 Receipt / Stub</p>
+  <h1>当成一沓刚打出来的小票和存根联</h1>
+  <p>微暖的白纸、窄体等宽字、虚线撕口、「项目 ⋯⋯ 值」的点线引导。全篇只有纸白和墨黑,
+    外加<b>一个印章红</b>——只给「刚收到」。
+    <b>和 halftone 的区别:</b>那套是 Riso 双色套印的印刷品,有网点有套色;
+    这套<b>无网点、无套色</b>,是热敏打印件,秩序来自撕口和明细行。
+    <b>和 swiss 的区别:</b>那套是几何构成的海报版面,这套是单栏流水账,没有任何几何色块。
+    <b>和 instrument 的区别:</b>那套是黑底发光的仪表读数,这套是白纸上的黑字。</p>
+</div>
+<div class="rule"></div>
+
+<section class="row row-watch">
+  <h2>手表 · 三张小票</h2>
+  <div class="devices">
+
+    <div class="device-wrap">
+      <div class="watch-frame"><div class="watch-screen">
+        <div class="paper w-paper">
+          <div class="w-head"><span>状态 · 外出</span><span class="t">09:41</span></div>
+          <div class="w-art"><img src="art/warm-idle.png" alt="宠物" style="opacity:.62"></div>
+          <p class="w-title">它出门了</p>
+          <p class="w-sub">大概傍晚回来</p>
+          <div class="w-foot">
+            <button class="w-btn">看看它</button>
+            <div class="barcode sm"></div>
+          </div>
+          <div class="tear bot"></div>
+        </div>
+      </div></div>
+      <span class="cap">出门了</span>
+    </div>
+
+    <div class="device-wrap">
+      <div class="watch-frame"><div class="watch-screen">
+        <div class="paper w-paper">
+          <div class="w-head"><span>状态 · 已归</span><span class="hot">刚收到</span></div>
+          <div class="w-art"><img src="art/warm-playful.png" alt="宠物"></div>
+          <p class="w-title">它回来了</p>
+          <p class="w-sub">带回一颗果子</p>
+          <div class="w-foot">
+            <button class="w-btn">收下</button>
+            <div class="barcode sm"></div>
+          </div>
+          <div class="tear bot"></div>
+        </div>
+      </div></div>
+      <span class="cap">回来了</span>
+    </div>
+
+    <div class="device-wrap">
+      <div class="watch-frame"><div class="watch-screen">
+        <div class="paper w-face">
+          <p class="face-head">现在</p>
+          <p class="face-clock">9:41</p>
+          <div class="face-rule"></div>
+          <div class="compl">
+            <div class="compl-win"><img src="art/warm-idle.png" alt=""></div>
+            <div class="col">
+              <div class="t1">出门中</div>
+              <div class="t2">傍晚回来</div>
+            </div>
+          </div>
+          <div class="barcode sm"></div>
+          <div class="tear bot"></div>
+        </div>
+      </div></div>
+      <span class="cap">复杂功能</span>
+    </div>
+
+  </div>
+</section>
+
+<section class="row row-phone">
+  <h2>手机 · 三张正联</h2>
+  <div class="devices">
+
+    <!-- 图鉴:收藏品排成小票的明细行 -->
+    <div class="device-wrap">
+      <div class="phone-frame"><div class="phone-screen">
+        <div class="island"></div>
+
+        <div class="paper p-main">
+          <div class="p-head">
+            <p class="p-slug">图鉴 明细</p>
+            <h1 class="p-title">它带回来的</h1>
+            <p class="p-sub">7 样 · 还有很多没见过</p>
+            <span class="mark">副本</span>
+            <div class="hr-d"></div>
+          </div>
+
+          <div class="p-body">
+            <ul class="items">
+              <li><span class="th"><img src="art/items/berry.png" alt="一颗果子"></span><span class="nm">一颗果子</span><i class="d"></i><span class="v hot">新</span></li>
+              <li><span class="th"><img src="art/items/leaf.png" alt="一片叶子"></span><span class="nm">一片叶子</span><i class="d"></i><span class="v">已收</span></li>
+              <li><span class="th"><img src="art/items/stone.png" alt="一块石头"></span><span class="nm">一块石头</span><i class="d"></i><span class="v">已收</span></li>
+              <li><span class="th"><img src="art/items/feather.png" alt="一根羽毛"></span><span class="nm">一根羽毛</span><i class="d"></i><span class="v">已收</span></li>
+              <li><span class="th"><img src="art/items/shell.png" alt="一枚贝壳"></span><span class="nm">一枚贝壳</span><i class="d"></i><span class="v">已收</span></li>
+              <li><span class="th"><img src="art/items/flower.png" alt="一朵花"></span><span class="nm">一朵花</span><i class="d"></i><span class="v">已收</span></li>
+              <li><span class="th"><img src="art/items/bottle.png" alt="一个小瓶子"></span><span class="nm">一个小瓶子</span><i class="d"></i><span class="v">已收</span></li>
+              <li><span class="th empty"></span><i class="d"></i><span class="v dim">未见</span></li>
+              <li><span class="th empty"></span><i class="d"></i><span class="v dim">未见</span></li>
+            </ul>
+
+            <div class="sect">
+              <div class="ld"><span class="k">套装 · 林线</span><i class="d"></i><span class="v">4/6</span></div>
+              <div class="boxes"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i></i><i></i></div>
+              <p class="note">集齐解锁新的散步路线,缺的两样在湖边</p>
+            </div>
+
+            <div class="sect recv">
+              <div class="win"><img src="art/items/berry.png" alt=""></div>
+              <div class="txt">
+                <strong>刚收到:一颗果子</strong>
+                <span>它说路边捡的,<span style="white-space:nowrap">不太确定能不能吃</span></span>
+              </div>
+              <span class="mark hot inline">新</span>
+            </div>
+
+            <div class="tail">
+              <div class="barcode"></div>
+              <p class="foot-note">副本 · 留底</p>
+            </div>
+          </div>
+          <div class="tear bot"></div>
+        </div>
+
+        <div class="paper p-stub">
+          <div class="tear top"></div>
+          <nav class="tabbar">
+            <button class="tab active"><svg viewBox="0 0 24 24" stroke-width="1.7"><rect x="4" y="4" width="7" height="7"/><rect x="13" y="4" width="7" height="7"/><rect x="4" y="13" width="7" height="7"/><rect x="13" y="13" width="7" height="7"/></svg>图鉴<i class="u"></i></button>
+            <button class="tab"><svg viewBox="0 0 24 24" stroke-width="1.7"><rect x="5" y="3.5" width="14" height="17"/><path d="M8.5 9h7M8.5 13h7"/></svg>日记<i class="u"></i></button>
+            <button class="tab"><svg viewBox="0 0 24 24" stroke-width="1.7"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="2.2"/></svg>它<i class="u"></i></button>
+          </nav>
+        </div>
+
+      </div></div>
+      <span class="cap">图鉴</span>
+    </div>
+
+    <!-- 日记:两张带日期的存根 -->
+    <div class="device-wrap">
+      <div class="phone-frame"><div class="phone-screen">
+        <div class="island"></div>
+
+        <div class="paper p-main">
+          <div class="p-head">
+            <p class="p-slug">日记 存根</p>
+            <h1 class="p-title">它写的</h1>
+            <p class="p-sub">它自己的视角,不是你的记录</p>
+            <span class="mark">存根</span>
+            <div class="hr-d"></div>
+          </div>
+
+          <div class="p-body">
+            <article class="stub">
+              <aside class="stub-side"><span>存根</span></aside>
+              <div class="stub-main">
+                <div class="stub-head"><time>10-11 傍晚</time><span class="cpy">副本</span></div>
+                <p>今天走得比平常远。<span style="white-space:nowrap">你好像也走了不少,</span><span style="white-space:nowrap">我们大概错过了。</span><span style="white-space:nowrap">带了一颗果子回来。</span></p>
+              </div>
+            </article>
+
+            <article class="stub">
+              <aside class="stub-side"><span>存根</span></aside>
+              <div class="stub-main">
+                <div class="stub-head"><time>10-10 下午</time><span class="cpy">副本</span></div>
+                <p><span style="white-space:nowrap">窗台那边太阳很好,</span><span style="white-space:nowrap">躺了一会儿。</span><span style="white-space:nowrap">你一直没回来。</span></p>
+              </div>
+            </article>
+
+            <p class="diary-end">再往前就翻不到了 · 它也没打算全记住</p>
+            <p class="blank-note">以下空白</p>
+
+            <div class="tail">
+              <div class="barcode"></div>
+              <p class="foot-note">副本 · 留底</p>
+            </div>
+          </div>
+          <div class="tear bot"></div>
+        </div>
+
+        <div class="paper p-stub">
+          <div class="tear top"></div>
+          <nav class="tabbar">
+            <button class="tab"><svg viewBox="0 0 24 24" stroke-width="1.7"><rect x="4" y="4" width="7" height="7"/><rect x="13" y="4" width="7" height="7"/><rect x="4" y="13" width="7" height="7"/><rect x="13" y="13" width="7" height="7"/></svg>图鉴<i class="u"></i></button>
+            <button class="tab active"><svg viewBox="0 0 24 24" stroke-width="1.7"><rect x="5" y="3.5" width="14" height="17"/><path d="M8.5 9h7M8.5 13h7"/></svg>日记<i class="u"></i></button>
+            <button class="tab"><svg viewBox="0 0 24 24" stroke-width="1.7"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="2.2"/></svg>它<i class="u"></i></button>
+          </nav>
+        </div>
+
+      </div></div>
+      <span class="cap">日记</span>
+    </div>
+
+    <!-- 它 -->
+    <div class="device-wrap">
+      <div class="phone-frame"><div class="phone-screen">
+        <div class="island"></div>
+
+        <div class="paper p-main">
+          <div class="p-head">
+            <p class="p-slug">它 正联</p>
+            <h1 class="p-title">小团</h1>
+            <p class="p-sub">在家 · 刚回来</p>
+            <span class="mark">副本</span>
+            <div class="hr-d"></div>
+          </div>
+
+          <div class="p-body">
+            <div class="photo">
+              <div class="photo-win">
+                <img class="scene" src="art/scene-room.jpg" alt="">
+                <img class="pet" src="art/warm-calm.png" alt="宠物">
+              </div>
+              <div class="photo-cap"><span>室内 · 窝边</span><span>在家</span></div>
+            </div>
+
+            <div class="kv-list">
+              <div class="ld"><span class="k">现在</span><i class="d"></i><span class="v">对着什么发呆</span></div>
+              <div class="ld"><span class="k">下次出门</span><i class="d"></i><span class="v">明天早上 · 它自己决定的</span></div>
+            </div>
+
+            <div class="act">
+              <button class="pbtn secondary">给点心</button>
+              <button class="pbtn primary">摸摸</button>
+            </div>
+
+            <div class="tail">
+              <div class="barcode"></div>
+              <p class="foot-note">副本 · 留底</p>
+            </div>
+          </div>
+          <div class="tear bot"></div>
+        </div>
+
+        <div class="paper p-stub">
+          <div class="tear top"></div>
+          <nav class="tabbar">
+            <button class="tab"><svg viewBox="0 0 24 24" stroke-width="1.7"><rect x="4" y="4" width="7" height="7"/><rect x="13" y="4" width="7" height="7"/><rect x="4" y="13" width="7" height="7"/><rect x="13" y="13" width="7" height="7"/></svg>图鉴<i class="u"></i></button>
+            <button class="tab"><svg viewBox="0 0 24 24" stroke-width="1.7"><rect x="5" y="3.5" width="14" height="17"/><path d="M8.5 9h7M8.5 13h7"/></svg>日记<i class="u"></i></button>
+            <button class="tab active"><svg viewBox="0 0 24 24" stroke-width="1.7"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="2.2"/></svg>它<i class="u"></i></button>
+          </nav>
+        </div>
+
+      </div></div>
+      <span class="cap">它</span>
+    </div>
+
+  </div>
+</section>
+
+</body>
+</html>
