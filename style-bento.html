@@ -1,0 +1,473 @@
+<!DOCTYPE html>
+<!--
+  设计小结 —— 模块化便当格 Bento Grid (style-bento)
+
+  来源:designeer.xyz 的 Component Libraries 区 Magic UI / Aceternity UI / TailGrids——
+  三家都把 bento grid 当招牌 block。共同气质是「整屏就是一块拼好的便当格,
+  没有页面背景这回事」。
+
+  调色板(tile 全部不透明平涂:没有渐变、没有阴影、没有毛玻璃):
+    --grout  #F4EFE6  砖缝。只在 tile 之间 6px 的缝里露出,是马赛克的填缝剂,不是页面背景
+    --t-sand #E8DCC8  沙:默认 tile 底色(标题格、物品格、次级动作格、未选中 tab)
+    --t-sage #A8BBA0  鼠尾草:安静的信息格(套装进度、日记正文、手表状态标签)
+    --t-amber#D9A05B  琥珀:「刚到手」专用(图鉴新物品格 + 刚收到卡 + 日记里的果子,
+                      前两处格角带圆 badge)
+    --t-slate#6E7F8D  板岩:收口的/关着的格(锁定格、收尾句、时间格,配纸白字)
+    --t-clay #C4704F  陶土:动作与选中(主按钮格、tabbar 选中格、手表主操作)
+    --ink    #23201A  墨字(也是 badge 圆点的底色)
+    --paper  #FBF8F2  纸白字
+
+  Thesis:**层级 = tile 的跨度,不是浮起。** 每一屏是一整张 edge-to-edge 的圆角 tile
+  马赛克(tile 间 6px 砖缝),宠物永远占最大格(2×2),动作按钮是宽格,tabbar 不是
+  「一条 bar」而是马赛克最底一排三个等宽 tile(选中那块换陶土底+纸白字)。
+
+  Signature element:
+    1. **同一张 grid template 贯穿六屏**(手机 4 列、手表 2 列),换屏只换格子里的内容,
+       不换骨架——这是 bento 的识别物。
+    2. **「刚到手」= 琥珀格 + 格角一枚圆 badge**;套装进度在格内画 6 段小方格
+       (填 4 空 2),不用进度条。
+
+  和 Glass 刻意反过来:Glass 是卡片浮在页面背景上(毛玻璃、阴影、层级靠浮起);
+  这套没有背景——tile 就是屏幕本身,层级只靠格子占多大。
+  和已下线的 Scrapbook 也不会混淆:那套是贴纸散点旋转、手撕边;这套是严格正交网格,
+  所有边都对齐到同一张 grid,一个旋转角度都没有,不会读成贴纸拼贴。
+
+  产品原则守卫:不出现任何性格/健康的内部数值;数字只允许 7 样、4/6、9:41、09:41
+  和日记日期。字体全篇系统无衬线,字重对比拉大(标题 700 / 标签 500+字距),
+  数字 tabular-nums;圆角统一 14px(tile)/ 10px(格内小件)。动效只有 tile 入场
+  错开 30ms 的淡入 + 4px 上浮(forwards 保证终态),prefers-reduced-motion 下完全关闭
+  并直接落到终态。
+-->
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>模块化便当格 Bento · 方向 C</title>
+<style>
+  :root {
+    --sys-sans: -apple-system, "SF Pro Text", "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
+
+    --grout:  #F4EFE6;
+    --t-sand: #E8DCC8;
+    --t-sage: #A8BBA0;
+    --t-amber:#D9A05B;
+    --t-slate:#6E7F8D;
+    --t-clay: #C4704F;
+    --ink:    #23201A;
+    --paper:  #FBF8F2;
+
+    --ink-60: rgba(35,32,26,.62);
+    --ink-45: rgba(35,32,26,.45);
+    --paper-70: rgba(251,248,242,.72);
+
+    --bezel: #23201A;
+    --bezel-dark: #171410;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: #EAE3D5;
+    font-family: var(--sys-sans);
+    color: var(--ink);
+    padding: 46px 20px 72px;
+  }
+
+  /* ---------------------------------------------------------------- 页头 */
+  .intro { max-width: 760px; margin: 0 auto 16px; }
+  .intro .eyebrow {
+    font-size: 11px; font-weight: 500; letter-spacing: .18em;
+    color: var(--t-clay); margin: 0 0 10px;
+  }
+  .intro h1 { font-size: 28px; font-weight: 700; letter-spacing: -.02em; margin: 0 0 10px; }
+  .intro p { font-size: 14px; line-height: 1.75; color: var(--ink-60); margin: 0; max-width: 62ch; }
+  .intro p b { color: var(--ink); font-weight: 700; }
+  .rule { max-width: 760px; margin: 22px auto 40px; height: 2px; background: var(--ink); }
+
+  .row { max-width: 1200px; margin: 0 auto 50px; }
+  .row > h2 {
+    font-size: 12px; font-weight: 500; letter-spacing: .16em;
+    color: var(--ink-45); margin: 0 0 20px;
+  }
+  .devices { display: flex; gap: 34px; flex-wrap: wrap; align-items: flex-start; }
+  .device-wrap { display: flex; flex-direction: column; align-items: center; gap: 13px; }
+  .cap { font-size: 11.5px; font-weight: 500; letter-spacing: .1em; color: var(--ink-45); }
+
+  /* ---------------------------------------------------------------- 手表外框 */
+  .watch-frame {
+    width: 240px; height: 280px; background: var(--bezel); border-radius: 50px;
+    padding: 16px; position: relative;
+  }
+  .watch-frame::after {
+    content: ''; position: absolute; right: -4px; top: 50%; translate: 0 -50%;
+    width: 8px; height: 42px; background: var(--bezel-dark); border-radius: 4px;
+  }
+  .watch-screen {
+    width: 208px; height: 248px; border-radius: 36px; overflow: hidden;
+    background: var(--grout); position: relative; color: var(--ink);
+  }
+
+  /* ---------------------------------------------------------------- 手机外框 */
+  .phone-frame {
+    width: 358px; height: 744px; background: var(--bezel); border-radius: 56px;
+    padding: 14px; position: relative;
+  }
+  .phone-screen {
+    width: 330px; height: 716px; border-radius: 44px; overflow: hidden;
+    background: var(--grout); position: relative; color: var(--ink);
+  }
+  .island { position: absolute; top: 10px; left: 50%; translate: -50% 0; width: 92px; height: 25px; border-radius: 14px; background: var(--bezel-dark); z-index: 50; }
+
+  /* ---------------------------------------------------------------- 马赛克骨架(signature 1)
+     手机 4 列、手表 2 列,六屏共用同一张列骨架;行高按每屏内容用
+     grid-template-rows 明确分配,剩余空间全部交给 1fr 行,不留空砖缝带。 */
+  .mosaic { display: grid; gap: 6px; width: 100%; height: 100%; }
+  .mosaic-w { grid-template-columns: repeat(2, 1fr); padding: 8px; }
+  .mw-status { grid-template-rows: 32px 1fr 1fr 40px; }
+  .mw-face   { grid-template-rows: 1fr 1fr; }
+  .mosaic-p { grid-template-columns: repeat(4, 1fr); padding: 42px 8px 8px; }
+  .mp-dex   { grid-template-rows: 92px 1fr 1fr 1fr 116px 88px 62px; }
+  .mp-diary { grid-template-rows: 116px 1fr 1fr 60px 62px; }
+  .mp-pet   { grid-template-rows: 100px 1fr 88px 62px 62px; }
+
+  .span2 { grid-column: span 2; }
+  .span3 { grid-column: span 3; }
+  .span4 { grid-column: span 4; }
+  .r23 { grid-row: 2 / 4; }
+
+  /* ---------------------------------------------------------------- tile 基元 */
+  .tile {
+    position: relative; border-radius: 14px; overflow: hidden;
+    opacity: 0; animation: tile-in .5s ease-out forwards;
+  }
+  .t-sand  { background: var(--t-sand);  color: var(--ink); }
+  .t-sage  { background: var(--t-sage);  color: var(--ink); }
+  .t-amber { background: var(--t-amber); color: var(--ink); }
+  .t-slate { background: var(--t-slate); color: var(--paper); }
+  .t-clay  { background: var(--t-clay);  color: var(--paper); }
+
+  @keyframes tile-in {
+    from { opacity: 0; transform: translateY(4px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+  .tile:nth-child(1)  { animation-delay: 0s; }
+  .tile:nth-child(2)  { animation-delay: .03s; }
+  .tile:nth-child(3)  { animation-delay: .06s; }
+  .tile:nth-child(4)  { animation-delay: .09s; }
+  .tile:nth-child(5)  { animation-delay: .12s; }
+  .tile:nth-child(6)  { animation-delay: .15s; }
+  .tile:nth-child(7)  { animation-delay: .18s; }
+  .tile:nth-child(8)  { animation-delay: .21s; }
+  .tile:nth-child(9)  { animation-delay: .24s; }
+  .tile:nth-child(10) { animation-delay: .27s; }
+  .tile:nth-child(11) { animation-delay: .30s; }
+  .tile:nth-child(12) { animation-delay: .33s; }
+  .tile:nth-child(13) { animation-delay: .36s; }
+
+  @media (prefers-reduced-motion: reduce) {
+    .tile { animation: none !important; opacity: 1 !important; transform: none !important; }
+  }
+
+  /* 「刚到手」圆 badge(signature 2):格角一枚墨色圆点,纸白 New */
+  .badge {
+    position: absolute; top: 9px; right: 9px; z-index: 5;
+    width: 28px; height: 28px; border-radius: 50%;
+    background: var(--ink); color: var(--paper);
+    font-size: 8px; font-weight: 700; letter-spacing: .04em;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .badge.w { width: 24px; height: 24px; font-size: 7.5px; top: 7px; right: 7px; }
+
+  /* ---------------------------------------------------------------- 手表 tile */
+  .w-time {
+    display: flex; align-items: center; justify-content: center;
+    font-size: 13px; font-weight: 700; letter-spacing: .02em; font-variant-numeric: tabular-nums;
+  }
+  .w-tag {
+    display: flex; align-items: center; justify-content: center;
+    font-size: 9px; font-weight: 500; letter-spacing: .1em;
+  }
+  .w-pet {
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    padding: 8px;
+  }
+  .w-pet img { width: 70px; height: 70px; object-fit: contain; }
+  .w-pet .h { font-size: 14px; font-weight: 700; letter-spacing: -.01em; margin: 6px 0 0; }
+  .w-pet .s { font-size: 9.5px; font-weight: 500; color: var(--ink-60); margin: 2px 0 0; }
+  .w-btn {
+    border: none; font-family: inherit; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 12px; font-weight: 700; letter-spacing: .1em;
+  }
+  .w-btn:active { filter: brightness(.94); }
+  .w-clock {
+    display: flex; align-items: center; justify-content: center;
+    font-size: 40px; font-weight: 700; letter-spacing: -.02em; font-variant-numeric: tabular-nums;
+  }
+  .w-compl { display: flex; align-items: center; justify-content: center; gap: 10px; }
+  .w-compl .win {
+    width: 40px; height: 40px; border-radius: 10px; background: var(--t-sage);
+    display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+  }
+  .w-compl .win img { width: 32px; height: 32px; object-fit: contain; }
+  .w-compl .t1 { font-size: 8.5px; font-weight: 500; letter-spacing: .14em; color: var(--ink-60); margin: 0; }
+  .w-compl .t2 { font-size: 13px; font-weight: 700; margin: 3px 0 0; }
+
+  /* ---------------------------------------------------------------- 手机 tile:页头 */
+  .p-head { padding: 14px 16px; display: flex; flex-direction: column; justify-content: center; gap: 5px; }
+  .p-head .eyebrow { font-size: 9px; font-weight: 500; letter-spacing: .22em; color: var(--ink-45); margin: 0; }
+  .p-head .ttl { font-size: 24px; font-weight: 700; letter-spacing: -.02em; margin: 0; }
+  .p-head .ttl.big { font-size: 28px; }
+  .p-head .sub { font-size: 11px; font-weight: 500; color: var(--ink-60); margin: 0; }
+
+  /* ---------------------------------------------------------------- 手机 tile:图鉴物品格 */
+  .item { display: flex; align-items: center; justify-content: center; }
+  .item img { width: 44px; height: 44px; object-fit: contain; }
+  .item.big img { width: 88px; height: 88px; }
+  .lock i { display: block; width: 14px; height: 2px; background: var(--paper); }
+
+  /* ---------------------------------------------------------------- 手机 tile:套装进度(6 段小方格,不用进度条) */
+  .set { padding: 13px 16px; display: flex; flex-direction: column; justify-content: center; gap: 9px; }
+  .set-head { display: flex; justify-content: space-between; align-items: baseline; }
+  .set-label { font-size: 10px; font-weight: 500; letter-spacing: .14em; color: var(--ink-60); }
+  .set-val { font-size: 24px; font-weight: 700; font-variant-numeric: tabular-nums; letter-spacing: -.02em; }
+  .set-val small { font-size: 14px; font-weight: 500; color: var(--ink-60); }
+  .squares { display: flex; gap: 5px; }
+  .squares i { width: 16px; height: 16px; border-radius: 5px; background: var(--paper); }
+  .squares i.on { background: var(--ink); }
+  .set-desc { font-size: 11px; line-height: 1.5; color: var(--ink-60); margin: 0; }
+
+  /* ---------------------------------------------------------------- 手机 tile:刚收到卡 */
+  .recv { display: flex; align-items: center; gap: 12px; padding: 0 16px; }
+  .recv-win {
+    width: 52px; height: 52px; border-radius: 10px; background: var(--grout);
+    display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+  }
+  .recv-win img { width: 38px; height: 38px; object-fit: contain; }
+  .recv-txt strong { display: block; font-size: 13.5px; font-weight: 700; margin-bottom: 3px; }
+  .recv-txt span { font-size: 11px; font-weight: 500; color: var(--ink); opacity: .72; line-height: 1.45; }
+
+  /* ---------------------------------------------------------------- 手机 tile:日记 */
+  .entry { padding: 16px 18px; display: flex; flex-direction: column; justify-content: center; gap: 10px; }
+  .entry time {
+    align-self: flex-start; background: var(--ink); color: var(--paper);
+    font-size: 10px; font-weight: 500; letter-spacing: .08em;
+    padding: 4px 10px; border-radius: 10px; font-variant-numeric: tabular-nums;
+  }
+  .entry p { font-size: 13px; line-height: 1.8; margin: 0; }
+  .berry-col { display: flex; align-items: center; justify-content: center; }
+  .berry-col img { width: 52px; height: 52px; object-fit: contain; }
+  .endcap { display: flex; align-items: center; justify-content: center; padding: 0 12px; }
+  .endcap p { font-size: 10.5px; font-weight: 500; letter-spacing: .06em; color: var(--paper-70); margin: 0; text-align: center; }
+
+  /* ---------------------------------------------------------------- 手机 tile:它 */
+  .scene .bg { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+  .scene .pet { position: absolute; left: 50%; bottom: 18px; translate: -50% 0; width: 128px; height: 128px; object-fit: contain; }
+  .cap-tile { display: flex; align-items: center; justify-content: center; }
+  .cap-tile p { font-size: 12px; font-weight: 600; letter-spacing: .02em; margin: 0; }
+  .kv { padding: 12px 14px; display: flex; flex-direction: column; justify-content: center; gap: 5px; }
+  .kv .k { font-size: 9px; font-weight: 500; letter-spacing: .14em; color: var(--paper-70); }
+  .kv .v { font-size: 11.5px; font-weight: 600; line-height: 1.4; color: var(--paper); }
+  .act {
+    border: none; font-family: inherit; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 13px; font-weight: 700; letter-spacing: .06em;
+  }
+  .act:active { filter: brightness(.94); }
+
+  /* ---------------------------------------------------------------- tabbar:马赛克最底一排三个等宽 tile */
+  .tabrow { grid-column: 1 / -1; display: flex; gap: 6px; }
+  .tab {
+    flex: 1; border: none; font-family: inherit; cursor: pointer;
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 5px;
+    font-size: 9.5px; font-weight: 500; letter-spacing: .08em;
+  }
+  .tab.t-sand { color: var(--ink-60); }
+  .tab svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.8; }
+  .tab:active { filter: brightness(.94); }
+  .tabrow .tab:nth-child(1) { animation-delay: .30s; }
+  .tabrow .tab:nth-child(2) { animation-delay: .33s; }
+  .tabrow .tab:nth-child(3) { animation-delay: .36s; }
+</style>
+</head>
+<body>
+<div class="intro">
+  <p class="eyebrow">方向 C · 它自己的生活 — 模块化便当格 Bento Grid</p>
+  <h1>整屏就是一块拼好的便当格</h1>
+  <p>没有页面背景这回事——tile 就是屏幕本身,砖缝只在 6px 的格间露出。
+    <b>层级 = tile 的跨度,不是浮起:</b>宠物永远占最大格,动作按钮是宽格,
+    tabbar 是马赛克最底一排三个等宽 tile。<b>和 Glass 刻意反过来</b>(那边卡片浮在背景上),
+    也不会读成贴纸拼贴(严格正交网格,零旋转)。全部不透明平涂:无渐变、无阴影、无毛玻璃。</p>
+</div>
+<div class="rule"></div>
+
+<section class="row row-watch">
+  <h2>手表 · 三帧便当格(2 列骨架)</h2>
+  <div class="devices">
+
+    <div class="device-wrap">
+      <div class="watch-frame"><div class="watch-screen">
+        <div class="mosaic mosaic-w mw-status">
+          <div class="tile t-slate w-time">09:41</div>
+          <div class="tile t-sage w-tag">状态 · 外出</div>
+          <div class="tile t-sand span2 r23 w-pet">
+            <img src="art/warm-idle.png" alt="宠物" style="opacity:.55">
+            <p class="h">它出门了</p>
+            <p class="s">大概傍晚回来</p>
+          </div>
+          <button class="tile t-clay span2 w-btn">看看它</button>
+        </div>
+      </div></div>
+      <span class="cap">出门了</span>
+    </div>
+
+    <div class="device-wrap">
+      <div class="watch-frame"><div class="watch-screen">
+        <div class="mosaic mosaic-w mw-status">
+          <div class="tile t-slate w-time">09:41</div>
+          <div class="tile t-sage w-tag">状态 · 已归</div>
+          <div class="tile t-amber span2 r23 w-pet">
+            <span class="badge w">New</span>
+            <img src="art/warm-playful.png" alt="宠物">
+            <p class="h">它回来了</p>
+            <p class="s">带回一颗果子</p>
+          </div>
+          <button class="tile t-clay span2 w-btn">收下</button>
+        </div>
+      </div></div>
+      <span class="cap">回来了</span>
+    </div>
+
+    <div class="device-wrap">
+      <div class="watch-frame"><div class="watch-screen">
+        <div class="mosaic mosaic-w mw-face">
+          <div class="tile t-slate span2 w-clock">9:41</div>
+          <div class="tile t-sand span2 w-compl">
+            <div class="win"><img src="art/warm-idle.png" alt=""></div>
+            <div>
+              <p class="t1">出门中</p>
+              <p class="t2">傍晚回来</p>
+            </div>
+          </div>
+        </div>
+      </div></div>
+      <span class="cap">复杂功能</span>
+    </div>
+
+  </div>
+</section>
+<section class="row row-phone">
+  <h2>手机 · 三页便当格(4 列骨架)</h2>
+  <div class="devices">
+
+    <div class="device-wrap">
+      <div class="phone-frame"><div class="phone-screen">
+        <div class="island"></div>
+        <div class="mosaic mosaic-p mp-dex">
+          <div class="tile t-sand span4 p-head">
+            <p class="eyebrow">图鉴</p>
+            <h1 class="ttl">它带回来的</h1>
+            <p class="sub">7 样 · 还有很多没见过</p>
+          </div>
+          <div class="tile t-amber span2 r23 item big">
+            <span class="badge">New</span>
+            <img src="art/items/berry.png" alt="一颗果子">
+          </div>
+          <div class="tile t-sand item"><img src="art/items/leaf.png" alt="一片叶子"></div>
+          <div class="tile t-sand item"><img src="art/items/stone.png" alt="一块石头"></div>
+          <div class="tile t-sand item"><img src="art/items/feather.png" alt="一根羽毛"></div>
+          <div class="tile t-sand item"><img src="art/items/shell.png" alt="一枚贝壳"></div>
+          <div class="tile t-sand item"><img src="art/items/flower.png" alt="一朵花"></div>
+          <div class="tile t-sand item"><img src="art/items/bottle.png" alt="一个小瓶子"></div>
+          <div class="tile t-slate item lock"><i></i></div>
+          <div class="tile t-slate item lock"><i></i></div>
+          <div class="tile t-sage span4 set">
+            <div class="set-head">
+              <span class="set-label">套装 · 林线</span>
+              <span class="set-val">4<small>/6</small></span>
+            </div>
+            <div class="squares"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i></i><i></i></div>
+            <p class="set-desc">集齐解锁新的散步路线,缺的两样在湖边</p>
+          </div>
+          <div class="tile t-amber span4 recv">
+            <div class="recv-win"><img src="art/items/berry.png" alt=""></div>
+            <div class="recv-txt">
+              <strong>刚收到:一颗果子</strong>
+              <span>它说路边捡的,不太确定能不能吃</span>
+            </div>
+            <span class="badge">New</span>
+          </div>
+          <div class="tabrow">
+            <button class="tile tab t-clay"><svg viewBox="0 0 24 24"><rect x="4" y="4" width="7" height="7"/><rect x="13" y="4" width="7" height="7"/><rect x="4" y="13" width="7" height="7"/><rect x="13" y="13" width="7" height="7"/></svg>图鉴</button>
+            <button class="tile tab t-sand"><svg viewBox="0 0 24 24"><rect x="5" y="3.5" width="14" height="17"/><path d="M8.5 9h7M8.5 13h7"/></svg>日记</button>
+            <button class="tile tab t-sand"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="2.2"/></svg>它</button>
+          </div>
+        </div>
+      </div></div>
+      <span class="cap">图鉴</span>
+    </div>
+
+    <div class="device-wrap">
+      <div class="phone-frame"><div class="phone-screen">
+        <div class="island"></div>
+        <div class="mosaic mosaic-p mp-diary">
+          <div class="tile t-sand span4 p-head">
+            <p class="eyebrow">日记</p>
+            <h1 class="ttl">它写的</h1>
+            <p class="sub">它自己的视角,不是你的记录</p>
+          </div>
+          <div class="tile t-sage span4 entry">
+            <time>10-11 傍晚</time>
+            <p>今天走得比平常远。你好像也走了不少,我们大概错过了。带了一颗果子回来。</p>
+          </div>
+          <div class="tile t-amber berry-col"><img src="art/items/berry.png" alt="一颗果子"></div>
+          <div class="tile t-sand span3 entry">
+            <time>10-10 下午</time>
+            <p>窗台那边太阳很好,躺了一会儿。你一直没回来。</p>
+          </div>
+          <div class="tile t-slate span4 endcap">
+            <p>再往前就翻不到了 · 它也没打算全记住</p>
+          </div>
+          <div class="tabrow">
+            <button class="tile tab t-sand"><svg viewBox="0 0 24 24"><rect x="4" y="4" width="7" height="7"/><rect x="13" y="4" width="7" height="7"/><rect x="4" y="13" width="7" height="7"/><rect x="13" y="13" width="7" height="7"/></svg>图鉴</button>
+            <button class="tile tab t-clay"><svg viewBox="0 0 24 24"><rect x="5" y="3.5" width="14" height="17"/><path d="M8.5 9h7M8.5 13h7"/></svg>日记</button>
+            <button class="tile tab t-sand"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="2.2"/></svg>它</button>
+          </div>
+        </div>
+      </div></div>
+      <span class="cap">日记</span>
+    </div>
+
+    <div class="device-wrap">
+      <div class="phone-frame"><div class="phone-screen">
+        <div class="island"></div>
+        <div class="mosaic mosaic-p mp-pet">
+          <div class="tile t-sand span4 p-head">
+            <p class="eyebrow">它</p>
+            <h1 class="ttl big">小团</h1>
+            <p class="sub">在家 · 刚回来</p>
+          </div>
+          <div class="tile t-slate span4 scene">
+            <img class="bg" src="art/scene-room.jpg" alt="">
+            <img class="pet" src="art/warm-calm.png" alt="宠物">
+          </div>
+          <div class="tile t-sage span2 cap-tile"><p>对着什么发呆</p></div>
+          <div class="tile t-slate span2 kv">
+            <span class="k">下次出门</span>
+            <span class="v">明天早上 ·<br>它自己决定的</span>
+          </div>
+          <button class="tile t-sand span2 act">给点心</button>
+          <button class="tile t-clay span2 act">摸摸</button>
+          <div class="tabrow">
+            <button class="tile tab t-sand"><svg viewBox="0 0 24 24"><rect x="4" y="4" width="7" height="7"/><rect x="13" y="4" width="7" height="7"/><rect x="4" y="13" width="7" height="7"/><rect x="13" y="13" width="7" height="7"/></svg>图鉴</button>
+            <button class="tile tab t-sand"><svg viewBox="0 0 24 24"><rect x="5" y="3.5" width="14" height="17"/><path d="M8.5 9h7M8.5 13h7"/></svg>日记</button>
+            <button class="tile tab t-clay"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="2.2"/></svg>它</button>
+          </div>
+        </div>
+      </div></div>
+      <span class="cap">它</span>
+    </div>
+
+  </div>
+</section>
+</body>
+</html>

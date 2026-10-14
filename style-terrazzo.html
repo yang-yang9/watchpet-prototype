@@ -1,0 +1,559 @@
+<!DOCTYPE html>
+<!--
+  设计小结 —— 水磨石 Terrazzo / 碎石 (style-terrazzo)
+
+  来源:designeer.xyz 的 Utilities 区 Tooooools(浏览器里的图案/纹理生成器)和
+  Design Galleries 区 Backgrounds Supply(手作网站背景)。
+  共同气质是「图案本身就是 identity,背景不是空的」。
+
+  调色板:
+    --cream   #F1EBE0  奶油底,也是所有 plate 的实心填充
+    chip 五色:#C4704F 陶土 / #7D9471 苔 / #5B6B7A 板岩 / #D9A05B 琥珀 /
+               #2E2A24 墨 fleck(只用最小号,当石面里的细砂)
+    --brass   #A8863C  黄铜。发丝线(1px 边、分隔线)和金箔 chip 专用
+    --ink     #26221C  墨字,也是按钮/实心段的深色石板
+
+  thesis:**水磨石地面**。整屏铺 chip 图案(多层 radial-gradient 椭圆 chip 拼成
+  确定性强重复的 tile),内容放在从图案里「挖出来」的奶油实心 plate 上,plate 带
+  1px 黄铜边。层级 = plate 的大小和黄铜线的粗细(主角 plate 1.5px,普通 1px)。
+  没有阴影没有浮起:plate 是和地面齐平的磨光面,不是贴上去的卡片。
+
+  Signature element:
+    1. **chip 场**:六屏共用同一个 chip tile(写死在 :root 的 - -terrazzo 变量里)。
+       手表屏因为小,用同一 tile 但 background-size 缩到 60%(90→54 / 180→108),
+       让 chip 不至于糊成噪点。
+    2. **金箔 chip**:「刚到手」的标记是一枚黄铜实心的 chip 形(clip-path 不规则
+       五边形 + 轻微旋转),贴在新物品格角和刚收到卡角上。全篇黄铜实心只这一种
+       用途,发丝线除外。
+
+  chip tile 为什么写死、不用随机:随机撒点在每次截图里都不一样,视觉回归就无从
+  对比;写死每一层的位置和大小,截图可复现,「图案是 identity」才成立。
+  两层 tile(90px 细 chip + 180px 大 chip 错开)叠加,复合周期 180px,
+  避免单一小周期读出壁纸式的规律感。
+
+  ⚠️ 和另外两套的区别,先说清楚免得被当成同一个东西:
+    - Halftone(在库):微观点阵、双色套印的**印刷感**——点是打穿暗部的网线,
+      单色为主,气质是胶印纸。这套是**宏观彩 chip 的石面**:chip 大一个量级、
+      五色混撒、有明确的石材色相,气质是建材不是印刷。
+    - Scrapbook(已下线):照片贴纸散点拼贴,元素各自歪斜、彼此无关。
+      这套是**严格重复的图案底**——chip 场是全篇同一块 tile 磨出来的地面,
+      秩序感正好相反。
+
+  产品原则守卫:不出现任何性格/健康的内部数值;数字只有「7 样」「4/6」「9:41」
+  「09:41」和日期。宠物名「小团」是临时代号。文案措辞全部照抄内容事实,不改写。
+-->
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>水磨石 Terrazzo · 方向 C</title>
+<style>
+  :root {
+    --sys-sans: -apple-system, "SF Pro Text", "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
+    --sys-mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+
+    --cream: #F1EBE0;
+    --cream-2: #E7DFCF;
+    --terra: #C4704F;
+    --moss: #7D9471;
+    --slate: #5B6B7A;
+    --amber: #D9A05B;
+    --fleck: #2E2A24;
+    --brass: #A8863C;
+    --ink: #26221C;
+    --ink-60: #6B6455;
+    --bezel: #211D17;
+
+    /* ------------------------------------------------------------------
+       chip 场:39 层写死的 tile(90px 细 chip ×23 + 180px 大 chip ×15 + 奶油底)。
+       每层一个椭圆 chip,位置/大小全部固定 —— 不用随机,截图可复现。
+       所有 chip 完整落在 tile 内,不跨边,避免接缝处出现切平的断口。
+       两层 tile 叠加、复合周期 180px,密度够高才读成石面而不是壁纸圆点。
+       ------------------------------------------------------------------ */
+    --terrazzo:
+      radial-gradient(5px 3px at 12px 10px, var(--terra) 99%, transparent 100%),
+      radial-gradient(3px 4.5px at 40px 6px, var(--slate) 99%, transparent 100%),
+      radial-gradient(4.5px 3px at 66px 14px, var(--moss) 99%, transparent 100%),
+      radial-gradient(3px 4px at 24px 28px, var(--amber) 99%, transparent 100%),
+      radial-gradient(1.4px 1px at 55px 25px, var(--fleck) 99%, transparent 100%),
+      radial-gradient(3.5px 5px at 8px 44px, var(--moss) 99%, transparent 100%),
+      radial-gradient(5px 3.5px at 34px 48px, var(--terra) 99%, transparent 100%),
+      radial-gradient(3px 4.5px at 60px 52px, var(--slate) 99%, transparent 100%),
+      radial-gradient(4px 3px at 81px 38px, var(--amber) 99%, transparent 100%),
+      radial-gradient(1.2px 1.5px at 48px 68px, var(--fleck) 99%, transparent 100%),
+      radial-gradient(4px 3px at 18px 73px, var(--moss) 99%, transparent 100%),
+      radial-gradient(3.5px 5px at 68px 77px, var(--terra) 99%, transparent 100%),
+      radial-gradient(5px 3px at 42px 83px, var(--slate) 99%, transparent 100%),
+      radial-gradient(3px 2.5px at 14px 58px, var(--amber) 99%, transparent 100%),
+      radial-gradient(4px 3px at 76px 62px, var(--terra) 99%, transparent 100%),
+      radial-gradient(3.5px 2.5px at 52px 8px, var(--moss) 99%, transparent 100%),
+      radial-gradient(3px 4px at 72px 26px, var(--amber) 99%, transparent 100%),
+      radial-gradient(2.5px 3.5px at 26px 14px, var(--slate) 99%, transparent 100%),
+      radial-gradient(3px 2.2px at 52px 36px, var(--terra) 99%, transparent 100%),
+      radial-gradient(2.5px 3.5px at 34px 64px, var(--moss) 99%, transparent 100%),
+      radial-gradient(3px 2.5px at 6px 22px, var(--slate) 99%, transparent 100%),
+      radial-gradient(2.5px 3px at 62px 86px, var(--amber) 99%, transparent 100%),
+      radial-gradient(1.2px 1.4px at 78px 70px, var(--fleck) 99%, transparent 100%),
+      radial-gradient(7px 5px at 100px 40px, var(--slate) 99%, transparent 100%),
+      radial-gradient(5px 7px at 150px 110px, var(--terra) 99%, transparent 100%),
+      radial-gradient(7px 5px at 55px 140px, var(--amber) 99%, transparent 100%),
+      radial-gradient(4.5px 7px at 128px 20px, var(--moss) 99%, transparent 100%),
+      radial-gradient(1.8px 1.3px at 90px 80px, var(--fleck) 99%, transparent 100%),
+      radial-gradient(7px 4.5px at 25px 105px, var(--terra) 99%, transparent 100%),
+      radial-gradient(5px 7px at 166px 74px, var(--slate) 99%, transparent 100%),
+      radial-gradient(6px 4.5px at 110px 160px, var(--amber) 99%, transparent 100%),
+      radial-gradient(7px 4.5px at 8px 8px, var(--moss) 99%, transparent 100%),
+      radial-gradient(1.5px 2px at 75px 55px, var(--fleck) 99%, transparent 100%),
+      radial-gradient(5px 3.5px at 40px 120px, var(--moss) 99%, transparent 100%),
+      radial-gradient(4px 6px at 140px 40px, var(--amber) 99%, transparent 100%),
+      radial-gradient(4.5px 3px at 170px 150px, var(--terra) 99%, transparent 100%),
+      radial-gradient(3.5px 5px at 70px 20px, var(--slate) 99%, transparent 100%),
+      radial-gradient(1.6px 1.2px at 120px 120px, var(--fleck) 99%, transparent 100%),
+      linear-gradient(var(--cream), var(--cream));
+    --tz-size:
+      90px 90px, 90px 90px, 90px 90px, 90px 90px, 90px 90px, 90px 90px, 90px 90px,
+      90px 90px, 90px 90px, 90px 90px, 90px 90px, 90px 90px, 90px 90px, 90px 90px,
+      90px 90px, 90px 90px, 90px 90px, 90px 90px, 90px 90px, 90px 90px, 90px 90px,
+      90px 90px, 90px 90px,
+      180px 180px, 180px 180px, 180px 180px, 180px 180px, 180px 180px,
+      180px 180px, 180px 180px, 180px 180px, 180px 180px, 180px 180px,
+      180px 180px, 180px 180px, 180px 180px, 180px 180px, 180px 180px,
+      auto;
+    /* 手表屏:同一 tile 缩到 60%,chip 不至于在小屏上糊成噪点 */
+    --tz-size-fine:
+      54px 54px, 54px 54px, 54px 54px, 54px 54px, 54px 54px, 54px 54px, 54px 54px,
+      54px 54px, 54px 54px, 54px 54px, 54px 54px, 54px 54px, 54px 54px, 54px 54px,
+      54px 54px, 54px 54px, 54px 54px, 54px 54px, 54px 54px, 54px 54px, 54px 54px,
+      54px 54px, 54px 54px,
+      108px 108px, 108px 108px, 108px 108px, 108px 108px, 108px 108px,
+      108px 108px, 108px 108px, 108px 108px, 108px 108px, 108px 108px,
+      108px 108px, 108px 108px, 108px 108px, 108px 108px, 108px 108px,
+      auto;
+
+    --plate-radius: 4px; /* 磨石板的切边是直的,圆角一律 4px */
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: var(--sys-sans);
+    color: var(--ink);
+    padding: 46px 20px 72px;
+    background-image: var(--terrazzo);
+    background-size: var(--tz-size);
+    background-repeat: repeat;
+    background-color: var(--cream);
+  }
+
+  /* ---------------------------------------------------------------- chip 场与 plate */
+  .chipfield {
+    background-image: var(--terrazzo);
+    background-size: var(--tz-size);
+    background-repeat: repeat;
+    background-color: var(--cream);
+  }
+  .chipfield.fine { background-size: var(--tz-size-fine); }
+
+  /* plate:从图案里挖出来的奶油实心磨光面,和地面齐平,没有阴影没有浮起。
+     层级 = plate 大小 + 黄铜线粗细:普通 1px,主角 .key 1.5px。 */
+  .plate {
+    background: var(--cream);
+    border: 1px solid var(--brass);
+    border-radius: var(--plate-radius);
+  }
+  .plate.key { border-width: 1.5px; }
+
+  /* 金箔 chip(signature):黄铜实心的 chip 形,「刚到手」的唯一标记 */
+  .foil {
+    display: inline-block; width: 13px; height: 12px; background: var(--brass);
+    clip-path: polygon(8% 22%, 58% 0%, 96% 30%, 82% 92%, 20% 100%);
+    transform: rotate(-7deg); flex-shrink: 0;
+  }
+  .foil.sm { width: 10px; height: 9px; transform: rotate(9deg); }
+
+  /* ---------------------------------------------------------------- 页面骨架 */
+  .intro { max-width: 760px; margin: 0 auto 16px; padding: 22px 26px 24px; }
+  .intro .eyebrow {
+    font-family: var(--sys-mono); font-size: 11px; letter-spacing: .14em;
+    color: var(--slate); text-transform: uppercase; margin: 0 0 10px;
+  }
+  .intro h1 { font-size: 28px; font-weight: 700; letter-spacing: -.02em; margin: 0 0 10px; }
+  .intro p { font-size: 14px; line-height: 1.75; color: var(--ink-60); margin: 0; max-width: 62ch; }
+  .intro p b { color: var(--ink); font-weight: 600; }
+  .rule { max-width: 760px; margin: 22px auto 40px; height: 1px; background: var(--brass); }
+
+  .row { max-width: 1200px; margin: 0 auto 50px; }
+  .row > h2 {
+    display: inline-block; font-family: var(--sys-mono); font-size: 11px; font-weight: 500;
+    letter-spacing: .16em; text-transform: uppercase; color: var(--ink-60);
+    margin: 0 0 20px; padding: 5px 11px;
+    background: var(--cream); border: 1px solid var(--brass); border-radius: var(--plate-radius);
+  }
+  .devices { display: flex; gap: 34px; flex-wrap: wrap; align-items: flex-start; }
+  .device-wrap { display: flex; flex-direction: column; align-items: center; gap: 13px; }
+  .cap {
+    font-family: var(--sys-mono); font-size: 11px; letter-spacing: .1em; color: var(--ink-60);
+    background: var(--cream); border: 1px solid var(--brass); border-radius: var(--plate-radius);
+    padding: 4px 12px;
+  }
+
+  /* ---------------------------------------------------------------- 手表外框 */
+  .watch-frame {
+    width: 240px; height: 280px; background: var(--bezel); border-radius: 50px;
+    padding: 16px; position: relative;
+  }
+  .watch-frame::after {
+    content: ''; position: absolute; right: -4px; top: 50%; translate: 0 -50%;
+    width: 8px; height: 42px; background: #171410; border-radius: 4px;
+  }
+  /* 只写 background-color:写成 background 简写会把 .chipfield 的 background-image
+     重置成 none,六屏就变纯奶油底了 —— 第一版截图里真的发生过 */
+  .watch-screen {
+    width: 208px; height: 248px; border-radius: 36px; overflow: hidden;
+    background-color: var(--cream); position: relative; color: var(--ink);
+  }
+
+  /* ---------------------------------------------------------------- 手机外框 */
+  .phone-frame {
+    width: 358px; height: 744px; background: var(--bezel); border-radius: 56px;
+    padding: 14px; position: relative;
+  }
+  .phone-screen {
+    width: 330px; height: 716px; border-radius: 44px; overflow: hidden;
+    background-color: var(--cream); position: relative; color: var(--ink);
+  }
+  .island { position: absolute; top: 10px; left: 50%; translate: -50% 0; width: 92px; height: 25px; border-radius: 14px; background: #171410; z-index: 50; }
+
+  /* ---------------------------------------------------------------- 手表内容 */
+  .w-screen { width: 100%; height: 100%; padding: 14px 12px 12px; display: flex; flex-direction: column; position: relative; }
+  .w-slug {
+    display: flex; justify-content: space-between; align-items: center;
+    font-family: var(--sys-mono); font-size: 8px; letter-spacing: .14em; text-transform: uppercase;
+    color: var(--ink-60); padding: 5px 8px;
+  }
+  .w-plate { height: 96px; display: flex; align-items: center; justify-content: center; margin-top: 7px; }
+  .w-plate img.pet { width: 84px; height: 84px; object-fit: contain; }
+  .w-text { margin-top: 7px; padding: 7px 10px 8px; }
+  .w-headline { font-size: 15px; font-weight: 700; letter-spacing: -.01em; margin: 0; }
+  .w-sub { font-family: var(--sys-mono); font-size: 9.5px; color: var(--ink-60); margin: 3px 0 0; letter-spacing: .03em; }
+  .w-foot { margin-top: auto; }
+  .w-btn {
+    width: 100%; font-family: var(--sys-mono); font-size: 10.5px; font-weight: 700; letter-spacing: .12em;
+    text-transform: uppercase; color: var(--cream); border: none; border-radius: var(--plate-radius);
+    padding: 9px 0; min-height: 32px; background: var(--ink);
+  }
+  .w-btn:active { opacity: .85; }
+
+  /* 复杂功能:两块 plate 浮在 chip 场上,时钟板是主角(1.5px 黄铜) */
+  .face { width: 100%; height: 100%; padding: 20px 14px 16px; display: flex; flex-direction: column; justify-content: center; align-items: stretch; }
+  .face-clock {
+    font-family: var(--sys-mono); font-size: 38px; font-weight: 700; letter-spacing: -.04em;
+    margin: 0; padding: 7px 10px 8px; text-align: center; font-variant-numeric: tabular-nums;
+  }
+  .compl { display: flex; align-items: center; gap: 10px; padding: 8px 10px; margin-top: 10px; }
+  .compl-win {
+    width: 34px; height: 34px; background: var(--cream-2); border: 1px solid var(--brass);
+    border-radius: var(--plate-radius);
+    display: flex; align-items: center; justify-content: center; flex-shrink: 0; overflow: hidden;
+  }
+  .compl-win img { width: 26px; height: 26px; object-fit: contain; }
+  .compl .t1 { font-family: var(--sys-mono); font-size: 8px; letter-spacing: .14em; text-transform: uppercase; color: var(--ink-60); }
+  .compl .t2 { font-size: 12.5px; font-weight: 600; margin-top: 2px; }
+
+  /* ---------------------------------------------------------------- 手机内容:通用 */
+  .p-screen { width: 100%; height: 100%; display: flex; flex-direction: column; position: relative; }
+  .p-top { padding: 46px 12px 0; }
+  .p-head { padding: 12px 14px 13px; }
+  .p-slug { font-family: var(--sys-mono); font-size: 9px; letter-spacing: .16em; text-transform: uppercase; color: var(--slate); margin: 0 0 7px; }
+  .p-title { font-size: 24px; font-weight: 700; letter-spacing: -.025em; margin: 0; }
+  .p-sub { font-family: var(--sys-mono); font-size: 10.5px; color: var(--ink-60); margin: 6px 0 0; letter-spacing: .03em; }
+  .p-body { flex: 1; padding: 9px 12px 0; overflow: hidden; display: flex; flex-direction: column; }
+
+  /* 图鉴:一整块 plate 磨出九宫格,格线是黄铜发丝 */
+  .grid { display: grid; grid-template-columns: repeat(3, 1fr); grid-auto-rows: 84px; padding: 0; overflow: hidden; }
+  .slot {
+    position: relative; background: var(--cream);
+    display: flex; align-items: center; justify-content: center;
+    border-right: 1px solid var(--brass); border-bottom: 1px solid var(--brass);
+  }
+  .slot:nth-child(3n) { border-right: none; }
+  .slot:nth-child(n+7) { border-bottom: none; }
+  .slot img { width: 46px; height: 46px; object-fit: contain; }
+  .slot.locked { background: var(--cream-2); }
+  .slot.locked .dash { width: 14px; height: 2px; background: var(--ink-60); opacity: .45; }
+  .slot .foil { position: absolute; right: 5px; top: 4px; z-index: 4; }
+
+  /* 套装进度:一块 plate,填上的段是墨色石板 */
+  .block { padding: 11px 14px 13px; margin-top: 9px; }
+  .block-head { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 2px; }
+  .block-label { font-family: var(--sys-mono); font-size: 9.5px; letter-spacing: .14em; text-transform: uppercase; color: var(--ink-60); }
+  .block-val { font-family: var(--sys-mono); font-size: 21px; font-weight: 700; font-variant-numeric: tabular-nums; letter-spacing: -.03em; }
+  .block-val small { font-size: 13px; color: var(--ink-60); font-weight: 500; }
+  .seg { display: flex; gap: 4px; margin: 8px 0 9px; }
+  .seg i { flex: 1; height: 8px; border-radius: 2px; border: 1px solid var(--brass); background: var(--cream); }
+  .seg i.on { background: var(--ink); border-color: var(--ink); }
+  .block-desc { font-size: 11.5px; color: var(--ink-60); line-height: 1.55; margin: 0; }
+
+  /* 刚收到卡:角上贴金箔 chip */
+  .received { position: relative; display: flex; align-items: center; gap: 12px; padding: 11px 14px; margin-top: 9px; }
+  .received .win {
+    width: 46px; height: 46px; background: var(--cream-2); border: 1px solid var(--brass);
+    border-radius: var(--plate-radius);
+    display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+  }
+  .received .win img { width: 34px; height: 34px; object-fit: contain; }
+  .received .txt { padding-right: 16px; }
+  .received .txt strong { display: block; font-size: 13px; font-weight: 600; margin-bottom: 3px; }
+  .received .txt span { font-size: 11.5px; color: var(--ink-60); line-height: 1.45; }
+  .received > .foil { position: absolute; right: 10px; top: 9px; }
+
+  /* 日记:每条是一块 plate,日期是 mono 小字 + 黄铜发丝线 */
+  .diary-row { padding: 12px 14px 13px; }
+  .diary-row + .diary-row { margin-top: 9px; }
+  .diary-row time {
+    display: inline-block; font-family: var(--sys-mono); font-size: 9px; letter-spacing: .14em;
+    text-transform: uppercase; color: var(--ink-60);
+    border-bottom: 1px solid var(--brass); padding-bottom: 3px; margin-bottom: 9px;
+  }
+  .diary-row p { font-size: 13.5px; line-height: 1.8; margin: 0; }
+  .diary-end {
+    align-self: center; margin: 12px 0 0; padding: 6px 12px;
+    font-family: var(--sys-mono); font-size: 9.5px; letter-spacing: .08em; color: var(--ink-60);
+  }
+
+  /* tabbar:一条和地面齐平的奶油磨光带,顶边是黄铜发丝;选中格是墨字 + 发丝下划线 */
+  .tabbar { position: absolute; left: 0; right: 0; bottom: 0; height: 62px; padding-bottom: 6px; display: flex; background: var(--cream); border-top: 1px solid var(--brass); z-index: 5; }
+  .tab {
+    flex: 1; border: none; background: none; display: flex; flex-direction: column;
+    align-items: center; justify-content: center; gap: 5px;
+    font-family: var(--sys-mono); font-size: 9px; letter-spacing: .1em; color: var(--ink-60);
+  }
+  .tab svg { width: 18px; height: 18px; stroke: var(--ink-60); fill: none; }
+  .tab.active { color: var(--ink); font-weight: 700; }
+  .tab.active svg { stroke: var(--ink); stroke-width: 2; }
+  .tab.active::after { content: ''; width: 22px; height: 1px; background: var(--brass); margin-top: -2px; }
+  .tab:active { opacity: .7; }
+
+  /* 「它」:场景 plate 是全场主角(1.5px 黄铜),说明条在 plate 内部底边 */
+  .screen-pet { padding: 46px 12px 74px; display: flex; flex-direction: column; height: 100%; }
+  .scene-plate { margin-top: 9px; overflow: hidden; }
+  .plate-img { position: relative; height: 236px; overflow: hidden; display: flex; align-items: flex-end; justify-content: center; background: var(--cream-2); }
+  .plate-img img.scene { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+  .plate-img img.pet { position: relative; z-index: 4; width: 120px; height: 120px; object-fit: contain; margin-bottom: 14px; }
+  .plate-cap {
+    display: flex; justify-content: space-between; align-items: baseline;
+    border-top: 1px solid var(--brass); padding: 6px 10px; background: var(--cream);
+    font-family: var(--sys-mono); font-size: 8.5px; letter-spacing: .12em; text-transform: uppercase; color: var(--ink-60);
+  }
+  .plate-cap b { color: var(--ink); font-weight: 700; }
+  .pic-caption {
+    align-self: flex-start; margin: 9px 0 0; padding: 5px 10px;
+    font-size: 12px; color: var(--ink-60);
+  }
+  .kv { display: flex; justify-content: space-between; align-items: baseline; padding: 11px 14px; margin-top: auto; }
+  .kv .k { font-family: var(--sys-mono); font-size: 9.5px; letter-spacing: .14em; text-transform: uppercase; color: var(--ink-60); }
+  .kv .v { font-size: 12.5px; font-weight: 600; }
+  .action-row { display: flex; gap: 10px; margin-top: 10px; }
+  .pbtn { border-radius: var(--plate-radius); padding: 12px 0; font-family: var(--sys-mono); font-size: 10.5px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; }
+  .pbtn.secondary { flex: 1; background: var(--cream); border: 1px solid var(--brass); color: var(--ink); }
+  .pbtn.primary { flex: 1.3; background: var(--ink); border: 1px solid var(--ink); color: var(--cream); }
+  .pbtn:active { opacity: .85; }
+
+  /* 磨石地面不动 —— 这套完全无动效,是设计决定;门禁要求的 reduced-motion 兜底照写 */
+  @media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
+</style>
+</head>
+<body>
+
+<div class="intro plate">
+  <p class="eyebrow">方向 C · 它自己的生活 — 水磨石 Terrazzo / 碎石</p>
+  <h1>把界面当成一块水磨石地面来磨</h1>
+  <p>整屏铺满五色 chip 的石面,内容放在从图案里<b>挖出来的奶油实心 plate</b> 上,
+    plate 带 1px 黄铜边,和地面齐平——没有阴影、没有浮起。层级只靠 plate 的大小
+    和黄铜线的粗细。「刚到手」的标记是一枚<b>黄铜实心的金箔 chip</b>,全篇只此一处。
+    <b>和 Halftone 的区别:</b>那套是微观单色网点、印刷感;这套是宏观彩 chip、石材质感。
+    <b>和已下线的 Scrapbook 的区别:</b>那是照片贴纸散点拼贴;这套的底是严格重复的同一块 tile。</p>
+</div>
+<div class="rule"></div>
+
+<section class="row row-watch">
+  <h2>手表 · 三帧</h2>
+  <div class="devices">
+
+    <div class="device-wrap">
+      <div class="watch-frame"><div class="watch-screen chipfield fine">
+        <div class="w-screen">
+          <div class="w-slug plate"><span>状态 · 外出</span><span>09:41</span></div>
+          <div class="w-plate plate key">
+            <img class="pet" src="art/warm-idle.png" alt="宠物">
+          </div>
+          <div class="w-text plate">
+            <p class="w-headline">它出门了</p>
+            <p class="w-sub">大概傍晚回来</p>
+          </div>
+          <div class="w-foot"><button class="w-btn">看看它</button></div>
+        </div>
+      </div></div>
+      <span class="cap">出门了</span>
+    </div>
+
+    <div class="device-wrap">
+      <div class="watch-frame"><div class="watch-screen chipfield fine">
+        <div class="w-screen">
+          <div class="w-slug plate"><span>状态 · 已归</span><i class="foil sm"></i></div>
+          <div class="w-plate plate key">
+            <img class="pet" src="art/warm-playful.png" alt="宠物">
+          </div>
+          <div class="w-text plate">
+            <p class="w-headline">它回来了</p>
+            <p class="w-sub">带回一颗果子</p>
+          </div>
+          <div class="w-foot"><button class="w-btn">收下</button></div>
+        </div>
+      </div></div>
+      <span class="cap">回来了</span>
+    </div>
+
+    <div class="device-wrap">
+      <div class="watch-frame"><div class="watch-screen chipfield fine">
+        <div class="face">
+          <div class="face-clock plate key">9:41</div>
+          <div class="compl plate">
+            <div class="compl-win"><img src="art/warm-idle.png" alt=""></div>
+            <div><div class="t1">出门中</div><div class="t2">傍晚回来</div></div>
+          </div>
+        </div>
+      </div></div>
+      <span class="cap">复杂功能</span>
+    </div>
+
+  </div>
+</section>
+
+<section class="row row-phone">
+  <h2>手机 · 三页</h2>
+  <div class="devices">
+
+    <div class="device-wrap">
+      <div class="phone-frame"><div class="phone-screen chipfield">
+        <div class="island"></div>
+        <div class="p-screen">
+          <div class="p-top">
+            <div class="p-head plate">
+              <p class="p-slug">图鉴</p>
+              <h1 class="p-title">它带回来的</h1>
+              <p class="p-sub">7 样 · 还有很多没见过</p>
+            </div>
+          </div>
+          <div class="p-body">
+            <div class="grid plate">
+              <div class="slot"><img src="art/items/berry.png" alt="一颗果子"><i class="foil"></i></div>
+              <div class="slot"><img src="art/items/leaf.png" alt="一片叶子"></div>
+              <div class="slot"><img src="art/items/stone.png" alt="一块石头"></div>
+              <div class="slot"><img src="art/items/feather.png" alt="一根羽毛"></div>
+              <div class="slot"><img src="art/items/shell.png" alt="一枚贝壳"></div>
+              <div class="slot"><img src="art/items/flower.png" alt="一朵花"></div>
+              <div class="slot"><img src="art/items/bottle.png" alt="一个小瓶子"></div>
+              <div class="slot locked"><i class="dash"></i></div>
+              <div class="slot locked"><i class="dash"></i></div>
+            </div>
+            <div class="block plate">
+              <div class="block-head">
+                <span class="block-label">套装 · 林线</span>
+                <span class="block-val">4<small>/6</small></span>
+              </div>
+              <div class="seg"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i></i><i></i></div>
+              <p class="block-desc">集齐解锁新的散步路线,缺的两样在湖边</p>
+            </div>
+            <div class="received plate">
+              <div class="win"><img src="art/items/berry.png" alt=""></div>
+              <div class="txt">
+                <strong>刚收到:一颗果子</strong>
+                <span>它说路边捡的,不太确定能不能吃</span>
+              </div>
+              <i class="foil"></i>
+            </div>
+          </div>
+          <nav class="tabbar">
+            <button class="tab active"><svg viewBox="0 0 24 24" stroke-width="1.7"><rect x="4" y="4" width="7" height="7"/><rect x="13" y="4" width="7" height="7"/><rect x="4" y="13" width="7" height="7"/><rect x="13" y="13" width="7" height="7"/></svg>图鉴</button>
+            <button class="tab"><svg viewBox="0 0 24 24" stroke-width="1.7"><rect x="5" y="3.5" width="14" height="17"/><path d="M8.5 9h7M8.5 13h7"/></svg>日记</button>
+            <button class="tab"><svg viewBox="0 0 24 24" stroke-width="1.7"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="2.2"/></svg>它</button>
+          </nav>
+        </div>
+      </div></div>
+      <span class="cap">图鉴</span>
+    </div>
+
+    <div class="device-wrap">
+      <div class="phone-frame"><div class="phone-screen chipfield">
+        <div class="island"></div>
+        <div class="p-screen">
+          <div class="p-top">
+            <div class="p-head plate">
+              <p class="p-slug">日记</p>
+              <h1 class="p-title">它写的</h1>
+              <p class="p-sub">它自己的视角,不是你的记录</p>
+            </div>
+          </div>
+          <div class="p-body">
+            <div class="diary-row plate">
+              <time>10-11 傍晚</time>
+              <p>今天走得比平常远。你好像也走了不少,我们大概错过了。带了一颗果子回来。</p>
+            </div>
+            <div class="diary-row plate">
+              <time>10-10 下午</time>
+              <p>窗台那边太阳很好,躺了一会儿。你一直没回来。</p>
+            </div>
+            <p class="diary-end plate">再往前就翻不到了 · 它也没打算全记住</p>
+          </div>
+          <nav class="tabbar">
+            <button class="tab"><svg viewBox="0 0 24 24" stroke-width="1.7"><rect x="4" y="4" width="7" height="7"/><rect x="13" y="4" width="7" height="7"/><rect x="4" y="13" width="7" height="7"/><rect x="13" y="13" width="7" height="7"/></svg>图鉴</button>
+            <button class="tab active"><svg viewBox="0 0 24 24" stroke-width="1.7"><rect x="5" y="3.5" width="14" height="17"/><path d="M8.5 9h7M8.5 13h7"/></svg>日记</button>
+            <button class="tab"><svg viewBox="0 0 24 24" stroke-width="1.7"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="2.2"/></svg>它</button>
+          </nav>
+        </div>
+      </div></div>
+      <span class="cap">日记</span>
+    </div>
+
+    <div class="device-wrap">
+      <div class="phone-frame"><div class="phone-screen chipfield">
+        <div class="island"></div>
+        <div class="p-screen">
+          <div class="screen-pet">
+            <div class="p-head plate">
+              <p class="p-slug">它</p>
+              <h1 class="p-title">小团</h1>
+              <p class="p-sub">在家 · 刚回来</p>
+            </div>
+            <div class="scene-plate plate key">
+              <div class="plate-img">
+                <img class="scene" src="art/scene-room.jpg" alt="">
+                <img class="pet" src="art/warm-calm.png" alt="宠物">
+              </div>
+              <div class="plate-cap"><span>图版 · 室内 窝边</span><span>状态 <b>在家</b></span></div>
+            </div>
+            <p class="pic-caption plate">对着什么发呆</p>
+            <div class="kv plate">
+              <span class="k">下次出门</span>
+              <span class="v">明天早上 · 它自己决定的</span>
+            </div>
+            <div class="action-row">
+              <button class="pbtn secondary">给点心</button>
+              <button class="pbtn primary">摸摸</button>
+            </div>
+          </div>
+          <nav class="tabbar">
+            <button class="tab"><svg viewBox="0 0 24 24" stroke-width="1.7"><rect x="4" y="4" width="7" height="7"/><rect x="13" y="4" width="7" height="7"/><rect x="4" y="13" width="7" height="7"/><rect x="13" y="13" width="7" height="7"/></svg>图鉴</button>
+            <button class="tab"><svg viewBox="0 0 24 24" stroke-width="1.7"><rect x="5" y="3.5" width="14" height="17"/><path d="M8.5 9h7M8.5 13h7"/></svg>日记</button>
+            <button class="tab active"><svg viewBox="0 0 24 24" stroke-width="1.7"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="2.2"/></svg>它</button>
+          </nav>
+        </div>
+      </div></div>
+      <span class="cap">它</span>
+    </div>
+
+  </div>
+</section>
+
+</body>
+</html>

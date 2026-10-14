@@ -1,0 +1,553 @@
+<!DOCTYPE html>
+<!--
+  设计小结 —— 星图 Celestial / Star Chart (style-celestial)
+
+  来源:designeer.xyz 的 Design Galleries 区 Cosmos(视觉 moodboard 引擎,名字和气质
+  都指向星空)+ 3D 区 Poly Haven(CC0 天空/环境贴图)。共同气质是
+  「把内容摊在一张夜空图上」。
+
+  调色板(全篇只有靛蓝 + 金 + 纸白三个色相,没有第四色):
+    --night   #101A33  靛蓝图纸,屏幕底色——星图是印在深蓝纸上的
+    --night-2 #0B1226  更深的靛蓝,页面底 / tabbar / 设备边框,当「版面之外」
+    --gold    #D8B36A  刻线金:所有细线、星点、描边、强调字,是这套的主笔触
+    --gold-40 rgba(216,179,106,.4)  暗金:次级刻线、网格、分隔线
+    --cream   #F3EAD3  纸白:正文与标题,像印在靛蓝纸上的白墨
+
+  thesis:**界面是一张印出来的星图**——靛蓝纸底 + 金/纸白的细刻线。
+  层级靠线的粗细和星点的大小表达,不靠卡片和浮起:没有 box-shadow 浮起,
+  没有毛玻璃,所有东西都平贴在图纸上,像铜版刻线印刷品。
+
+  Signature element 两个:
+    1. **天球网格**——手表「复杂功能」屏和手机「它」屏背景画同心圆环 + 放射辐条
+       (细金线,repeating-conic + radial-gradient),像星图的赤经赤纬网,
+       极慢自转(240s 一圈,几乎察觉不到)。
+    2. **星座连线**——图鉴九格不是网格,是一张星图:每件收藏品是一颗带编号和
+       名字小标签的星点,已收集的星按收集顺序用金色折线连成星座;未解锁是两个
+       暗空心圆;「刚到手」那颗星带四点衍射芒(十字细线 + 中心亮核),
+       入场一次呼吸,是全篇最亮的一点。
+
+  和已有风格刻意拉开:
+    - vs Aura:那套是纯黑 + 软光团、没有任何线;这套全是细线工笔,且有靛蓝纸感。
+    - vs Instrument:那套正交、临床、酸黄绿;这套是放射/圆形几何、装饰性刻线、金色。
+    - vs Glass:那套靠毛玻璃 + 素色卡片浮起分层;这套零卡片零模糊,层级全靠线的粗细。
+
+  字体:标签/编号走系统等宽 --sys-mono;标题走系统衬线 --sys-serif
+  (Georgia / Times / 宋体)——星图是印品,衬线比无衬线对。不接任何字体 CDN。
+
+  ⚠️ 产品原则守卫:不出现任何性格/健康的内部数值。数字只允许方向 C 本来就有的
+  客观事实:件数(7 样)、套装内容进度(4/6)、时钟(9:41 / 09:41)、日期、
+  槽位与页码编号。天球网格和刻度是纯粹的视觉母题,不绑任何值。
+
+  动效:天球网格 240s 自转;新星芒一次呼吸(2.6s,fill both,3s 截图前到终态)。
+  prefers-reduced-motion 下全部关闭,且芒的基准样式即可见终态。
+-->
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>星图 Celestial · 方向 C</title>
+<style>
+  :root {
+    --sys-sans: -apple-system, "SF Pro Text", "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
+    --sys-mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    --sys-serif: Georgia, "Times New Roman", "Songti SC", "SimSun", serif;
+
+    --night: #101A33;
+    --night-2: #0B1226;
+    --gold: #D8B36A;
+    --gold-70: rgba(216,179,106,.7);
+    --gold-40: rgba(216,179,106,.4);
+    --gold-25: rgba(216,179,106,.25);
+    --cream: #F3EAD3;
+    --cream-60: rgba(243,234,211,.62);
+    --cream-40: rgba(243,234,211,.4);
+    --bezel: #0A1020;
+
+    /* 美术资源统一压成暖金调,融进靛蓝图纸,不引入第四色相 */
+    --art-filter: sepia(.32) saturate(.85) brightness(1.06);
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--night-2);
+    font-family: var(--sys-sans);
+    color: var(--cream);
+    padding: 46px 20px 72px;
+  }
+
+  .intro { max-width: 760px; margin: 0 auto 16px; position: relative; }
+  .intro .eyebrow {
+    font-family: var(--sys-mono); font-size: 11px; letter-spacing: .16em;
+    color: var(--gold); text-transform: uppercase; margin: 0 0 10px;
+  }
+  .intro h1 { font-family: var(--sys-serif); font-size: 28px; font-weight: 600; letter-spacing: .01em; margin: 0 0 10px; color: var(--cream); }
+  .intro p { font-size: 14px; line-height: 1.8; color: var(--cream-60); margin: 0; max-width: 62ch; }
+  .intro p b { color: var(--cream); font-weight: 600; }
+
+  /* 版面分隔:细金线 + 中央菱形,是刻出来的,不是画上去的色块 */
+  .rule { max-width: 760px; margin: 24px auto 42px; height: 1px; background: var(--gold-40); position: relative; }
+  .rule::after {
+    content: ''; position: absolute; left: 50%; top: 50%; width: 5px; height: 5px;
+    background: var(--gold); rotate: 45deg; translate: -50% -50%;
+  }
+
+  .row { max-width: 1200px; margin: 0 auto 54px; }
+  .row > h2 {
+    font-family: var(--sys-mono); font-size: 11px; font-weight: 500; letter-spacing: .18em;
+    text-transform: uppercase; color: var(--gold-70); margin: 0 0 20px;
+  }
+  .devices { display: flex; gap: 34px; flex-wrap: wrap; align-items: flex-start; }
+  .device-wrap { display: flex; flex-direction: column; align-items: center; gap: 13px; }
+  .cap { font-family: var(--sys-mono); font-size: 11px; letter-spacing: .12em; color: var(--cream-40); }
+
+  /* ---------------------------------------------------------------- 天球网格(signature 1) */
+  /* 同心圆环 + 放射辐条,像星图的赤经赤纬网。方形元素居中放,圆环才是正圆。 */
+  .sky {
+    position: absolute; left: 50%; top: 50%; width: 520px; height: 520px;
+    translate: -50% -50%; border-radius: 50%; pointer-events: none; z-index: 0;
+    background:
+      radial-gradient(circle at 50% 50%,
+        transparent 0 23.4%, var(--gold-25) 23.7%, transparent 24% 38.4%,
+        var(--gold-25) 38.7%, transparent 39% 53.4%, var(--gold-25) 53.7%, transparent 54%),
+      repeating-conic-gradient(from 0deg at 50% 50%,
+        var(--gold-25) 0deg .4deg, transparent .4deg 30deg);
+    animation: sky-spin 240s linear infinite;
+  }
+  .sky::after { content: ''; position: absolute; inset: 26.5%; border-radius: 50%; box-shadow: 0 0 0 1px var(--gold-25); }
+  .sky.watch { width: 300px; height: 300px; }
+  @keyframes sky-spin { to { rotate: 360deg; } }
+
+  /* 疏星底:每张屏幕撒几颗 1px 的纸白/金星,压住深色屏的大面积空 */
+  .starfield {
+    position: absolute; inset: 0; pointer-events: none; z-index: 0; opacity: .5;
+    background-image:
+      radial-gradient(1px 1px at 12% 16%, var(--cream) 50%, transparent 51%),
+      radial-gradient(1px 1px at 82% 8%, var(--gold) 50%, transparent 51%),
+      radial-gradient(1px 1px at 68% 27%, var(--cream) 50%, transparent 51%),
+      radial-gradient(1px 1px at 24% 41%, var(--gold) 50%, transparent 51%),
+      radial-gradient(1px 1px at 91% 52%, var(--cream) 50%, transparent 51%),
+      radial-gradient(1px 1px at 8% 63%, var(--cream) 50%, transparent 51%),
+      radial-gradient(1px 1px at 57% 74%, var(--gold) 50%, transparent 51%),
+      radial-gradient(1px 1px at 33% 88%, var(--cream) 50%, transparent 51%),
+      radial-gradient(1px 1px at 76% 94%, var(--gold) 50%, transparent 51%);
+  }
+
+  /* New 标记:暗金描边小签,mono,直角切一点——刻在图上的图签,不是贴纸 */
+  .stamp {
+    font-family: var(--sys-mono); font-size: 8px; font-weight: 700; letter-spacing: .14em;
+    text-transform: uppercase; color: var(--gold); border: 1px solid var(--gold-40);
+    padding: 2px 6px; border-radius: 999px; white-space: nowrap; background: var(--night);
+  }
+
+  /* ---------------------------------------------------------------- 手表外框 */
+  .watch-frame {
+    width: 240px; height: 280px; background: var(--bezel); border-radius: 50px;
+    padding: 16px; position: relative; box-shadow: inset 0 0 0 1px var(--gold-25);
+  }
+  .watch-frame::after {
+    content: ''; position: absolute; right: -4px; top: 50%; translate: 0 -50%;
+    width: 8px; height: 42px; background: #060A14; border-radius: 4px;
+  }
+  .watch-screen {
+    width: 208px; height: 248px; border-radius: 36px; overflow: hidden;
+    background: var(--night); position: relative; color: var(--cream);
+  }
+
+  /* ---------------------------------------------------------------- 手机外框 */
+  .phone-frame {
+    width: 358px; height: 744px; background: var(--bezel); border-radius: 56px;
+    padding: 14px; position: relative; box-shadow: inset 0 0 0 1px var(--gold-25);
+  }
+  .phone-screen {
+    width: 330px; height: 716px; border-radius: 44px; overflow: hidden;
+    background: var(--night); position: relative; color: var(--cream);
+  }
+  .island { position: absolute; top: 10px; left: 50%; translate: -50% 0; width: 92px; height: 25px; border-radius: 14px; background: #060A14; z-index: 50; }
+
+  /* ---------------------------------------------------------------- 手表内容 */
+  .w-screen { width: 100%; height: 100%; padding: 17px 15px 14px; display: flex; flex-direction: column; position: relative; z-index: 1; }
+  .w-slug {
+    display: flex; justify-content: space-between; align-items: center;
+    font-family: var(--sys-mono); font-size: 8px; letter-spacing: .16em; text-transform: uppercase;
+    color: var(--gold-70); padding-bottom: 7px; border-bottom: 1px solid var(--gold-40);
+  }
+  /* 图版:宠物托在一个细金圆环(轨道)里,圆形几何对位仪表那套的正交 */
+  .w-plate { position: relative; height: 112px; display: flex; align-items: center; justify-content: center; margin-top: 8px; }
+  .w-plate::before {
+    content: ''; position: absolute; left: 50%; top: 50%; width: 100px; height: 100px;
+    translate: -50% -50%; border-radius: 50%; border: 1px solid var(--gold-40);
+  }
+  .w-plate::after {
+    content: ''; position: absolute; left: 50%; top: 50%; width: 100px; height: 100px;
+    translate: -50% -50%; border-radius: 50%;
+    background: radial-gradient(circle, rgba(216,179,106,.12) 0%, transparent 70%);
+  }
+  .w-plate img.pet { width: 88px; height: 88px; object-fit: contain; position: relative; z-index: 2; filter: var(--art-filter); }
+  .w-plate .stamp { position: absolute; right: 0; top: 2px; z-index: 3; }
+  .w-headline { font-family: var(--sys-serif); font-size: 16.5px; font-weight: 600; margin: 9px 0 0; color: var(--cream); }
+  .w-sub { font-family: var(--sys-mono); font-size: 10px; color: var(--cream-60); margin: 5px 0 0; letter-spacing: .05em; }
+  .w-foot { margin-top: auto; }
+  .w-btn {
+    width: 100%; font-family: var(--sys-mono); font-size: 11px; font-weight: 700; letter-spacing: .16em;
+    color: var(--gold); background: transparent; border: 1px solid var(--gold-40); border-radius: 999px;
+    padding: 10px 0; min-height: 34px;
+  }
+  .w-btn:active { background: var(--gold); color: var(--night); }
+
+  .face { width: 100%; height: 100%; padding: 22px 15px 18px; display: flex; flex-direction: column; justify-content: center; position: relative; z-index: 1; }
+  .face-clock { font-family: var(--sys-serif); font-size: 40px; font-weight: 600; letter-spacing: -.01em; margin: 0; font-variant-numeric: tabular-nums; color: var(--cream); text-align: center; }
+  .face-rule { height: 1px; background: var(--gold-40); margin: 12px 0 15px; position: relative; }
+  .face-rule::after { content: ''; position: absolute; left: 50%; top: 50%; width: 4px; height: 4px; background: var(--gold); rotate: 45deg; translate: -50% -50%; }
+  .compl { display: flex; align-items: center; gap: 11px; padding: 0 4px; }
+  .compl-win {
+    width: 36px; height: 36px; border-radius: 50%; border: 1px solid var(--gold-40);
+    display: flex; align-items: center; justify-content: center; flex-shrink: 0; position: relative;
+    background: radial-gradient(circle, rgba(216,179,106,.1) 0%, transparent 70%);
+  }
+  .compl-win img { width: 27px; height: 27px; object-fit: contain; filter: var(--art-filter); }
+  .compl .t1 { font-family: var(--sys-mono); font-size: 8px; letter-spacing: .16em; text-transform: uppercase; color: var(--gold-70); }
+  .compl .t2 { font-family: var(--sys-serif); font-size: 13px; font-weight: 600; margin-top: 3px; color: var(--cream); }
+
+  /* ---------------------------------------------------------------- 手机内容:通用 */
+  .p-screen { width: 100%; height: 100%; display: flex; flex-direction: column; position: relative; }
+  .p-top { padding: 46px 20px 0; position: relative; z-index: 1; }
+  .p-slug { font-family: var(--sys-mono); font-size: 9px; letter-spacing: .2em; text-transform: uppercase; color: var(--gold); margin: 0 0 9px; }
+  .p-title { font-family: var(--sys-serif); font-size: 24px; font-weight: 600; margin: 0; color: var(--cream); }
+  .p-sub { font-family: var(--sys-mono); font-size: 10.5px; color: var(--cream-60); margin: 8px 0 0; letter-spacing: .05em; }
+  .p-top .hr { height: 1px; background: var(--gold-40); margin-top: 13px; position: relative; }
+  .p-top .hr::after { content: ''; position: absolute; left: 50%; top: 50%; width: 4px; height: 4px; background: var(--gold); rotate: 45deg; translate: -50% -50%; }
+  .p-body { flex: 1; padding: 15px 20px 0; overflow: hidden; position: relative; z-index: 1; }
+
+  /* ---------------------------------------------------------------- 图鉴:星座图(signature 2) */
+  /* 九颗星摊在一张星图上:已收集的按收集顺序连成金色折线星座,未解锁是暗空心圆。
+     坐标与下面 <svg> 里的 polyline 点位一一对应,改一处必须改两处。 */
+  .chart { position: relative; width: 290px; height: 276px; margin: 2px auto 0; }
+  .chart-lines { position: absolute; inset: 0; width: 100%; height: 100%; }
+  .star {
+    position: absolute; width: 30px; height: 30px; translate: -50% -50%;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .star::before {
+    content: ''; position: absolute; left: 50%; top: 50%; width: 5px; height: 5px;
+    translate: -50% -50%; border-radius: 50%; background: var(--gold);
+    box-shadow: 0 0 6px 1px rgba(216,179,106,.5);
+  }
+  .star img { width: 27px; height: 27px; object-fit: contain; position: relative; z-index: 1; filter: var(--art-filter); }
+  .star .no {
+    position: absolute; bottom: 100%; left: 50%; translate: -50% -3px;
+    font-family: var(--sys-mono); font-size: 7px; letter-spacing: .1em; color: var(--gold-70);
+  }
+  .star .nm {
+    position: absolute; top: 100%; left: 50%; translate: -50% 3px;
+    font-family: var(--sys-mono); font-size: 7.5px; letter-spacing: .06em; color: var(--cream-60);
+    white-space: nowrap;
+  }
+  .star.locked::before {
+    width: 10px; height: 10px; background: transparent;
+    border: 1px solid var(--gold-40); box-shadow: none;
+  }
+  .star.locked .no { color: var(--cream-40); bottom: auto; top: 100%; translate: -50% 4px; }
+
+  /* 刚到手的那颗星:四点衍射芒。基准即可见终态,入场动画只是加一次呼吸,
+     fill-mode both 保证 3s 截图前落定;reduced-motion 关掉动画后仍是终态。 */
+  .star.nova { z-index: 3; animation: nova 2.6s ease-out both; }
+  .star.nova .spike { position: absolute; left: 50%; top: 50%; pointer-events: none; }
+  .star.nova .spike.h { width: 52px; height: 1px; translate: -50% -50%; background: linear-gradient(90deg, transparent, var(--gold) 30%, var(--cream) 50%, var(--gold) 70%, transparent); }
+  .star.nova .spike.v { width: 1px; height: 52px; translate: -50% -50%; background: linear-gradient(180deg, transparent, var(--gold) 30%, var(--cream) 50%, var(--gold) 70%, transparent); }
+  .star.nova::before { width: 7px; height: 7px; box-shadow: 0 0 10px 3px rgba(216,179,106,.65); }
+  .star.nova .stamp { position: absolute; top: 100%; left: 50%; translate: -50% 15px; z-index: 4; }
+  .star.nova .nm { display: none; }
+  @keyframes nova { from { opacity: 0; scale: .4; } 55% { opacity: 1; scale: 1.18; } to { opacity: 1; scale: 1; } }
+
+  /* 套装进度:六颗星,收集到的点亮成金星,没到的还是暗空心圆 */
+  .block { border-top: 1px solid var(--gold-40); padding: 14px 0 16px; }
+  .block-head { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 3px; }
+  .block-label { font-family: var(--sys-mono); font-size: 9.5px; letter-spacing: .16em; text-transform: uppercase; color: var(--gold-70); }
+  .block-val { font-family: var(--sys-serif); font-size: 22px; font-weight: 700; font-variant-numeric: tabular-nums; color: var(--cream); }
+  .block-val small { font-size: 13px; color: var(--cream-60); font-weight: 400; }
+  .seg { display: flex; gap: 10px; margin: 10px 0 11px; align-items: center; }
+  .seg i { width: 9px; height: 9px; border-radius: 50%; border: 1px solid var(--gold-40); }
+  .seg i.on { background: var(--gold); border-color: var(--gold); box-shadow: 0 0 5px rgba(216,179,106,.55); }
+  .block-desc { font-size: 11.5px; color: var(--cream-60); line-height: 1.6; margin: 0; }
+
+  .received { display: flex; align-items: center; gap: 12px; border-top: 1px solid var(--gold-40); padding: 14px 0 0; }
+  .received .win {
+    width: 46px; height: 46px; border-radius: 50%; border: 1px solid var(--gold-40);
+    display: flex; align-items: center; justify-content: center; flex-shrink: 0; position: relative;
+    background: radial-gradient(circle, rgba(216,179,106,.12) 0%, transparent 70%);
+  }
+  .received .win img { width: 32px; height: 32px; object-fit: contain; filter: var(--art-filter); }
+  .received .txt strong { display: block; font-family: var(--sys-serif); font-size: 13.5px; font-weight: 600; margin-bottom: 4px; color: var(--cream); }
+  .received .txt span { font-size: 11.5px; color: var(--cream-60); line-height: 1.5; }
+  .received .stamp { align-self: flex-start; margin-left: auto; }
+
+  /* ---------------------------------------------------------------- 日记:星图志的手稿页 */
+  .diary-row { padding: 0 0 18px; }
+  .diary-row + .diary-row { border-top: 1px solid var(--gold-25); padding-top: 16px; }
+  .diary-row time {
+    display: inline-flex; align-items: center; gap: 6px;
+    font-family: var(--sys-mono); font-size: 9px; letter-spacing: .16em;
+    text-transform: uppercase; color: var(--gold); margin-bottom: 10px;
+  }
+  .diary-row time::before { content: ''; width: 4px; height: 4px; background: var(--gold); rotate: 45deg; }
+  .diary-row p { font-family: var(--sys-serif); font-size: 14px; line-height: 1.85; margin: 0; color: var(--cream); }
+  .diary-end { font-family: var(--sys-mono); font-size: 9.5px; letter-spacing: .1em; color: var(--cream-40); margin: 4px 0 0; }
+  /* 页脚 slug:日记内容只占上半页,下半页的空如果什么都没有就读成「没画完」。
+     星图本来就有图签栏,把空圈进版面之外,它才读成图纸的边距。 */
+  .sheet-foot {
+    position: absolute; left: 20px; right: 20px; bottom: 74px;
+    display: flex; justify-content: space-between; align-items: center;
+    border-top: 1px solid var(--gold-25); padding-top: 7px;
+    font-family: var(--sys-mono); font-size: 8.5px; letter-spacing: .18em;
+    text-transform: uppercase; color: var(--cream-40); z-index: 1;
+  }
+
+  /* tabbar:暗金细线托底,选中的那点起一颗金星 */
+  .tabbar { position: absolute; left: 0; right: 0; bottom: 0; height: 62px; padding-bottom: 6px; display: flex; background: var(--night-2); border-top: 1px solid var(--gold-40); z-index: 5; }
+  .tab {
+    flex: 1; border: none; background: none; display: flex; flex-direction: column;
+    align-items: center; justify-content: center; gap: 5px; position: relative;
+    font-family: var(--sys-mono); font-size: 9px; letter-spacing: .12em; color: var(--cream-40);
+  }
+  .tab svg { width: 18px; height: 18px; stroke: currentColor; fill: none; stroke-width: 1.4; }
+  .tab.active { color: var(--gold); }
+  .tab.active::before { content: ''; position: absolute; top: 5px; width: 4px; height: 4px; background: var(--gold); rotate: 45deg; box-shadow: 0 0 5px rgba(216,179,106,.7); }
+  .tab:active { opacity: .7; }
+
+  /* ---------------------------------------------------------------- 「它」:夜空下的一张图版 */
+  .screen-pet { padding: 46px 20px 74px; display: flex; flex-direction: column; height: 100%; position: relative; z-index: 1; }
+  .plate { position: relative; margin-top: 13px; border: 1px solid var(--gold-40); border-radius: 148px 148px 10px 10px; overflow: hidden; }
+  .plate-img { position: relative; height: 240px; overflow: hidden; display: flex; align-items: flex-end; justify-content: center; background: var(--night-2); }
+  .plate-img img.scene { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; filter: grayscale(.5) brightness(.72) sepia(.35); }
+  /* 靛蓝罩色:把照片压进夜图纸的色相里,全篇仍只有三个色相 */
+  .plate-img::after { content: ''; position: absolute; inset: 0; background: linear-gradient(rgba(16,26,51,.42), rgba(11,18,38,.6)); z-index: 2; }
+  .plate-img img.pet { position: relative; z-index: 3; width: 118px; height: 118px; object-fit: contain; margin-bottom: 14px; filter: var(--art-filter); }
+  .plate-cap {
+    display: flex; justify-content: space-between; align-items: baseline;
+    border-top: 1px solid var(--gold-40); padding: 7px 12px; background: var(--night);
+    font-family: var(--sys-mono); font-size: 8.5px; letter-spacing: .14em; text-transform: uppercase; color: var(--cream-60);
+  }
+  .plate-cap b { color: var(--gold); font-weight: 700; }
+  .pic-caption { font-family: var(--sys-serif); font-size: 13px; color: var(--cream-60); margin: 13px 0 0; }
+  .kv { display: flex; justify-content: space-between; align-items: baseline; border-top: 1px solid var(--gold-40); border-bottom: 1px solid var(--gold-40); padding: 13px 2px; margin-top: auto; }
+  .kv .k { font-family: var(--sys-mono); font-size: 9.5px; letter-spacing: .16em; text-transform: uppercase; color: var(--gold-70); }
+  .kv .v { font-family: var(--sys-serif); font-size: 12.5px; font-weight: 600; color: var(--cream); }
+  .action-row { display: flex; gap: 10px; margin-top: 14px; }
+  .pbtn { border-radius: 999px; padding: 13px 0; font-family: var(--sys-mono); font-size: 11px; font-weight: 700; letter-spacing: .16em; }
+  .pbtn.secondary { flex: 1; background: transparent; border: 1px solid var(--gold-40); color: var(--gold); }
+  .pbtn.primary { flex: 1.3; background: var(--gold); border: 1px solid var(--gold); color: var(--night-2); }
+  .pbtn:active { opacity: .8; }
+
+  @media (prefers-reduced-motion: reduce) { * { animation: none !important; } }
+</style>
+</head>
+<body>
+
+<div class="intro">
+  <p class="eyebrow">方向 C · 它自己的生活 — 星图 Celestial / Star Chart</p>
+  <h1>当成一张印出来的星图来排</h1>
+  <p>靛蓝图纸 + 刻线金 + 纸白,三个色相,没有第四色。层级靠<b>线的粗细和星点的大小</b>,
+    不靠卡片和浮起——没有阴影,没有毛玻璃,所有东西平贴在图纸上。
+    图鉴九格不是网格,是一张<b>星座图</b>:已收集的星连成金色折线,刚到手那颗带着
+    衍射芒,是全篇最亮的一点;手表复杂功能和「它」页的底是缓慢自转的<b>天球网格</b>。</p>
+</div>
+<div class="rule"></div>
+
+<section class="row row-watch">
+  <h2>手表 · 三帧星图</h2>
+  <div class="devices">
+
+    <div class="device-wrap">
+      <div class="watch-frame"><div class="watch-screen">
+        <div class="starfield"></div>
+        <div class="w-screen">
+          <div class="w-slug"><span>状态 · 外出</span><span>09:41</span></div>
+          <div class="w-plate">
+            <img class="pet" style="opacity:.62" src="art/warm-idle.png" alt="宠物">
+          </div>
+          <p class="w-headline">它出门了</p>
+          <p class="w-sub">大概傍晚回来</p>
+          <div class="w-foot"><button class="w-btn">看看它</button></div>
+        </div>
+      </div></div>
+      <span class="cap">出门了</span>
+    </div>
+
+    <div class="device-wrap">
+      <div class="watch-frame"><div class="watch-screen">
+        <div class="starfield"></div>
+        <div class="w-screen">
+          <div class="w-slug"><span>状态 · 已归</span><span class="stamp">New</span></div>
+          <div class="w-plate">
+            <img class="pet" src="art/warm-playful.png" alt="宠物">
+          </div>
+          <p class="w-headline">它回来了</p>
+          <p class="w-sub">带回一颗果子</p>
+          <div class="w-foot"><button class="w-btn">收下</button></div>
+        </div>
+      </div></div>
+      <span class="cap">回来了</span>
+    </div>
+
+    <div class="device-wrap">
+      <div class="watch-frame"><div class="watch-screen">
+        <div class="sky watch"></div>
+        <div class="starfield"></div>
+        <div class="face">
+          <p class="face-clock">9:41</p>
+          <div class="face-rule"></div>
+          <div class="compl">
+            <div class="compl-win"><img src="art/warm-idle.png" alt=""></div>
+            <div><div class="t1">出门中</div><div class="t2">傍晚回来</div></div>
+          </div>
+        </div>
+      </div></div>
+      <span class="cap">复杂功能</span>
+    </div>
+
+  </div>
+</section>
+
+<section class="row row-phone">
+  <h2>手机 · 三页星图</h2>
+  <div class="devices">
+
+    <div class="device-wrap">
+      <div class="phone-frame"><div class="phone-screen">
+        <div class="island"></div>
+        <div class="starfield"></div>
+        <div class="p-screen">
+          <div class="p-top">
+            <p class="p-slug">图鉴 · 第 01 页</p>
+            <h1 class="p-title">它带回来的</h1>
+            <p class="p-sub">7 样 · 还有很多没见过</p>
+            <div class="hr"></div>
+          </div>
+          <div class="p-body">
+            <!-- 星座图:九颗星,已收集的按收集顺序 01→07 连成金色折线。
+                 星点坐标在 .star 的 left/top 和 <polyline> 的 points 里各写了一遍,
+                 改一处必须同步改另一处。 -->
+            <div class="chart">
+              <svg class="chart-lines" viewBox="0 0 290 276" aria-hidden="true">
+                <circle cx="145" cy="138" r="126" fill="none" stroke="rgba(216,179,106,.18)" stroke-width="1" stroke-dasharray="2 5"/>
+                <polyline points="66,58 150,34 228,70 198,132 104,108 44,160 142,196"
+                  fill="none" stroke="rgba(216,179,106,.55)" stroke-width="1"/>
+              </svg>
+              <div class="star nova" style="left:66px; top:58px">
+                <i class="spike h"></i><i class="spike v"></i>
+                <span class="no">01</span>
+                <img src="art/items/berry.png" alt="一颗果子">
+                <span class="stamp">New</span>
+              </div>
+              <div class="star" style="left:150px; top:34px"><span class="no">02</span><img src="art/items/leaf.png" alt="一片叶子"><span class="nm">一片叶子</span></div>
+              <div class="star" style="left:228px; top:70px"><span class="no">03</span><img src="art/items/stone.png" alt="一块石头"><span class="nm">一块石头</span></div>
+              <div class="star" style="left:198px; top:132px"><span class="no">04</span><img src="art/items/feather.png" alt="一根羽毛"><span class="nm">一根羽毛</span></div>
+              <div class="star" style="left:104px; top:108px"><span class="no">05</span><img src="art/items/shell.png" alt="一枚贝壳"><span class="nm">一枚贝壳</span></div>
+              <div class="star" style="left:44px; top:160px"><span class="no">06</span><img src="art/items/flower.png" alt="一朵花"><span class="nm">一朵花</span></div>
+              <div class="star" style="left:142px; top:196px"><span class="no">07</span><img src="art/items/bottle.png" alt="一个小瓶子"><span class="nm">一个小瓶子</span></div>
+              <div class="star locked" style="left:232px; top:184px"><span class="no">08</span></div>
+              <div class="star locked" style="left:74px; top:238px"><span class="no">09</span></div>
+            </div>
+            <div class="block">
+              <div class="block-head">
+                <span class="block-label">套装 · 林线</span>
+                <span class="block-val">4<small>/6</small></span>
+              </div>
+              <div class="seg"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i></i><i></i></div>
+              <p class="block-desc">集齐解锁新的散步路线,缺的两样在湖边</p>
+            </div>
+            <div class="received">
+              <div class="win"><img src="art/items/berry.png" alt=""></div>
+              <div class="txt">
+                <strong>刚收到:一颗果子</strong>
+                <span>它说路边捡的,不太确定能不能吃</span>
+              </div>
+              <span class="stamp">New</span>
+            </div>
+          </div>
+          <nav class="tabbar">
+            <button class="tab active"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><circle cx="9" cy="9.5" r="1"/><circle cx="15" cy="11" r="1"/><circle cx="11" cy="15" r="1"/><path d="M9 9.5 15 11 11 15Z"/></svg>图鉴</button>
+            <button class="tab"><svg viewBox="0 0 24 24"><rect x="5" y="3.5" width="14" height="17" rx="1.5"/><path d="M8.5 9h7M8.5 13h7"/></svg>日记</button>
+            <button class="tab"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="2.2"/></svg>它</button>
+          </nav>
+        </div>
+      </div></div>
+      <span class="cap">图鉴</span>
+    </div>
+
+    <div class="device-wrap">
+      <div class="phone-frame"><div class="phone-screen">
+        <div class="island"></div>
+        <div class="starfield"></div>
+        <div class="sky" style="top:74%; opacity:.4"></div>
+        <div class="p-screen">
+          <div class="p-top">
+            <p class="p-slug">日记 · 第 02 页</p>
+            <h1 class="p-title">它写的</h1>
+            <p class="p-sub">它自己的视角,不是你的记录</p>
+            <div class="hr"></div>
+          </div>
+          <div class="p-body">
+            <div class="diary-row">
+              <time>10-11 傍晚</time>
+              <p>今天走得比平常远。你好像也走了不少,我们大概错过了。带了一颗果子回来。</p>
+            </div>
+            <div class="diary-row">
+              <time>10-10 下午</time>
+              <p>窗台那边太阳很好,躺了一会儿。你一直没回来。</p>
+            </div>
+            <p class="diary-end">再往前就翻不到了 · 它也没打算全记住</p>
+            <div class="sheet-foot"><span>本页完</span><span>02 / 03</span></div>
+          </div>
+          <nav class="tabbar">
+            <button class="tab"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><circle cx="9" cy="9.5" r="1"/><circle cx="15" cy="11" r="1"/><circle cx="11" cy="15" r="1"/><path d="M9 9.5 15 11 11 15Z"/></svg>图鉴</button>
+            <button class="tab active"><svg viewBox="0 0 24 24"><rect x="5" y="3.5" width="14" height="17" rx="1.5"/><path d="M8.5 9h7M8.5 13h7"/></svg>日记</button>
+            <button class="tab"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="2.2"/></svg>它</button>
+          </nav>
+        </div>
+      </div></div>
+      <span class="cap">日记</span>
+    </div>
+
+    <div class="device-wrap">
+      <div class="phone-frame"><div class="phone-screen">
+        <div class="island"></div>
+        <div class="starfield"></div>
+        <div class="sky" style="top:32%"></div>
+        <div class="p-screen">
+          <div class="screen-pet">
+            <p class="p-slug">它 · 第 03 页</p>
+            <h1 class="p-title">小团</h1>
+            <p class="p-sub">在家 · 刚回来</p>
+            <div class="plate">
+              <div class="plate-img">
+                <img class="scene" src="art/scene-room.jpg" alt="">
+                <img class="pet" src="art/warm-calm.png" alt="宠物">
+              </div>
+              <div class="plate-cap"><span>图版 · 室内 窝边</span><span>状态 <b>在家</b></span></div>
+            </div>
+            <p class="pic-caption">对着什么发呆</p>
+            <div class="kv">
+              <span class="k">下次出门</span>
+              <span class="v">明天早上 · 它自己决定的</span>
+            </div>
+            <div class="action-row">
+              <button class="pbtn secondary">给点心</button>
+              <button class="pbtn primary">摸摸</button>
+            </div>
+          </div>
+          <nav class="tabbar">
+            <button class="tab"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><circle cx="9" cy="9.5" r="1"/><circle cx="15" cy="11" r="1"/><circle cx="11" cy="15" r="1"/><path d="M9 9.5 15 11 11 15Z"/></svg>图鉴</button>
+            <button class="tab"><svg viewBox="0 0 24 24"><rect x="5" y="3.5" width="14" height="17" rx="1.5"/><path d="M8.5 9h7M8.5 13h7"/></svg>日记</button>
+            <button class="tab active"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="2.2"/></svg>它</button>
+          </nav>
+        </div>
+      </div></div>
+      <span class="cap">它</span>
+    </div>
+
+  </div>
+</section>
+
+</body>
+</html>

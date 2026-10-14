@@ -1,0 +1,585 @@
+<!DOCTYPE html>
+<!--
+  设计小结 —— 千禧铬 Y2K Chrome / Holo (style-chrome)
+
+  来源:designeer.xyz 的 Type 区 Velvetyne(实验性展示字体 foundry)、
+  Component Libraries 区 React Bits(花哨动效组件)、Design Galleries 区
+  loadmo.re(实验性移动端网站)。共同气质是「亮面、充气、镭射,故意不克制」。
+
+  调色板(全篇唯一一套浅色 + 高光 + 金属):
+    --ice   #E6E9F4  冰底,所有屏幕和页面的底色
+    --ink   #23263A  墨,正文和图标
+    --gum   #F3B8D8  泡泡糖粉,日期 pill 等小面积点缀
+    铬银渐变带  linear-gradient(#F8FAFF, #B9C2D8 38%, #EFF2FA 52%, #8E99B8 66%, #D7DDEB)
+                用于标题字(background-clip:text)和主按钮
+    镭射箔      conic(#FFB3D9, #B8E6FF, #D6FFC9, #E3C9FF, 回环)
+                **只出现在两种地方**:「NEW」贴纸和 tabbar 选中态的底。别处一律不用,
+                免得全篇糊成一片彩虹
+
+  thesis:千禧年的塑料未来主义。铬合金渐变字、充气感按钮(大圆角 + 顶部内高光 +
+  底部内阴影,像吹起来的气球)、镭射箔贴纸、星爆/花朵形 blob 当容器。
+  和 Aura / Instrument 的哑光黑刻意互为反义词:那两套怕「亮」,这套怕「matte」。
+    - vs Aura:Aura 是 OLED 真黑上的光场,没有卡片没有容器,元素从黑里浮出来;
+      这套通体浅色,每个元素都是吹起来的实体,有高光有厚度有投影
+    - vs Glass:Glass 是毛玻璃 + 半透明素色卡片,材质是「雾面玻璃」;
+      这套是「抛光金属 + 充气塑料」,不透明、镜面渐变、内高光外露
+
+  Signature element 有两个:
+    1. **铬字标题**:每屏主标题走铬银渐变 clip-text,-0.03em 字距、800 字重
+       (系统无衬线黑体即可,金属感靠渐变带不靠字体)。宠物放在一个充气铬环里
+       (双层圆环:外圈铬渐变、内圈冰底),像徽章,底下垫一朵多值 border-radius
+       的充气 blob。
+    2. **镭射箔「NEW」贴纸**:只贴在「刚到手」的物品和刚收到卡上。conic 镭射底 +
+       一圈白描边 + -3deg 旋转,conic 角度以 14s 极慢自转(>12s,符合动效约束)。
+
+  对比度守卫:铬带本身是浅色的,直接 clip-text 会和冰底融成一片。两道保险:
+    1. 文字用的铬带里加了一段深色 #5A6480(56% 处),让字腰有一条暗带;
+    2. 铬字全部带 0.5px 墨色描边(-webkit-text-stroke)+ 下方 1px 的
+       rgba(90,100,128,.4) text-shadow,截图逐屏确认过在冰底上读得出。
+
+  产品原则守卫:不出现任何性格/健康的内部数值;数字只有「7 样」「4/6」「9:41」
+  「09:41」和日期(10-11 / 10-10),以及图鉴格位编号/页眉编号(沿自模板)。
+  零外部资源,字体只用系统栈。动效只有三种:镭射贴纸极慢自转、按钮按压下陷、
+  入场淡入(animation-fill-mode: both,0.6s 到终态,<3s)。
+  prefers-reduced-motion 下全部关闭。
+-->
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>千禧铬 Y2K Chrome · 方向 C</title>
+<style>
+  :root {
+    --sys-sans: -apple-system, "SF Pro Text", "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
+    --sys-mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+
+    --ice: #E6E9F4;
+    --ice-2: #DDE2EF;
+    --ink: #23263A;
+    --ink-60: #5A6480;
+    --ink-35: #8E99B8;
+    --gum: #F3B8D8;
+    --white: #FFFFFF;
+
+    /* 铬银渐变带:按钮和边框用原版 */
+    --chrome: linear-gradient(180deg, #F8FAFF 0%, #B9C2D8 38%, #EFF2FA 52%, #8E99B8 66%, #D7DDEB 100%);
+    /* 文字专用版:56% 处插入深色 #5A6480 段,不然铬字在冰底上读不出来(对比度守卫) */
+    --chrome-text: linear-gradient(180deg, #F8FAFF 4%, #B9C2D8 34%, #EFF2FA 48%, #5A6480 56%, #8E99B8 70%, #D7DDEB 100%);
+    /* 镭射箔:只给 NEW 贴纸和 tabbar 选中态 */
+    --holo: conic-gradient(from 0deg, #FFB3D9, #B8E6FF, #D6FFC9, #E3C9FF, #FFB3D9);
+
+    /* 充气件的标准光影:顶部内高光 + 底部内阴影 + 外投影,全篇高光方向一致(上亮下暗) */
+    --puff-bg: linear-gradient(180deg, #FFFFFF, #EDF0F9);
+    --puff-in: inset 0 2px 3px rgba(255,255,255,.95), inset 0 -3px 6px rgba(142,153,184,.32);
+    --puff-out: 0 4px 12px rgba(35,38,58,.12);
+
+    --pet-filter: saturate(1.04) drop-shadow(0 6px 10px rgba(35,38,58,.22));
+    --item-filter: saturate(1.04) drop-shadow(0 3px 5px rgba(35,38,58,.18));
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background:
+      radial-gradient(1100px 460px at 50% -120px, #F5F2FC 0%, rgba(245,242,252,0) 70%),
+      var(--ice);
+    font-family: var(--sys-sans);
+    color: var(--ink);
+    padding: 46px 20px 72px;
+  }
+
+  /* ---------------------------------------------------------------- 铬字(signature 1) */
+  .chrome-txt {
+    background-image: var(--chrome-text);
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+    -webkit-text-stroke: .5px rgba(35,38,58,.45);
+    text-shadow: 0 1px 0 rgba(90,100,128,.4);
+    font-weight: 800; letter-spacing: -.03em;
+  }
+
+  /* 四角星爆 spark:纯装饰,chrome 渐变 + clip-path,里面不放文字(会裁掉) */
+  .spark {
+    display: inline-block; width: 12px; height: 12px; flex-shrink: 0;
+    background: var(--chrome); filter: drop-shadow(0 1px 1px rgba(35,38,58,.25));
+    clip-path: polygon(50% 0%, 62% 38%, 100% 50%, 62% 62%, 50% 100%, 38% 62%, 0% 50%, 38% 38%);
+  }
+
+  /* ---------------------------------------------------------------- 镭射箔贴纸(signature 2) */
+  .holo-new {
+    position: relative; display: inline-flex; align-items: center; justify-content: center;
+    padding: 3px 8px; border-radius: 9px; transform: rotate(-3deg);
+    font-size: 9px; font-weight: 800; letter-spacing: .1em; color: #fff;
+    text-shadow: 0 1px 2px rgba(35,38,58,.6);
+    box-shadow: 0 0 0 2px #fff, 0 2px 6px rgba(35,38,58,.3);
+    overflow: hidden; isolation: isolate; white-space: nowrap;
+  }
+  .holo-new::before {
+    content: ''; position: absolute; inset: -120%; z-index: -1;
+    background: var(--holo);
+    animation: foil 14s linear infinite; /* >12s,极慢 */
+  }
+  @keyframes foil { to { transform: rotate(360deg); } }
+
+  /* ---------------------------------------------------------------- 充气件通用 */
+  .puff { background: var(--puff-bg); box-shadow: var(--puff-in), var(--puff-out); }
+  .btn-puff {
+    border: none; border-radius: 999px; background-image: var(--chrome);
+    color: var(--ink); font-family: var(--sys-sans); font-weight: 800; letter-spacing: .04em;
+    box-shadow: inset 0 2px 3px rgba(255,255,255,.95), inset 0 -3px 5px rgba(35,38,58,.3), 0 4px 10px rgba(35,38,58,.2);
+    transition: transform .12s ease, box-shadow .12s ease; cursor: pointer;
+  }
+  .btn-puff:active {
+    transform: translateY(2px) scale(.98); /* 按压下陷 */
+    box-shadow: inset 0 2px 5px rgba(35,38,58,.35), inset 0 -1px 2px rgba(255,255,255,.6), 0 1px 3px rgba(35,38,58,.15);
+  }
+
+  /* ---------------------------------------------------------------- 页面骨架 */
+  .intro { max-width: 760px; margin: 0 auto 16px; position: relative; }
+  .intro .eyebrow {
+    display: flex; align-items: center; gap: 8px;
+    font-size: 11px; font-weight: 800; letter-spacing: .14em;
+    color: var(--ink-60); text-transform: uppercase; margin: 0 0 12px;
+  }
+  .intro h1 { font-size: 32px; margin: 0 0 12px; }
+  .intro p { font-size: 14px; line-height: 1.75; color: var(--ink-60); margin: 0; max-width: 62ch; }
+  .intro p b { color: var(--ink); font-weight: 700; }
+  .rule {
+    max-width: 760px; margin: 24px auto 40px; height: 4px; border-radius: 2px;
+    background-image: var(--chrome);
+    box-shadow: inset 0 1px 1px rgba(255,255,255,.9), inset 0 -1px 2px rgba(35,38,58,.3), 0 2px 5px rgba(35,38,58,.12);
+  }
+
+  .row { max-width: 1240px; margin: 0 auto 50px; }
+  .row > h2 {
+    display: flex; align-items: center; gap: 9px;
+    font-size: 12px; font-weight: 800; letter-spacing: .16em;
+    text-transform: uppercase; color: var(--ink-60); margin: 0 0 20px;
+  }
+  .devices { display: flex; gap: 34px; flex-wrap: wrap; align-items: flex-start; }
+  .device-wrap {
+    display: flex; flex-direction: column; align-items: center; gap: 13px;
+    animation: rise .6s cubic-bezier(.2,.7,.3,1) both; /* fill-mode both:0.6s 到终态 */
+  }
+  .device-wrap:nth-child(2) { animation-delay: .12s; }
+  .device-wrap:nth-child(3) { animation-delay: .24s; }
+  @keyframes rise { from { opacity: 0; transform: translateY(16px) scale(.985); } to { opacity: 1; transform: none; } }
+  .cap {
+    font-size: 11px; font-weight: 800; letter-spacing: .1em; color: var(--ink-60);
+    background: var(--puff-bg); padding: 4px 14px; border-radius: 999px;
+    box-shadow: var(--puff-in), 0 2px 6px rgba(35,38,58,.1);
+  }
+
+  /* ---------------------------------------------------------------- 手表外框:铬合金壳 */
+  .watch-frame {
+    width: 240px; height: 280px; border-radius: 50px; padding: 16px; position: relative;
+    background: linear-gradient(160deg, #F8FAFF 0%, #B9C2D8 34%, #EFF2FA 50%, #8E99B8 70%, #D7DDEB 100%);
+    box-shadow: inset 0 2px 3px rgba(255,255,255,.95), inset 0 -4px 6px rgba(35,38,58,.35), 0 10px 24px rgba(35,38,58,.22);
+  }
+  .watch-frame::after {
+    content: ''; position: absolute; right: -4px; top: 50%; translate: 0 -50%;
+    width: 8px; height: 42px; border-radius: 4px;
+    background: linear-gradient(180deg, #EFF2FA, #8E99B8);
+    box-shadow: inset 0 1px 1px rgba(255,255,255,.8);
+  }
+  .watch-screen {
+    width: 208px; height: 248px; border-radius: 36px; overflow: hidden;
+    background: radial-gradient(120px 90px at 50% 0%, #F4F6FC 0%, var(--ice) 65%);
+    position: relative; color: var(--ink);
+    box-shadow: inset 0 2px 6px rgba(35,38,58,.25);
+  }
+
+  /* ---------------------------------------------------------------- 手机外框:铬合金壳 */
+  .phone-frame {
+    width: 358px; height: 744px; border-radius: 56px; padding: 14px; position: relative;
+    background: linear-gradient(160deg, #F8FAFF 0%, #B9C2D8 30%, #EFF2FA 48%, #8E99B8 72%, #D7DDEB 100%);
+    box-shadow: inset 0 2px 3px rgba(255,255,255,.95), inset 0 -5px 8px rgba(35,38,58,.35), 0 14px 34px rgba(35,38,58,.24);
+  }
+  .phone-screen {
+    width: 330px; height: 716px; border-radius: 44px; overflow: hidden;
+    background: radial-gradient(240px 160px at 50% 0%, #F4F6FC 0%, var(--ice) 70%);
+    position: relative; color: var(--ink);
+    box-shadow: inset 0 2px 8px rgba(35,38,58,.22);
+  }
+  .island { position: absolute; top: 10px; left: 50%; translate: -50% 0; width: 92px; height: 25px; border-radius: 14px; background: #171927; z-index: 50; box-shadow: inset 0 1px 2px rgba(255,255,255,.15); }
+
+  /* ---------------------------------------------------------------- 宠物铬环徽章(双层圆环) */
+  .ring {
+    border-radius: 50%; padding: 6px; background-image: var(--chrome);
+    box-shadow: inset 0 2px 3px rgba(255,255,255,.95), inset 0 -3px 5px rgba(35,38,58,.35), 0 5px 12px rgba(35,38,58,.22);
+    flex-shrink: 0;
+  }
+  .ring-in {
+    width: 100%; height: 100%; border-radius: 50%;
+    background: radial-gradient(circle at 50% 32%, #FFFFFF 0%, #EDF0F9 70%, #DFE4F1 100%);
+    box-shadow: inset 0 2px 5px rgba(35,38,58,.2);
+    display: flex; align-items: center; justify-content: center; overflow: hidden;
+  }
+  .ring-in img { object-fit: contain; filter: var(--pet-filter); }
+
+  /* ---------------------------------------------------------------- 手表内容 */
+  .w-screen { width: 100%; height: 100%; padding: 15px 14px 13px; display: flex; flex-direction: column; position: relative; }
+  .w-slug {
+    display: flex; justify-content: space-between; align-items: center;
+    font-size: 8.5px; font-weight: 800; letter-spacing: .12em; text-transform: uppercase;
+    color: var(--ink-60);
+  }
+  .w-slug .time { color: var(--ink); font-family: var(--sys-mono); letter-spacing: .06em; font-weight: 700; }
+  .w-slug .holo-new { font-size: 7.5px; padding: 2px 6px; }
+
+  .w-plate { position: relative; height: 112px; margin-top: 6px; display: flex; align-items: center; justify-content: center; }
+  /* 花朵形充气 blob 当容器:多值 border-radius,铬环坐在里面像一枚徽章 */
+  .w-blob {
+    position: absolute; width: 116px; height: 112px;
+    background: linear-gradient(180deg, #FFFFFF 0%, #DDE3F0 100%);
+    border-radius: 58% 42% 55% 45% / 45% 55% 48% 52%;
+    box-shadow: inset 0 2px 3px rgba(255,255,255,.95), inset 0 -3px 6px rgba(142,153,184,.4), 0 3px 8px rgba(35,38,58,.1);
+  }
+  .w-plate .ring { position: relative; width: 100px; height: 100px; }
+  .w-plate .ring-in img { width: 76px; height: 76px; }
+  .w-plate.away .ring-in img { opacity: .62; } /* 出门中:徽章里空落落的 */
+
+  .w-headline { font-size: 17px; margin: 9px 0 0; }
+  .w-sub { font-size: 10.5px; font-weight: 600; color: var(--ink-60); margin: 4px 0 0; letter-spacing: .02em; }
+  .w-foot { margin-top: auto; }
+  .w-btn { width: 100%; font-size: 12px; padding: 10px 0; min-height: 36px; }
+
+  .face { width: 100%; height: 100%; padding: 20px 14px 16px; display: flex; flex-direction: column; justify-content: center; }
+  .face-clock { font-family: var(--sys-mono); font-size: 42px; margin: 0; font-variant-numeric: tabular-nums; letter-spacing: -.04em; }
+  .face-rule {
+    height: 3px; border-radius: 2px; margin: 10px 0 13px; background-image: var(--chrome);
+    box-shadow: inset 0 1px 1px rgba(255,255,255,.9), inset 0 -1px 1px rgba(35,38,58,.35);
+  }
+  .compl {
+    display: flex; align-items: center; gap: 10px;
+    background: var(--puff-bg); border-radius: 999px; padding: 7px 14px 7px 7px;
+    box-shadow: var(--puff-in), var(--puff-out);
+  }
+  .compl .ring { width: 34px; height: 34px; padding: 3px; }
+  .compl .ring-in img { width: 22px; height: 22px; filter: var(--item-filter); }
+  .compl .t1 { font-size: 8px; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; color: var(--ink-60); }
+  .compl .t2 { font-size: 12.5px; font-weight: 800; margin-top: 2px; }
+
+  /* ---------------------------------------------------------------- 手机内容:通用 */
+  .p-screen { width: 100%; height: 100%; display: flex; flex-direction: column; position: relative; }
+  .p-top { padding: 44px 18px 0; }
+  .p-slug {
+    display: flex; align-items: center; gap: 7px;
+    font-size: 9.5px; font-weight: 800; letter-spacing: .16em; text-transform: uppercase;
+    color: var(--ink-60); margin: 0 0 8px;
+  }
+  .p-slug .spark { width: 10px; height: 10px; }
+  .p-title { font-size: 26px; margin: 0; }
+  .p-sub { font-size: 11px; font-weight: 600; color: var(--ink-60); margin: 7px 0 0; letter-spacing: .02em; }
+  .p-body { flex: 1; padding: 14px 18px 0; overflow: hidden; }
+
+  /* 图鉴:充气格子,每格是一颗吹起来的糖,左上角编号 */
+  .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 9px; margin-bottom: 14px; }
+  .slot {
+    position: relative; aspect-ratio: 1; border-radius: 22px;
+    background: var(--puff-bg);
+    box-shadow: var(--puff-in), 0 3px 8px rgba(35,38,58,.1);
+    display: flex; align-items: center; justify-content: center;
+  }
+  .slot .no { position: absolute; left: 8px; top: 6px; font-family: var(--sys-mono); font-size: 8px; font-weight: 700; color: var(--ink-35); letter-spacing: .06em; }
+  .slot img { width: 54%; height: 54%; object-fit: contain; filter: var(--item-filter); }
+  .slot.locked { background: linear-gradient(180deg, #DFE4F0, #D2D8E8); box-shadow: inset 0 2px 4px rgba(35,38,58,.14); }
+  .slot.locked .dash { width: 14px; height: 3px; border-radius: 2px; background: var(--ink-35); }
+  .slot .holo-new { position: absolute; right: 5px; bottom: 5px; z-index: 4; font-size: 7.5px; padding: 2px 6px; }
+
+  /* 套装进度:充气卡片,6 颗胶囊,填满的是铬带 */
+  .block { border-radius: 24px; background: var(--puff-bg); box-shadow: var(--puff-in), var(--puff-out); padding: 13px 15px 14px; }
+  .block-head { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 2px; }
+  .block-label { font-size: 10px; font-weight: 800; letter-spacing: .14em; text-transform: uppercase; color: var(--ink-60); }
+  .block-val { font-family: var(--sys-mono); font-size: 22px; font-variant-numeric: tabular-nums; }
+  .block-val small { font-size: 13px; font-weight: 700; color: var(--ink-60); -webkit-text-stroke: 0; text-shadow: none; background: none; color: var(--ink-60); }
+  .seg { display: flex; gap: 5px; margin: 10px 0; }
+  .seg i {
+    flex: 1; height: 10px; border-radius: 999px;
+    background: #D2D8E8; box-shadow: inset 0 1px 3px rgba(35,38,58,.22);
+  }
+  .seg i.on {
+    background-image: var(--chrome);
+    box-shadow: inset 0 1px 1px rgba(255,255,255,.9), inset 0 -1px 2px rgba(35,38,58,.35), 0 1px 2px rgba(35,38,58,.15);
+  }
+  .block-desc { font-size: 11.5px; font-weight: 600; color: var(--ink-60); line-height: 1.55; margin: 0; }
+
+  .received {
+    display: flex; align-items: center; gap: 12px; margin-top: 13px;
+    border-radius: 24px; background: var(--puff-bg); box-shadow: var(--puff-in), var(--puff-out);
+    padding: 11px 13px;
+  }
+  .received .ring { width: 48px; height: 48px; padding: 4px; }
+  .received .ring-in img { width: 32px; height: 32px; filter: var(--item-filter); }
+  .received .txt strong { display: block; font-size: 13px; font-weight: 800; margin-bottom: 3px; }
+  .received .txt span { font-size: 11.5px; font-weight: 600; color: var(--ink-60); line-height: 1.45; }
+  .received .holo-new { align-self: flex-start; margin-left: auto; }
+
+  /* 日记:每条是一封充气信笺,日期是泡泡糖 pill */
+  .diary-card { border-radius: 24px; background: var(--puff-bg); box-shadow: var(--puff-in), var(--puff-out); padding: 14px 16px 15px; margin-bottom: 13px; }
+  .diary-card time {
+    display: inline-block; font-size: 10px; font-weight: 800; letter-spacing: .06em;
+    color: var(--ink); background: var(--gum);
+    padding: 3.5px 12px; border-radius: 999px; margin-bottom: 10px;
+    box-shadow: inset 0 1px 2px rgba(255,255,255,.8), inset 0 -2px 3px rgba(35,38,58,.18), 0 2px 4px rgba(35,38,58,.12);
+  }
+  .diary-card p { font-size: 13.5px; line-height: 1.8; margin: 0; }
+  .diary-end { font-size: 10px; font-weight: 700; letter-spacing: .06em; color: var(--ink-35); margin: 20px 0 0; text-align: center; }
+  /* 下半页的空白:一条铬线 + 星爆把它收成一个刻意的收尾装饰,免得读成「没排完」 */
+  /* 钉到屏幕底部(tabbar 62px + 余量):p-body 是 block 流,auto margin 不吃空白,
+     只能绝对定位——和 halftone 的 sheet-foot 同一个思路 */
+  .diary-tail { position: absolute; left: 26px; right: 26px; bottom: 76px; display: flex; align-items: center; gap: 12px; }
+  .diary-tail .line { flex: 1; height: 2px; border-radius: 1px; }
+  .diary-tail .line.l { background: linear-gradient(90deg, rgba(185,194,216,0), #B9C2D8); }
+  .diary-tail .line.r { background: linear-gradient(90deg, #B9C2D8, rgba(185,194,216,0)); }
+  .diary-tail .spark { width: 26px; height: 26px; }
+
+  /* tabbar:白色充气托盘;选中态的底是全篇镭射箔仅有的两处出场之一 */
+  .tabbar {
+    position: absolute; left: 0; right: 0; bottom: 0; height: 62px; padding-bottom: 6px;
+    display: flex; z-index: 5;
+    background: linear-gradient(180deg, rgba(255,255,255,0) 0%, #FFFFFF 38%);
+    border-top: 1px solid rgba(35,38,58,.09);
+  }
+  .tab {
+    flex: 1; border: none; background: none; display: flex; flex-direction: column;
+    align-items: center; justify-content: center; gap: 4px; position: relative;
+    font-family: var(--sys-sans); font-size: 9.5px; font-weight: 700; letter-spacing: .08em; color: var(--ink-60);
+  }
+  .tab svg { width: 18px; height: 18px; stroke: var(--ink-60); fill: none; position: relative; z-index: 1; }
+  .tab span { position: relative; z-index: 1; }
+  .tab:active { opacity: .7; }
+  .tab.active { color: var(--ink); font-weight: 800; }
+  .tab.active svg { stroke: var(--ink); stroke-width: 2; }
+  .tab.active::before {
+    content: ''; position: absolute; inset: 7px 16px 5px; border-radius: 999px;
+    background: var(--holo);
+    box-shadow: inset 0 2px 3px rgba(255,255,255,.75), inset 0 -2px 4px rgba(35,38,58,.22), 0 2px 6px rgba(35,38,58,.16);
+  }
+
+  /* 「它」:场景照镶在铬相框里;信息行 + 按钮 margin-top:auto 钉底 */
+  .screen-pet { padding: 44px 18px 74px; display: flex; flex-direction: column; height: 100%; }
+  /* 相框吃掉中部留白:flex 撑高(上限 344),免得 caption 和钉底信息行之间留一条空 band */
+  .plate {
+    position: relative; margin-top: 14px; padding: 5px; border-radius: 30px;
+    display: flex; flex: 1 1 auto; min-height: 242px; max-height: 344px;
+    background-image: var(--chrome);
+    box-shadow: inset 0 2px 3px rgba(255,255,255,.95), inset 0 -3px 5px rgba(35,38,58,.35), 0 6px 16px rgba(35,38,58,.2);
+  }
+  .plate-img { position: relative; flex: 1; min-height: 232px; border-radius: 24px; overflow: hidden; display: flex; align-items: flex-end; justify-content: center; background: var(--ice-2); }
+  .plate-img img.scene { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; filter: saturate(1.05) brightness(1.03); }
+  .plate-img img.pet { position: relative; z-index: 4; width: 120px; height: 120px; object-fit: contain; margin-bottom: 14px; filter: var(--pet-filter); }
+  .pic-caption { font-size: 12.5px; font-weight: 600; color: var(--ink-60); margin: 13px 2px 0; }
+  .kv {
+    display: flex; justify-content: space-between; align-items: baseline;
+    border-radius: 20px; background: var(--puff-bg); box-shadow: var(--puff-in), var(--puff-out);
+    padding: 12px 16px; margin-top: auto;
+  }
+  .kv .k { font-size: 10px; font-weight: 800; letter-spacing: .14em; text-transform: uppercase; color: var(--ink-60); }
+  .kv .v { font-size: 12.5px; font-weight: 800; }
+  .action-row { display: flex; gap: 11px; margin-top: 13px; }
+  .pbtn { border: none; border-radius: 999px; padding: 13px 0; font-family: var(--sys-sans); font-size: 12px; font-weight: 800; letter-spacing: .06em; transition: transform .12s ease, box-shadow .12s ease; cursor: pointer; }
+  .pbtn:active { transform: translateY(2px) scale(.98); }
+  .pbtn.secondary {
+    flex: 1; background: var(--puff-bg); color: var(--ink);
+    box-shadow: var(--puff-in), var(--puff-out);
+  }
+  .pbtn.secondary:active { box-shadow: inset 0 2px 5px rgba(35,38,58,.3), 0 1px 3px rgba(35,38,58,.12); }
+  .pbtn.primary {
+    flex: 1.3; background-image: var(--chrome); color: var(--ink);
+    box-shadow: inset 0 2px 3px rgba(255,255,255,.95), inset 0 -3px 5px rgba(35,38,58,.3), 0 4px 10px rgba(35,38,58,.2);
+  }
+  .pbtn.primary:active { box-shadow: inset 0 2px 5px rgba(35,38,58,.35), inset 0 -1px 2px rgba(255,255,255,.6), 0 1px 3px rgba(35,38,58,.15); }
+
+  @media (prefers-reduced-motion: reduce) {
+    * { animation: none !important; transition: none !important; }
+  }
+</style>
+</head>
+<body>
+
+<div class="intro">
+  <p class="eyebrow"><i class="spark"></i>方向 C · 它自己的生活 — 千禧铬 Y2K Chrome / Holo</p>
+  <h1 class="chrome-txt">把界面吹成一只充气的铬徽章</h1>
+  <p>冰底 + 铬银渐变带 + 泡泡糖粉,全篇唯一一套<b>浅色、亮面、金属</b>的方向。
+    标题是铬合金渐变字,按钮是吹起来的气球(顶部内高光、底部内阴影),
+    「刚到手」贴<b>镭射箔贴纸</b>,宠物镶在充气铬环里像一枚徽章。
+    <b>和 Aura / Instrument 的哑光黑刻意是反义词</b>:那两套怕亮,这套怕 matte;
+    和 Glass 的区别在材质——Glass 是雾面半透明玻璃,这套是不透明的抛光金属和充气塑料。
+    镭射箔只出现在 NEW 贴纸和 tabbar 选中态两处,别处不用。</p>
+</div>
+<div class="rule"></div>
+
+<section class="row row-watch">
+  <h2><i class="spark"></i>手表 · 三帧</h2>
+  <div class="devices">
+
+    <div class="device-wrap">
+      <div class="watch-frame"><div class="watch-screen">
+        <div class="w-screen">
+          <div class="w-slug"><span>状态 · 外出</span><span class="time">09:41</span></div>
+          <div class="w-plate away">
+            <div class="w-blob"></div>
+            <div class="ring"><div class="ring-in"><img src="art/warm-idle.png" alt="宠物"></div></div>
+          </div>
+          <p class="w-headline chrome-txt">它出门了</p>
+          <p class="w-sub">大概傍晚回来</p>
+          <div class="w-foot"><button class="btn-puff w-btn">看看它</button></div>
+        </div>
+      </div></div>
+      <span class="cap">出门了</span>
+    </div>
+
+    <div class="device-wrap">
+      <div class="watch-frame"><div class="watch-screen">
+        <div class="w-screen">
+          <div class="w-slug"><span>状态 · 已归</span><span class="holo-new">NEW</span></div>
+          <div class="w-plate">
+            <div class="w-blob"></div>
+            <div class="ring"><div class="ring-in"><img src="art/warm-playful.png" alt="宠物"></div></div>
+          </div>
+          <p class="w-headline chrome-txt">它回来了</p>
+          <p class="w-sub">带回一颗果子</p>
+          <div class="w-foot"><button class="btn-puff w-btn">收下</button></div>
+        </div>
+      </div></div>
+      <span class="cap">回来了</span>
+    </div>
+
+    <div class="device-wrap">
+      <div class="watch-frame"><div class="watch-screen">
+        <div class="face">
+          <p class="face-clock chrome-txt">9:41</p>
+          <div class="face-rule"></div>
+          <div class="compl">
+            <div class="ring"><div class="ring-in"><img src="art/warm-idle.png" alt=""></div></div>
+            <div><div class="t1">出门中</div><div class="t2">傍晚回来</div></div>
+          </div>
+        </div>
+      </div></div>
+      <span class="cap">复杂功能</span>
+    </div>
+
+  </div>
+</section>
+
+<section class="row row-phone">
+  <h2><i class="spark"></i>手机 · 三页</h2>
+  <div class="devices">
+
+    <div class="device-wrap">
+      <div class="phone-frame"><div class="phone-screen">
+        <div class="island"></div>
+        <div class="p-screen">
+          <div class="p-top">
+            <p class="p-slug"><i class="spark"></i>图鉴 · 第 01 页</p>
+            <h1 class="p-title chrome-txt">它带回来的</h1>
+            <p class="p-sub">7 样 · 还有很多没见过</p>
+          </div>
+          <div class="p-body">
+            <div class="grid">
+              <div class="slot"><span class="no">01</span><img src="art/items/berry.png" alt="一颗果子"><span class="holo-new">NEW</span></div>
+              <div class="slot"><span class="no">02</span><img src="art/items/leaf.png" alt="一片叶子"></div>
+              <div class="slot"><span class="no">03</span><img src="art/items/stone.png" alt="一块石头"></div>
+              <div class="slot"><span class="no">04</span><img src="art/items/feather.png" alt="一根羽毛"></div>
+              <div class="slot"><span class="no">05</span><img src="art/items/shell.png" alt="一枚贝壳"></div>
+              <div class="slot"><span class="no">06</span><img src="art/items/flower.png" alt="一朵花"></div>
+              <div class="slot"><span class="no">07</span><img src="art/items/bottle.png" alt="一个小瓶子"></div>
+              <div class="slot locked"><span class="no">08</span><i class="dash"></i></div>
+              <div class="slot locked"><span class="no">09</span><i class="dash"></i></div>
+            </div>
+            <div class="block">
+              <div class="block-head">
+                <span class="block-label">套装 · 林线</span>
+                <span class="block-val chrome-txt">4<small>/6</small></span>
+              </div>
+              <div class="seg"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i></i><i></i></div>
+              <p class="block-desc">集齐解锁新的散步路线,缺的两样在湖边</p>
+            </div>
+            <div class="received">
+              <div class="ring"><div class="ring-in"><img src="art/items/berry.png" alt=""></div></div>
+              <div class="txt">
+                <strong>刚收到:一颗果子</strong>
+                <span>它说路边捡的,不太确定能不能吃</span>
+              </div>
+              <span class="holo-new">NEW</span>
+            </div>
+          </div>
+          <nav class="tabbar">
+            <button class="tab active"><svg viewBox="0 0 24 24" stroke-width="1.7"><rect x="4" y="4" width="7" height="7"/><rect x="13" y="4" width="7" height="7"/><rect x="4" y="13" width="7" height="7"/><rect x="13" y="13" width="7" height="7"/></svg><span>图鉴</span></button>
+            <button class="tab"><svg viewBox="0 0 24 24" stroke-width="1.7"><rect x="5" y="3.5" width="14" height="17"/><path d="M8.5 9h7M8.5 13h7"/></svg><span>日记</span></button>
+            <button class="tab"><svg viewBox="0 0 24 24" stroke-width="1.7"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="2.2"/></svg><span>它</span></button>
+          </nav>
+        </div>
+      </div></div>
+      <span class="cap">图鉴</span>
+    </div>
+
+    <div class="device-wrap">
+      <div class="phone-frame"><div class="phone-screen">
+        <div class="island"></div>
+        <div class="p-screen">
+          <div class="p-top">
+            <p class="p-slug"><i class="spark"></i>日记 · 第 02 页</p>
+            <h1 class="p-title chrome-txt">它写的</h1>
+            <p class="p-sub">它自己的视角,不是你的记录</p>
+          </div>
+          <div class="p-body">
+            <div class="diary-card">
+              <time>10-11 傍晚</time>
+              <p>今天走得比平常远。你好像也走了不少,我们大概错过了。带了一颗果子回来。</p>
+            </div>
+            <div class="diary-card">
+              <time>10-10 下午</time>
+              <p>窗台那边太阳很好,躺了一会儿。你一直没回来。</p>
+            </div>
+            <p class="diary-end">再往前就翻不到了 · 它也没打算全记住</p>
+            <div class="diary-tail"><i class="line l"></i><i class="spark"></i><i class="line r"></i></div>
+          </div>
+          <nav class="tabbar">
+            <button class="tab"><svg viewBox="0 0 24 24" stroke-width="1.7"><rect x="4" y="4" width="7" height="7"/><rect x="13" y="4" width="7" height="7"/><rect x="4" y="13" width="7" height="7"/><rect x="13" y="13" width="7" height="7"/></svg><span>图鉴</span></button>
+            <button class="tab active"><svg viewBox="0 0 24 24" stroke-width="1.7"><rect x="5" y="3.5" width="14" height="17"/><path d="M8.5 9h7M8.5 13h7"/></svg><span>日记</span></button>
+            <button class="tab"><svg viewBox="0 0 24 24" stroke-width="1.7"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="2.2"/></svg><span>它</span></button>
+          </nav>
+        </div>
+      </div></div>
+      <span class="cap">日记</span>
+    </div>
+
+    <div class="device-wrap">
+      <div class="phone-frame"><div class="phone-screen">
+        <div class="island"></div>
+        <div class="p-screen">
+          <div class="screen-pet">
+            <p class="p-slug"><i class="spark"></i>它 · 第 03 页</p>
+            <h1 class="p-title chrome-txt">小团</h1>
+            <p class="p-sub">在家 · 刚回来</p>
+            <div class="plate">
+              <div class="plate-img">
+                <img class="scene" src="art/scene-room.jpg" alt="">
+                <img class="pet" src="art/warm-calm.png" alt="宠物">
+              </div>
+            </div>
+            <p class="pic-caption">对着什么发呆</p>
+            <div class="kv">
+              <span class="k">下次出门</span>
+              <span class="v">明天早上 · 它自己决定的</span>
+            </div>
+            <div class="action-row">
+              <button class="pbtn secondary">给点心</button>
+              <button class="pbtn primary">摸摸</button>
+            </div>
+          </div>
+          <nav class="tabbar">
+            <button class="tab"><svg viewBox="0 0 24 24" stroke-width="1.7"><rect x="4" y="4" width="7" height="7"/><rect x="13" y="4" width="7" height="7"/><rect x="4" y="13" width="7" height="7"/><rect x="13" y="13" width="7" height="7"/></svg><span>图鉴</span></button>
+            <button class="tab"><svg viewBox="0 0 24 24" stroke-width="1.7"><rect x="5" y="3.5" width="14" height="17"/><path d="M8.5 9h7M8.5 13h7"/></svg><span>日记</span></button>
+            <button class="tab active"><svg viewBox="0 0 24 24" stroke-width="1.7"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="2.2"/></svg><span>它</span></button>
+          </nav>
+        </div>
+      </div></div>
+      <span class="cap">它</span>
+    </div>
+
+  </div>
+</section>
+
+</body>
+</html>
