@@ -1,0 +1,535 @@
+<!DOCTYPE html>
+<!--
+  设计小结 —— Material 色阶 Material Tonal / M3 (style-tonal)
+
+  风格命题:一个种子色,生成一整条色调阶梯。层级不靠阴影、不靠模糊、不靠描边,
+  只靠同一个色相在不同明度上的「tonal surface」:surface → container-low →
+  container → container-high → container-highest,越重要的容器色调越深一档。
+  大圆角(卡片 24–28px、格内小件 16–20px、chip 8px),所有按钮全 pill(999px),
+  强调色(primary)只小面积点亮:主按钮、套装进度已填段、NEW 徽标、页头 slug、
+  导航栏选中指示 pill。排版全篇系统无衬线(Material 没有第二字体家族),
+  标题略大、字重 700,标签靠字号+字距+颜色降级,数字 tabular-nums。
+
+  来源:designeer.xyz 的 Icons 区 Material Symbols / Google 的设计语言(Material 3)。
+  Material Symbols 的圆润几何(圆头笔画、饱满的 filled 形)被翻译成这里的图标:
+  全内联 SVG,grid_view 四宫格、书页、爪印,不引任何图标字体。
+
+  种子色:低饱和青绿「桉树绿」(seed ≈ 中低明度、低彩度的绿)。刻意选冷调——
+  宠物插画是暖毛色,冷调的 tonal 阶梯托暖色主体,画面才不会糊成一团米色;
+  同时避开 Aura 的暖橙光晕、Glass 的陶土 accent、Terrazzo 的暖骨料,不撞任何一套。
+
+  tonal 阶梯(近似 M3 的 tone 值,手工调准对比度):
+    surface                #F6FAF7 (tone 98)  页面/屏幕底
+    surface-container-low  #F0F4F1 (tone 96)  次级区块(套装卡、日记尾注)
+    surface-container      #EBEFEC (tone 94)  区块卡、导航栏底
+    surface-container-high #E5E9E6 (tone 92)  物品格、日记卡、表盘补 complications
+    surface-container-highest #DFE4E1 (tone 90) chip 底、进度空段、锁定格
+    primary                #3F6150 (tone 40)  点亮用:filled 按钮/进度已填/NEW
+    primary-container      #BFE8D2 (tone 90)  新物品格底、导航选中指示 pill
+    on-primary-container   #0E2317 (tone 10)
+    on-surface             #191D1A (tone 10)  正文
+    on-surface-variant     #404943 (tone 30)  次级文字
+    outline                #707A73 (tone 50)  弱化文字/线
+    outline-variant        #C0C9C2 (tone 80)  锁定格圈、日记分隔线
+
+  和 Glass 的差异化:Glass 是 Apple 毛玻璃——半透明材质、backdrop-blur、
+  卡片靠阴影「浮」在页面背景上,层级 = 浮起高度。这套全部容器**不透明平涂**,
+  一个 blur 都没有、一个投影都没有,层级 = 色调深浅。Glass 的按钮是 iOS 圆角矩形,
+  这套是全 pill;Glass 的材质半透叠色,这套每个面色都是从同一个种子色算出来的
+  确定值,叠不出第三种颜色。
+
+  和 Bento 的差异化:Bento 是 edge-to-edge 满屏 tile 马赛克——「没有页面背景
+  这回事」,tile 之间只有 6px 砖缝,层级 = tile 的跨度。这套有正常的页面背景
+  (surface)和常规留白(左右 16px 页边距、卡间 10–12px 沟),卡片是**放在页面里**
+  的容器而不是屏幕本身,层级 = 容器的色调档位;tabbar 是一条真正的导航栏
+  (带 M3 选中指示 pill),不是马赛克最底一排 tile。
+
+  Signature element:
+    1. **同一条 tonal 阶梯贯穿六屏**——每块屏从 surface 起步,内容按重要性往上
+       爬 1–3 档,爬到头就是 primary 的一小点。换屏不换色卡。
+    2. **M3 导航栏选中指示 pill**——选中的 tab 图标背后是一枚 primary-container
+       的横向 pill,这是 Material 3 最一眼可认的部件。
+    3. **state layer 感**——按钮 :active 时叠一层 12% 的 on-color 半透明层
+       (Material 的按压反馈语言),静态截图里也能从 NEW pill 的层次看到这套逻辑。
+
+  产品原则守卫:不出现任何性格/健康的内部数值;屏幕上数字只允许 7 样、4/6、
+  9:41、09:41 和日记日期。入场动效只有卡片错开 60ms 的淡入 + 8px 上浮,
+  keyframes 只写 from、基础样式即终态,animation-fill-mode: both 保证任何时刻
+  截图都能看到终态;prefers-reduced-motion 下完全关闭并直接落在终态。
+
+  已知 CSS 坑规避:全篇不用 `background:` 简写去盖 background-image 的场景
+  (纯色一律 background-color),场景照容器上叠的底部 scrim 用独立的绝对定位层。
+-->
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Material 色阶 Tonal · 方向 C</title>
+<style>
+  :root {
+    --sys-sans: -apple-system, "SF Pro Text", "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
+
+    /* tonal ladder — 同一个种子色(低饱和青绿)的不同明度档 */
+    --surface: #F6FAF7;
+    --sc-low: #F0F4F1;
+    --sc: #EBEFEC;
+    --sc-high: #E5E9E6;
+    --sc-highest: #DFE4E1;
+
+    --primary: #3F6150;
+    --on-primary: #FFFFFF;
+    --primary-container: #BFE8D2;
+    --on-primary-container: #0E2317;
+
+    --on-surface: #191D1A;
+    --on-surface-variant: #404943;
+    --outline: #707A73;
+    --outline-variant: #C0C9C2;
+
+    --bezel: #121613;
+    --bezel-dark: #0B0E0C;
+
+    /* Material state layer:按压时叠在按钮上的半透明层 */
+    --state-light: rgba(255,255,255,.12);
+    --state-dark: rgba(14,35,23,.10);
+  }
+  * { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    margin: 0;
+    background-color: var(--sc-low);
+    font-family: var(--sys-sans);
+    color: var(--on-surface);
+    padding: 44px 20px 72px;
+  }
+
+  /* ---------------------------------------------------------------- 页头 */
+  .intro { max-width: 760px; margin: 0 auto 14px; position: relative; }
+  .back {
+    display: inline-flex; align-items: center; gap: 6px;
+    font-size: 12px; font-weight: 500; letter-spacing: .02em;
+    color: var(--primary); text-decoration: none;
+    background-color: var(--primary-container);
+    padding: 7px 16px; border-radius: 999px; margin-bottom: 18px;
+  }
+  .back:active { box-shadow: inset 0 0 0 99px var(--state-dark); }
+  .intro .eyebrow {
+    font-size: 11px; font-weight: 700; letter-spacing: .18em;
+    color: var(--primary); text-transform: uppercase; margin: 0 0 10px;
+  }
+  .intro h1 { font-size: 28px; font-weight: 700; letter-spacing: -.02em; margin: 0 0 10px; color: var(--on-surface); }
+  .intro p { font-size: 14px; line-height: 1.75; color: var(--on-surface-variant); margin: 0; max-width: 62ch; }
+  .intro p b { color: var(--on-surface); font-weight: 600; }
+  /* 色阶样本条:页头下方直接展示 tonal ladder 本身,是这套风格的自证 */
+  .ladder { max-width: 760px; margin: 18px auto 0; display: flex; gap: 6px; }
+  .ladder i { flex: 1; height: 14px; border-radius: 999px; }
+  .ladder i:nth-child(1) { background-color: var(--surface); box-shadow: inset 0 0 0 1px var(--outline-variant); }
+  .ladder i:nth-child(2) { background-color: var(--sc-low); }
+  .ladder i:nth-child(3) { background-color: var(--sc); }
+  .ladder i:nth-child(4) { background-color: var(--sc-high); }
+  .ladder i:nth-child(5) { background-color: var(--sc-highest); }
+  .ladder i:nth-child(6) { background-color: var(--outline-variant); }
+  .ladder i:nth-child(7) { background-color: var(--primary-container); }
+  .ladder i:nth-child(8) { background-color: var(--primary); }
+  .rule { max-width: 760px; margin: 26px auto 40px; height: 1px; background-color: var(--outline-variant); }
+
+  .row { max-width: 1200px; margin: 0 auto 52px; }
+  .row > h2 {
+    font-size: 12px; font-weight: 700; letter-spacing: .16em;
+    text-transform: uppercase; color: var(--on-surface-variant); margin: 0 0 20px;
+  }
+  .devices { display: flex; gap: 34px; flex-wrap: wrap; align-items: flex-start; }
+  .device-wrap { display: flex; flex-direction: column; align-items: center; gap: 13px; }
+  .cap {
+    font-size: 11px; font-weight: 500; letter-spacing: .06em; color: var(--on-surface-variant);
+    background-color: var(--sc); padding: 5px 14px; border-radius: 999px;
+  }
+
+  /* ---------------------------------------------------------------- 入场动效
+     keyframes 只写 from,基础样式就是终态;fill-mode both + reduced-motion 全关。 */
+  @keyframes rise { from { opacity: 0; transform: translateY(8px); } }
+  .anim { animation: rise .55s cubic-bezier(.2,0,0,1) both; }
+  .device-wrap:nth-child(2) .anim { animation-delay: .06s; }
+  .device-wrap:nth-child(3) .anim { animation-delay: .12s; }
+
+  /* ---------------------------------------------------------------- 通用小件 */
+  .pill-new {
+    display: inline-block; font-size: 9px; font-weight: 700; letter-spacing: .08em;
+    color: var(--on-primary); background-color: var(--primary);
+    padding: 3.5px 9px; border-radius: 999px; white-space: nowrap;
+  }
+
+  /* ---------------------------------------------------------------- 手表外框 */
+  .watch-frame {
+    width: 240px; height: 280px; background: var(--bezel); border-radius: 50px;
+    padding: 16px; position: relative;
+  }
+  .watch-frame::after {
+    content: ''; position: absolute; right: -4px; top: 50%; translate: 0 -50%;
+    width: 8px; height: 42px; background: var(--bezel-dark); border-radius: 4px;
+  }
+  .watch-screen {
+    width: 208px; height: 248px; border-radius: 36px; overflow: hidden;
+    background-color: var(--surface); position: relative; color: var(--on-surface);
+  }
+
+  /* ---------------------------------------------------------------- 手机外框 */
+  .phone-frame {
+    width: 358px; height: 744px; background: var(--bezel); border-radius: 56px;
+    padding: 14px; position: relative;
+  }
+  .phone-screen {
+    width: 330px; height: 716px; border-radius: 44px; overflow: hidden;
+    background-color: var(--surface); position: relative; color: var(--on-surface);
+  }
+  .island { position: absolute; top: 10px; left: 50%; translate: -50% 0; width: 92px; height: 25px; border-radius: 14px; background: var(--bezel-dark); z-index: 50; }
+
+  /* ---------------------------------------------------------------- 手表内容 */
+  .w-screen { width: 100%; height: 100%; padding: 13px 13px 12px; display: flex; flex-direction: column; position: relative; }
+  .w-top { display: flex; justify-content: space-between; align-items: center; }
+  .w-chip {
+    font-size: 9px; font-weight: 600; letter-spacing: .04em; color: var(--on-surface-variant);
+    background-color: var(--sc-high); padding: 4.5px 11px; border-radius: 8px;
+  }
+  .w-time { font-size: 10.5px; font-weight: 500; color: var(--on-surface-variant); font-variant-numeric: tabular-nums; }
+  .w-card {
+    margin-top: 9px; height: 104px; border-radius: 24px; background-color: var(--sc-high);
+    display: flex; align-items: center; justify-content: center; position: relative;
+  }
+  .w-card img.pet { width: 90px; height: 90px; object-fit: contain; }
+  .w-card .pill-new { position: absolute; top: 8px; right: 10px; }
+  .w-headline { font-size: 17px; font-weight: 700; letter-spacing: -.01em; margin: 11px 2px 0; }
+  .w-sub { font-size: 11px; font-weight: 400; color: var(--on-surface-variant); margin: 3px 2px 0; }
+  .w-foot { margin-top: auto; }
+  .w-btn {
+    width: 100%; font-family: var(--sys-sans); font-size: 12px; font-weight: 600; letter-spacing: .03em;
+    color: var(--on-primary); border: none; border-radius: 999px;
+    padding: 11px 0; min-height: 38px; background-color: var(--primary);
+  }
+  .w-btn:active { box-shadow: inset 0 0 0 99px var(--state-light); }
+
+  .face { width: 100%; height: 100%; padding: 22px 15px 16px; display: flex; flex-direction: column; justify-content: center; }
+  .face-clock { font-size: 46px; font-weight: 600; letter-spacing: -.03em; margin: 0 0 14px; font-variant-numeric: tabular-nums; color: var(--on-surface); }
+  .compl { display: flex; align-items: center; gap: 10px; background-color: var(--sc-high); padding: 10px 12px; border-radius: 20px; }
+  .compl-win {
+    width: 36px; height: 36px; border-radius: 999px; background-color: var(--primary-container);
+    display: flex; align-items: center; justify-content: center; flex-shrink: 0; overflow: hidden;
+  }
+  .compl-win img { width: 30px; height: 30px; object-fit: contain; }
+  .compl .t1 { font-size: 9px; font-weight: 600; letter-spacing: .06em; color: var(--on-surface-variant); }
+  .compl .t2 { font-size: 13px; font-weight: 700; margin-top: 2px; color: var(--on-surface); }
+
+  /* ---------------------------------------------------------------- 手机内容:通用 */
+  .p-screen { width: 100%; height: 100%; display: flex; flex-direction: column; position: relative; }
+  .p-top { padding: 46px 16px 0; }
+  .p-slug { font-size: 10.5px; font-weight: 700; letter-spacing: .16em; text-transform: uppercase; color: var(--primary); margin: 0 0 8px; }
+  .p-title { font-size: 26px; font-weight: 700; letter-spacing: -.025em; margin: 0; }
+  .p-sub { font-size: 12px; font-weight: 400; color: var(--on-surface-variant); margin: 6px 0 0; }
+  .p-body { flex: 1; padding: 13px 16px 0; overflow: hidden; }
+
+  /* 图鉴:tonal 格子,每格自己就是一档 surface */
+  .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 10px; }
+  .slot {
+    position: relative; aspect-ratio: 1; background-color: var(--sc-high); border-radius: 20px;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .slot img { width: 56%; height: 56%; object-fit: contain; }
+  .slot.fresh { background-color: var(--primary-container); }
+  .slot.fresh .pill-new { position: absolute; right: 7px; bottom: 7px; font-size: 8px; padding: 3px 8px; }
+  .slot.locked { background-color: var(--sc); }
+  .slot.locked .hole { width: 20px; height: 20px; border-radius: 999px; border: 2.5px solid var(--outline-variant); }
+
+  /* 套装卡:低一档的容器托住进度,进度已填段是 primary 的点亮 */
+  .set-card { background-color: var(--sc-low); border-radius: 24px; padding: 14px 16px 15px; margin-bottom: 10px; }
+  .set-head { display: flex; align-items: baseline; justify-content: space-between; }
+  .set-label { font-size: 11px; font-weight: 700; letter-spacing: .1em; color: var(--on-surface-variant); }
+  .set-val { font-size: 23px; font-weight: 700; font-variant-numeric: tabular-nums; letter-spacing: -.02em; color: var(--on-surface); }
+  .set-val small { font-size: 13px; font-weight: 500; color: var(--on-surface-variant); }
+  .track { display: flex; gap: 4px; margin: 10px 0; }
+  .track i { flex: 1; height: 8px; border-radius: 999px; background-color: var(--outline-variant); }
+  .track i.on { background-color: var(--primary); }
+  .set-desc { font-size: 12px; color: var(--on-surface-variant); line-height: 1.55; margin: 0; }
+
+  /* 刚收到:高两档的容器,让这一行从页面里浮出来(靠色调,不靠阴影) */
+  .received {
+    position: relative;
+    display: flex; align-items: center; gap: 12px;
+    background-color: var(--sc-high); border-radius: 24px; padding: 14px;
+  }
+  .received .win {
+    width: 46px; height: 46px; border-radius: 999px; background-color: var(--primary-container);
+    display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+  }
+  .received .win img { width: 32px; height: 32px; object-fit: contain; }
+  .received .txt { min-width: 0; }
+  .received .txt strong { display: block; font-size: 13px; font-weight: 700; margin-bottom: 3px; }
+  .received .txt span { font-size: 11.5px; color: var(--on-surface-variant); line-height: 1.45; display: block; }
+  /* NEW 徽标钉在卡片右上角:让正文占满剩余宽度,不然「吃」一个字孤行 */
+  .received .pill-new { position: absolute; top: 9px; right: 12px; }
+
+  /* 日记:两条各是一张 container 卡,日期是 chip */
+  .diary-card { background-color: var(--sc); border-radius: 24px; padding: 15px 16px 16px; margin-bottom: 10px; }
+  .diary-card time {
+    display: inline-block; font-size: 10px; font-weight: 600; letter-spacing: .06em;
+    color: var(--on-surface-variant); background-color: var(--sc-highest);
+    padding: 4.5px 11px; border-radius: 8px; margin-bottom: 10px;
+    font-variant-numeric: tabular-nums;
+  }
+  .diary-card p { font-size: 13.5px; line-height: 1.8; margin: 0; color: var(--on-surface); }
+  .diary-end-wrap { display: flex; align-items: center; gap: 12px; margin: 22px 4px 0; }
+  .diary-end-wrap::before, .diary-end-wrap::after { content: ''; flex: 1; height: 1px; background-color: var(--outline-variant); }
+  .diary-end { font-size: 11px; font-weight: 500; letter-spacing: .04em; color: var(--outline); white-space: nowrap; margin: 0; }
+  /* 下半页的留白:一枚极淡的爪印把空白圈成「页面到此为止」,不是没排完 */
+  .diary-tail { position: absolute; left: 50%; translate: -50% 0; bottom: 108px; text-align: center; }
+  .diary-tail svg { width: 46px; height: 46px; fill: var(--sc-highest); }
+
+  /* tabbar:M3 导航栏——比页面高一档的 container 底,选中 tab 背后是指示 pill */
+  .tabbar {
+    position: absolute; left: 0; right: 0; bottom: 0; height: 64px; padding-bottom: 6px;
+    display: flex; background-color: var(--sc); z-index: 5;
+  }
+  .tab {
+    flex: 1; border: none; background: none; display: flex; flex-direction: column;
+    align-items: center; justify-content: center; gap: 4px; padding-top: 6px;
+    font-family: var(--sys-sans); font-size: 10px; font-weight: 500; letter-spacing: .04em;
+    color: var(--on-surface-variant);
+  }
+  .tab .ind {
+    width: 56px; height: 28px; border-radius: 999px; background-color: transparent;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .tab svg { width: 20px; height: 20px; fill: var(--on-surface-variant); }
+  .tab.active .ind { background-color: var(--primary-container); }
+  .tab.active svg { fill: var(--on-primary-container); }
+  .tab.active { color: var(--on-surface); font-weight: 700; }
+  .tab:active .ind { box-shadow: inset 0 0 0 99px var(--state-dark); }
+
+  /* 「它」:场景卡出血到卡边,底部 scrim 托住状态 chip */
+  .screen-pet { padding: 46px 16px 76px; display: flex; flex-direction: column; height: 100%; }
+  .scene-card { position: relative; margin-top: 12px; height: 274px; border-radius: 28px; overflow: hidden; background-color: var(--sc-high); }
+  .scene-card img.scene { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+  .scene-card img.pet {
+    position: absolute; left: 50%; bottom: 12px; translate: -50% 0; z-index: 2;
+    width: 124px; height: 124px; object-fit: contain;
+  }
+  .scene-scrim {
+    position: absolute; left: 0; right: 0; bottom: 0; height: 74px; z-index: 3;
+    background: linear-gradient(180deg, rgba(11,14,12,0), rgba(11,14,12,.42));
+  }
+  .scene-chip {
+    position: absolute; left: 12px; bottom: 12px; z-index: 4;
+    font-size: 10.5px; font-weight: 600; letter-spacing: .04em; color: var(--on-primary-container);
+    background-color: var(--primary-container); padding: 6px 13px; border-radius: 999px;
+  }
+  .pic-caption { font-size: 13px; color: var(--on-surface-variant); margin: 13px 2px 0; }
+  .kv {
+    display: flex; justify-content: space-between; align-items: baseline; gap: 10px;
+    background-color: var(--sc-low); border-radius: 20px; padding: 15px 16px; margin-top: auto;
+  }
+  .kv .k { font-size: 11px; font-weight: 700; letter-spacing: .1em; color: var(--on-surface-variant); white-space: nowrap; }
+  .kv .v { font-size: 12.5px; font-weight: 700; text-align: right; }
+  .action-row { display: flex; gap: 10px; margin-top: 12px; }
+  .pbtn {
+    border: none; border-radius: 999px; padding: 15px 0; min-height: 50px;
+    font-family: var(--sys-sans); font-size: 13px; font-weight: 600; letter-spacing: .03em;
+  }
+  .pbtn.tonal { flex: 1; background-color: var(--sc-highest); color: var(--on-surface); }
+  .pbtn.tonal:active { box-shadow: inset 0 0 0 99px var(--state-dark); }
+  .pbtn.filled { flex: 1.3; background-color: var(--primary); color: var(--on-primary); }
+  .pbtn.filled:active { box-shadow: inset 0 0 0 99px var(--state-light); }
+
+  @media (prefers-reduced-motion: reduce) {
+    * { animation: none !important; transition: none !important; }
+  }
+</style>
+</head>
+<body>
+
+<div class="intro">
+  <a class="back" href="styles.html">← 返回风格总览</a>
+  <p class="eyebrow">方向 C · 它自己的生活 — Material 色阶 Tonal (M3)</p>
+  <h1>一个种子色,生成一整条色调阶梯</h1>
+  <p>低饱和青绿的种子色算出五档 tonal surface,层级不靠阴影和模糊,只靠<b>色调深浅</b>:
+    越重要的容器越深一档,爬到顶是 primary 的一小点——pill 按钮、进度已填段、NEW 徽标。
+    卡片 24–28px 大圆角,按钮全 pill,导航栏选中格背后是 M3 的<b>指示 pill</b>。
+    和 Glass 的区别:那边是半透明毛玻璃靠阴影浮起,这边每个容器都是不透明的确定色;
+    和 Bento 的区别:那边满屏 tile 没有页面背景,这边有正常留白的页面,卡片放在页面里。</p>
+  <div class="ladder"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+</div>
+<div class="rule"></div>
+
+<section class="row row-watch">
+  <h2>手表 · 三屏</h2>
+  <div class="devices">
+
+    <div class="device-wrap">
+      <div class="anim watch-frame"><div class="watch-screen">
+        <div class="w-screen">
+          <div class="w-top"><span class="w-chip">状态 · 外出</span><span class="w-time">09:41</span></div>
+          <div class="w-card">
+            <img class="pet" src="art/warm-idle.png" alt="宠物">
+          </div>
+          <p class="w-headline">它出门了</p>
+          <p class="w-sub">大概傍晚回来</p>
+          <div class="w-foot"><button class="w-btn">看看它</button></div>
+        </div>
+      </div></div>
+      <span class="cap">出门了</span>
+    </div>
+
+    <div class="device-wrap">
+      <div class="anim watch-frame"><div class="watch-screen">
+        <div class="w-screen">
+          <div class="w-top"><span class="w-chip">状态 · 已归</span><span class="w-time">09:41</span></div>
+          <div class="w-card">
+            <img class="pet" src="art/warm-playful.png" alt="宠物">
+            <span class="pill-new">NEW</span>
+          </div>
+          <p class="w-headline">它回来了</p>
+          <p class="w-sub">带回一颗果子</p>
+          <div class="w-foot"><button class="w-btn">收下</button></div>
+        </div>
+      </div></div>
+      <span class="cap">回来了</span>
+    </div>
+
+    <div class="device-wrap">
+      <div class="anim watch-frame"><div class="watch-screen">
+        <div class="face">
+          <p class="face-clock">9:41</p>
+          <div class="compl">
+            <div class="compl-win"><img src="art/warm-idle.png" alt=""></div>
+            <div><div class="t1">出门中</div><div class="t2">傍晚回来</div></div>
+          </div>
+        </div>
+      </div></div>
+      <span class="cap">复杂功能</span>
+    </div>
+
+  </div>
+</section>
+
+<section class="row row-phone">
+  <h2>手机 · 三页</h2>
+  <div class="devices">
+
+    <div class="device-wrap">
+      <div class="anim phone-frame"><div class="phone-screen">
+        <div class="island"></div>
+        <div class="p-screen">
+          <div class="p-top">
+            <p class="p-slug">图鉴</p>
+            <h1 class="p-title">它带回来的</h1>
+            <p class="p-sub">7 样 · 还有很多没见过</p>
+          </div>
+          <div class="p-body">
+            <div class="grid">
+              <div class="slot fresh"><img src="art/items/berry.png" alt="一颗果子"><span class="pill-new">NEW</span></div>
+              <div class="slot"><img src="art/items/leaf.png" alt="一片叶子"></div>
+              <div class="slot"><img src="art/items/stone.png" alt="一块石头"></div>
+              <div class="slot"><img src="art/items/feather.png" alt="一根羽毛"></div>
+              <div class="slot"><img src="art/items/shell.png" alt="一枚贝壳"></div>
+              <div class="slot"><img src="art/items/flower.png" alt="一朵花"></div>
+              <div class="slot"><img src="art/items/bottle.png" alt="一个小瓶子"></div>
+              <div class="slot locked"><i class="hole"></i></div>
+              <div class="slot locked"><i class="hole"></i></div>
+            </div>
+            <div class="set-card">
+              <div class="set-head">
+                <span class="set-label">套装 · 林线</span>
+                <span class="set-val">4<small>/6</small></span>
+              </div>
+              <div class="track"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i></i><i></i></div>
+              <p class="set-desc">集齐解锁新的散步路线,缺的两样在湖边</p>
+            </div>
+            <div class="received">
+              <div class="win"><img src="art/items/berry.png" alt=""></div>
+              <div class="txt">
+                <strong>刚收到:一颗果子</strong>
+                <span>它说路边捡的,不太确定能不能吃</span>
+              </div>
+              <span class="pill-new">NEW</span>
+            </div>
+          </div>
+          <nav class="tabbar">
+            <button class="tab active"><span class="ind"><svg viewBox="0 0 24 24"><path d="M5 3h4.5a2 2 0 0 1 2 2V9.5a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2Zm9.5 0H19a2 2 0 0 1 2 2V9.5a2 2 0 0 1-2 2h-4.5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2ZM5 12.5h4.5a2 2 0 0 1 2 2V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4.5a2 2 0 0 1 2-2Zm9.5 0H19a2 2 0 0 1 2 2V19a2 2 0 0 1-2 2h-4.5a2 2 0 0 1-2-2v-4.5a2 2 0 0 1 2-2Z"/></svg></span>图鉴</button>
+            <button class="tab"><span class="ind"><svg viewBox="0 0 24 24"><path d="M5 2.5h14a2 2 0 0 1 2 2v15a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-15a2 2 0 0 1 2-2Zm2.4 4.4a1 1 0 0 0 0 2h9.2a1 1 0 1 0 0-2H7.4Zm0 4.6a1 1 0 1 0 0 2h9.2a1 1 0 1 0 0-2H7.4Zm0 4.6a1 1 0 1 0 0 2h5.4a1 1 0 1 0 0-2H7.4Z"/></svg></span>日记</button>
+            <button class="tab"><span class="ind"><svg viewBox="0 0 24 24"><circle cx="6.6" cy="9.4" r="2.5"/><circle cx="11" cy="6" r="2.5"/><circle cx="16.4" cy="7.4" r="2.5"/><circle cx="19" cy="12.4" r="2.3"/><path d="M12.4 11c2.6 0 5 2.2 5.9 4.4.7 1.8-.4 3.6-2.3 3.6-1 0-1.7-.4-3.6-.4s-2.6.4-3.6.4c-1.9 0-3-1.8-2.3-3.6C7.4 13.2 9.8 11 12.4 11Z"/></svg></span>它</button>
+          </nav>
+        </div>
+      </div></div>
+      <span class="cap">图鉴</span>
+    </div>
+
+    <div class="device-wrap">
+      <div class="anim phone-frame"><div class="phone-screen">
+        <div class="island"></div>
+        <div class="p-screen">
+          <div class="p-top">
+            <p class="p-slug">日记</p>
+            <h1 class="p-title">它写的</h1>
+            <p class="p-sub">它自己的视角,不是你的记录</p>
+          </div>
+          <div class="p-body">
+            <div class="diary-card">
+              <time>10-11 傍晚</time>
+              <p>今天走得比平常远。你好像也走了不少,我们大概错过了。带了一颗果子回来。</p>
+            </div>
+            <div class="diary-card">
+              <time>10-10 下午</time>
+              <p>窗台那边太阳很好,躺了一会儿。你一直没回来。</p>
+            </div>
+            <div class="diary-end-wrap"><p class="diary-end">再往前就翻不到了 · 它也没打算全记住</p></div>
+            <div class="diary-tail">
+              <svg viewBox="0 0 24 24"><circle cx="6.6" cy="9.4" r="2.5"/><circle cx="11" cy="6" r="2.5"/><circle cx="16.4" cy="7.4" r="2.5"/><circle cx="19" cy="12.4" r="2.3"/><path d="M12.4 11c2.6 0 5 2.2 5.9 4.4.7 1.8-.4 3.6-2.3 3.6-1 0-1.7-.4-3.6-.4s-2.6.4-3.6.4c-1.9 0-3-1.8-2.3-3.6C7.4 13.2 9.8 11 12.4 11Z"/></svg>
+            </div>
+          </div>
+          <nav class="tabbar">
+            <button class="tab"><span class="ind"><svg viewBox="0 0 24 24"><path d="M5 3h4.5a2 2 0 0 1 2 2V9.5a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2Zm9.5 0H19a2 2 0 0 1 2 2V9.5a2 2 0 0 1-2 2h-4.5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2ZM5 12.5h4.5a2 2 0 0 1 2 2V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4.5a2 2 0 0 1 2-2Zm9.5 0H19a2 2 0 0 1 2 2V19a2 2 0 0 1-2 2h-4.5a2 2 0 0 1-2-2v-4.5a2 2 0 0 1 2-2Z"/></svg></span>图鉴</button>
+            <button class="tab active"><span class="ind"><svg viewBox="0 0 24 24"><path d="M5 2.5h14a2 2 0 0 1 2 2v15a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-15a2 2 0 0 1 2-2Zm2.4 4.4a1 1 0 0 0 0 2h9.2a1 1 0 1 0 0-2H7.4Zm0 4.6a1 1 0 1 0 0 2h9.2a1 1 0 1 0 0-2H7.4Zm0 4.6a1 1 0 1 0 0 2h5.4a1 1 0 1 0 0-2H7.4Z"/></svg></span>日记</button>
+            <button class="tab"><span class="ind"><svg viewBox="0 0 24 24"><circle cx="6.6" cy="9.4" r="2.5"/><circle cx="11" cy="6" r="2.5"/><circle cx="16.4" cy="7.4" r="2.5"/><circle cx="19" cy="12.4" r="2.3"/><path d="M12.4 11c2.6 0 5 2.2 5.9 4.4.7 1.8-.4 3.6-2.3 3.6-1 0-1.7-.4-3.6-.4s-2.6.4-3.6.4c-1.9 0-3-1.8-2.3-3.6C7.4 13.2 9.8 11 12.4 11Z"/></svg></span>它</button>
+          </nav>
+        </div>
+      </div></div>
+      <span class="cap">日记</span>
+    </div>
+
+    <div class="device-wrap">
+      <div class="anim phone-frame"><div class="phone-screen">
+        <div class="island"></div>
+        <div class="p-screen">
+          <div class="screen-pet">
+            <p class="p-slug">它</p>
+            <h1 class="p-title">小团</h1>
+            <p class="p-sub">在家 · 刚回来</p>
+            <div class="scene-card">
+              <img class="scene" src="art/scene-room.jpg" alt="">
+              <div class="scene-scrim"></div>
+              <img class="pet" src="art/warm-calm.png" alt="宠物">
+              <span class="scene-chip">在家 · 窝边</span>
+            </div>
+            <p class="pic-caption">对着什么发呆</p>
+            <div class="kv">
+              <span class="k">下次出门</span>
+              <span class="v">明天早上 · 它自己决定的</span>
+            </div>
+            <div class="action-row">
+              <button class="pbtn tonal">给点心</button>
+              <button class="pbtn filled">摸摸</button>
+            </div>
+          </div>
+          <nav class="tabbar">
+            <button class="tab"><span class="ind"><svg viewBox="0 0 24 24"><path d="M5 3h4.5a2 2 0 0 1 2 2V9.5a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2Zm9.5 0H19a2 2 0 0 1 2 2V9.5a2 2 0 0 1-2 2h-4.5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2ZM5 12.5h4.5a2 2 0 0 1 2 2V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4.5a2 2 0 0 1 2-2Zm9.5 0H19a2 2 0 0 1 2 2V19a2 2 0 0 1-2 2h-4.5a2 2 0 0 1-2-2v-4.5a2 2 0 0 1 2-2Z"/></svg></span>图鉴</button>
+            <button class="tab"><span class="ind"><svg viewBox="0 0 24 24"><path d="M5 2.5h14a2 2 0 0 1 2 2v15a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-15a2 2 0 0 1 2-2Zm2.4 4.4a1 1 0 0 0 0 2h9.2a1 1 0 1 0 0-2H7.4Zm0 4.6a1 1 0 1 0 0 2h9.2a1 1 0 1 0 0-2H7.4Zm0 4.6a1 1 0 1 0 0 2h5.4a1 1 0 1 0 0-2H7.4Z"/></svg></span>日记</button>
+            <button class="tab active"><span class="ind"><svg viewBox="0 0 24 24"><circle cx="6.6" cy="9.4" r="2.5"/><circle cx="11" cy="6" r="2.5"/><circle cx="16.4" cy="7.4" r="2.5"/><circle cx="19" cy="12.4" r="2.3"/><path d="M12.4 11c2.6 0 5 2.2 5.9 4.4.7 1.8-.4 3.6-2.3 3.6-1 0-1.7-.4-3.6-.4s-2.6.4-3.6.4c-1.9 0-3-1.8-2.3-3.6C7.4 13.2 9.8 11 12.4 11Z"/></svg></span>它</button>
+          </nav>
+        </div>
+      </div></div>
+      <span class="cap">它</span>
+    </div>
+
+  </div>
+</section>
+
+</body>
+</html>

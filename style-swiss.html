@@ -1,0 +1,529 @@
+<!DOCTYPE html>
+<!--
+  设计小结 —— 瑞士网格 Swiss / Bauhaus 几何海报 (style-swiss)
+
+  风格命题:把每一屏当成一张瑞士国际主义风格的几何海报来排。
+  灵感来源:designeer.xyz 的 Utilities 区 Tabbied(生成式几何图案——圆、半圆、方、三角
+  在严格网格里做构成),叠加 Müller-Brockmann 的网格系统 + Bauhaus 的三原色几何。
+
+  调色板(米白纸底 + 三原色 + 黑,一共五个颜色,没有第六个):
+    --paper   #F5F2E8  米白纸底,海报纸
+    --ink     #141414  版面黑
+    --red     #D93B2B  原色红
+    --blue    #2248C8  原色蓝
+    --yellow  #F0B408  原色黄
+  三原色只出现在几何形、标记和强调上,永远不当大面积底色——纸底留白本身就是版面的一部分。
+
+  网格:栏网格是真的画出来的。页面背景、手表屏、手机屏上都有一层极淡的竖向栏线
+  (background-image 叠在 background-color 上,不用 background 简写——简写会把线盖掉)。
+  所有内容对齐到栏,左对齐,没有居中的正文。
+
+  字体:标题走 --sys-sans(Helvetica 感)重字重、紧字距、左对齐;
+  所有编号、日期、标签走 --sys-mono,字距拉开,拉丁字母全部 uppercase。
+
+  几何语言:圆、半圆、方、三角是海报的构成元素和分区标记——
+  手表屏的半圆「太阳」压在宠物身后,手机每页页眉有一个形状编码
+  (第 01 页红方 / 第 02 页蓝圆 / 第 03 页黄三角),tabbar 选中项是一条红色小横标。
+  所有几何形都是纯平面色块:无描边、无渐变、无阴影、无材质,就是印出来的色块。
+  几何形可以带刻度感,但不绑定任何数值;屏幕上出现的数字只有客观事实
+  (7 样、4/6、9:41/09:41、日期、页码、物品编号),不发明进度/分数/百分比。
+
+  ⚠️ 和已有的三套「也用几何/格子」的风格的区别,先说清楚:
+    - vs bento:bento 是满屏圆角 tile 马赛克,形状是**容器**,内容装在格子里,格子铺满。
+      这套相反:几何形是海报式的**构成元素**,不作为容器;版面靠留白呼吸,形状大而少,
+      每一屏最多两三个,角全部是直角(设备物理圆角除外)。
+    - vs terrazzo:terrazzo 是有机 chip 图案**铺满**背景,碎、密、随机分布。
+      这套相反:形状是精确的、大的、少的,位置对齐到网格,一个形状能占半屏。
+    - vs vitrail:vitrail 是铅条玻璃格——深色描边 + 半透明色块 + 材质感。
+      这套相反:**无描边无材质**,几何形是实色平涂,像丝网印在纸上的色块,
+      分隔只用 1px 纸色细线或 2px 黑色版面线,不存在「铅条」。
+-->
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>瑞士网格 Swiss / Bauhaus · 方向 C</title>
+<style>
+  :root {
+    --sys-sans: -apple-system, "SF Pro Text", "Helvetica Neue", "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
+    --sys-mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+
+    --paper: #F5F2E8;
+    --paper-2: #ECE8DB;
+    --ink: #141414;
+    --ink-60: #6B6A64;
+    --ink-25: #B4B2A8;
+    --red: #D93B2B;
+    --blue: #2248C8;
+    --yellow: #F0B408;
+    --bezel: #1A1A1A;
+
+    /* 栏网格线:1px 极淡竖线,叠在纸底上。
+       必须走 background-image + background-color,不能用 background 简写(会互相覆盖) */
+    --grid-line: linear-gradient(90deg, rgba(20,20,20,.055) 0 1px, transparent 1px);
+    --grid-line-screen: linear-gradient(90deg, rgba(20,20,20,.05) 0 1px, transparent 1px);
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background-color: var(--paper);
+    background-image: var(--grid-line);
+    background-size: 48px 100%;
+    font-family: var(--sys-sans);
+    color: var(--ink);
+    padding: 46px 20px 72px;
+  }
+
+  /* ---------------------------------------------------------------- 页头 */
+  .intro { max-width: 760px; margin: 0 auto 16px; position: relative; }
+  .intro .eyebrow {
+    font-family: var(--sys-mono); font-size: 11px; letter-spacing: .14em;
+    color: var(--red); text-transform: uppercase; margin: 0 0 12px;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .intro .eyebrow i { width: 9px; height: 9px; background: var(--red); flex-shrink: 0; }
+  .intro h1 { font-size: 30px; font-weight: 800; letter-spacing: -.02em; margin: 0 0 12px; line-height: 1.2; }
+  .intro p { font-size: 14px; line-height: 1.75; color: var(--ink-60); margin: 0; max-width: 60ch; }
+  .intro p b { color: var(--ink); font-weight: 600; }
+
+  /* 页头右侧的海报构成:纯装饰,大而少,不承载任何数值 */
+  .poster-mark { position: absolute; right: 0; top: 2px; width: 132px; height: 132px; }
+  .poster-mark .pm-sun {
+    position: absolute; left: 0; bottom: 0; width: 132px; height: 66px;
+    background: var(--yellow); border-radius: 132px 132px 0 0;
+  }
+  .poster-mark .pm-cir { position: absolute; right: 6px; top: 0; width: 46px; height: 46px; background: var(--red); border-radius: 50%; }
+  .poster-mark .pm-sq { position: absolute; left: 16px; top: 14px; width: 38px; height: 38px; background: var(--blue); }
+  .poster-mark .pm-tri {
+    position: absolute; right: 14px; bottom: 76px; width: 0; height: 0;
+    border-left: 17px solid transparent; border-right: 17px solid transparent;
+    border-bottom: 28px solid var(--ink);
+  }
+
+  .rule { max-width: 760px; margin: 26px auto 40px; height: 2px; background: var(--ink); position: relative; }
+  .rule::after { content: ''; position: absolute; left: 0; top: -2px; width: 120px; height: 6px; background: var(--red); }
+
+  .row { max-width: 1200px; margin: 0 auto 50px; }
+  .row > h2 {
+    font-family: var(--sys-mono); font-size: 11px; font-weight: 500; letter-spacing: .16em;
+    text-transform: uppercase; color: var(--ink-60); margin: 0 0 22px;
+    display: flex; align-items: center; gap: 9px;
+  }
+  .row > h2 .mk { width: 10px; height: 10px; flex-shrink: 0; }
+  .mk-sq { background: var(--red); }
+  .mk-cir { background: var(--blue); border-radius: 50%; }
+  .devices { display: flex; gap: 34px; flex-wrap: wrap; align-items: flex-start; }
+  .device-wrap { display: flex; flex-direction: column; align-items: center; gap: 13px; animation: rise .5s both; }
+  .device-wrap:nth-child(2) { animation-delay: .08s; }
+  .device-wrap:nth-child(3) { animation-delay: .16s; }
+  @keyframes rise { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
+  .cap { font-family: var(--sys-mono); font-size: 11px; letter-spacing: .1em; color: var(--ink-60); }
+
+  /* ---------------------------------------------------------------- 几何形(signature) */
+  /* 半圆「太阳」:平底半圆,从版面底边升起 */
+  .sun {
+    position: absolute; left: 50%; bottom: 0; translate: -50% 0;
+    width: 132px; height: 66px; background: var(--yellow);
+    border-radius: 132px 132px 0 0; z-index: 1;
+  }
+  /* 四分之一圆:从角落切进来的大圆弧 */
+  .quarter { position: absolute; top: 0; left: 0; width: 92px; height: 92px; background: var(--blue); border-radius: 0 0 92px 0; z-index: 1; }
+  .dot-red { position: absolute; width: 12px; height: 12px; background: var(--red); border-radius: 50%; z-index: 1; }
+  .sq-ink { position: absolute; width: 12px; height: 12px; background: var(--ink); z-index: 1; }
+
+  /* 页眉形状编码:第 01 页红方 / 第 02 页蓝圆 / 第 03 页黄三角 */
+  .page-code { display: inline-block; width: 9px; height: 9px; vertical-align: 1px; margin-right: 7px; }
+  .pc-sq { background: var(--red); }
+  .pc-cir { background: var(--blue); border-radius: 50%; }
+  .pc-tri { width: 0; height: 0; background: none; border-left: 5px solid transparent; border-right: 5px solid transparent; border-bottom: 9px solid var(--yellow); }
+
+  /* NEW 标记:红色实心小方条,直角,mono。丝网印的一个色块,不是印章也不是光 */
+  .stamp {
+    font-family: var(--sys-mono); font-size: 8px; font-weight: 700; letter-spacing: .12em;
+    text-transform: uppercase; color: #fff; background: var(--red);
+    padding: 2.5px 6px; border-radius: 0; white-space: nowrap;
+  }
+
+  /* ---------------------------------------------------------------- 手表外框 */
+  .watch-frame {
+    width: 240px; height: 280px; background: var(--bezel); border-radius: 50px;
+    padding: 16px; position: relative;
+  }
+  .watch-frame::after {
+    content: ''; position: absolute; right: -4px; top: 50%; translate: 0 -50%;
+    width: 8px; height: 42px; background: #0E0E0E; border-radius: 4px;
+  }
+  .watch-screen {
+    width: 208px; height: 248px; border-radius: 36px; overflow: hidden;
+    background-color: var(--paper); position: relative; color: var(--ink);
+  }
+
+  /* ---------------------------------------------------------------- 手机外框 */
+  .phone-frame {
+    width: 358px; height: 744px; background: var(--bezel); border-radius: 56px;
+    padding: 14px; position: relative;
+  }
+  .phone-screen {
+    width: 330px; height: 716px; border-radius: 44px; overflow: hidden;
+    background-color: var(--paper); position: relative; color: var(--ink);
+  }
+  .island { position: absolute; top: 10px; left: 50%; translate: -50% 0; width: 92px; height: 25px; border-radius: 14px; background: #0E0E0E; z-index: 50; }
+
+  /* 屏内栏网格:手表 4 栏、手机 6 栏,极淡,内容压在上面 */
+  .w-screen::before, .face::before, .p-screen::before {
+    content: ''; position: absolute; inset: 0; z-index: 0; pointer-events: none;
+    background-image: var(--grid-line-screen);
+  }
+  .w-screen::before, .face::before { background-size: calc(100% / 4) 100%; }
+  .p-screen::before { background-size: calc(100% / 6) 100%; }
+  /* 只把结构性子元素抬到网格线之上。不能用 `.p-screen > *` 这种通配:
+     通配规则写在后面会把 .island / .sq-ink 先声明的 position:absolute 覆盖成 relative,
+     island 于是挤进文档流把整页内容往下顶 25px,时钟屏的黑方块也会掉回流里跑到左缘 —— 截图里真发生过 */
+  .w-slug, .w-plate, .w-headline, .w-sub, .w-foot,
+  .face-clock, .face-rule, .compl,
+  .p-top, .p-body, .screen-pet { position: relative; z-index: 1; }
+
+  /* ---------------------------------------------------------------- 手表内容 */
+  .w-screen { width: 100%; height: 100%; padding: 17px 15px 14px; display: flex; flex-direction: column; }
+  .w-slug {
+    display: flex; justify-content: space-between; align-items: center;
+    font-family: var(--sys-mono); font-size: 8px; letter-spacing: .14em; text-transform: uppercase;
+    color: var(--ink-60); padding-bottom: 6px; border-bottom: 2px solid var(--ink);
+  }
+  .w-plate { position: relative; height: 108px; display: flex; align-items: center; justify-content: center; margin-top: 10px; overflow: hidden; }
+  .w-plate img.pet { width: 94px; height: 94px; object-fit: contain; position: relative; z-index: 2; }
+  .w-plate .dot-red { right: 6px; top: 8px; }
+  .w-plate .sq-ink { right: 8px; bottom: 8px; }
+  .w-headline { font-size: 17px; font-weight: 800; letter-spacing: -.01em; margin: 11px 0 0; }
+  .w-sub { font-family: var(--sys-mono); font-size: 10px; color: var(--ink-60); margin: 4px 0 0; letter-spacing: .03em; }
+  .w-foot { margin-top: auto; }
+  .w-btn {
+    width: 100%; font-family: var(--sys-sans); font-size: 12px; font-weight: 700; letter-spacing: .08em;
+    color: var(--paper); border: none; border-radius: 0;
+    padding: 10px 0; min-height: 34px; background: var(--ink);
+  }
+  .w-btn:active { background: var(--blue); }
+
+  .face { width: 100%; height: 100%; padding: 20px 15px 16px; display: flex; flex-direction: column; justify-content: center; }
+  .face .sq-ink { top: 16px; right: 15px; }
+  .face-clock { font-family: var(--sys-mono); font-size: 40px; font-weight: 700; letter-spacing: -.04em; margin: 0; font-variant-numeric: tabular-nums; }
+  .face-rule { height: 2px; background: var(--ink); margin: 10px 0 14px; position: relative; }
+  .face-rule::after { content: ''; position: absolute; left: 0; top: -2px; width: 34px; height: 6px; background: var(--blue); }
+  .compl { display: flex; align-items: center; gap: 10px; background: var(--paper-2); padding: 9px 11px; }
+  .compl-win { width: 32px; height: 32px; background: var(--yellow); display: flex; align-items: center; justify-content: center; flex-shrink: 0; overflow: hidden; position: relative; }
+  .compl-win img { width: 27px; height: 27px; object-fit: contain; position: relative; z-index: 2; }
+  .compl .t1 { font-family: var(--sys-mono); font-size: 8px; letter-spacing: .14em; text-transform: uppercase; color: var(--ink-60); }
+  .compl .t2 { font-size: 12.5px; font-weight: 700; margin-top: 2px; }
+
+  /* ---------------------------------------------------------------- 手机内容:通用 */
+  .p-screen { width: 100%; height: 100%; display: flex; flex-direction: column; }
+  .p-top { padding: 46px 20px 0; }
+  .p-slug { font-family: var(--sys-mono); font-size: 9px; letter-spacing: .16em; text-transform: uppercase; color: var(--ink-60); margin: 0 0 9px; }
+  .p-title { font-size: 26px; font-weight: 800; letter-spacing: -.025em; margin: 0; line-height: 1.15; }
+  .p-sub { font-family: var(--sys-mono); font-size: 10.5px; color: var(--ink-60); margin: 8px 0 0; letter-spacing: .03em; }
+  .p-top .hr { height: 2px; background: var(--ink); margin-top: 13px; }
+  .p-body { flex: 1; padding: 15px 20px 0; overflow: hidden; }
+
+  /* 图鉴:网格对齐到栏,格子之间只有 1px 纸色细线,没有容器感——
+     物品直接站在版面上,编号是版面注记 */
+  .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1px; background-color: rgba(20,20,20,.16); border-top: 2px solid var(--ink); border-bottom: 2px solid var(--ink); margin-bottom: 18px; }
+  .slot {
+    position: relative; aspect-ratio: 1; background-color: var(--paper);
+    display: flex; align-items: center; justify-content: center;
+  }
+  .slot .no { position: absolute; left: 5px; top: 4px; font-family: var(--sys-mono); font-size: 8px; color: var(--ink-25); letter-spacing: .06em; }
+  .slot img { width: 52%; height: 52%; object-fit: contain; position: relative; z-index: 2; }
+  .slot.locked { background-color: var(--paper-2); }
+  .slot.locked .dash { width: 12px; height: 12px; background: var(--ink-25); }
+  /* 第 01 格垫一个黄色实心圆当海报构成(物品站在形状前面,形状不是容器) */
+  .slot.hero::before { content: ''; position: absolute; width: 62%; height: 62%; background: var(--yellow); border-radius: 50%; z-index: 1; }
+  .slot .stamp { position: absolute; right: 4px; bottom: 4px; z-index: 4; }
+
+  /* 套装:方块刻度对齐 4/6 这个客观事实,填的是原色蓝,没填的留纸灰 */
+  .block { border-top: 2px solid var(--ink); padding: 13px 0 15px; }
+  .block-head { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 2px; }
+  .block-label { font-family: var(--sys-mono); font-size: 9.5px; letter-spacing: .14em; text-transform: uppercase; color: var(--ink-60); }
+  .block-val { font-family: var(--sys-sans); font-size: 24px; font-weight: 800; font-variant-numeric: tabular-nums; letter-spacing: -.03em; }
+  .block-val small { font-size: 14px; color: var(--ink-60); font-weight: 500; }
+  .seg { display: flex; gap: 4px; margin: 10px 0; }
+  .seg i { width: 20px; height: 10px; background: rgba(20,20,20,.12); }
+  .seg i.on { background: var(--blue); }
+  .block-desc { font-size: 11.5px; color: var(--ink-60); line-height: 1.55; margin: 0; }
+
+  .received { display: flex; align-items: center; gap: 12px; border-top: 2px solid var(--ink); padding: 13px 0 0; }
+  .received .win { width: 46px; height: 46px; background: var(--yellow); border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0; position: relative; }
+  .received .win img { width: 32px; height: 32px; object-fit: contain; position: relative; z-index: 2; }
+  .received .txt strong { display: block; font-size: 13px; font-weight: 700; margin-bottom: 3px; }
+  .received .txt span { font-size: 11.5px; color: var(--ink-60); line-height: 1.45; }
+  .received .stamp { align-self: flex-start; margin-left: auto; }
+
+  /* 日记:左对齐的版面,日期是黑底白字的 mono 标签,条目之间一条纸灰细线 */
+  .diary-row { padding: 0 0 18px; }
+  .diary-row + .diary-row { border-top: 1px solid var(--ink-25); padding-top: 16px; }
+  .diary-row time {
+    display: inline-block; font-family: var(--sys-mono); font-size: 9px; letter-spacing: .14em;
+    text-transform: uppercase; color: var(--paper); background: var(--ink);
+    padding: 2.5px 7px; margin-bottom: 9px;
+  }
+  .diary-row p { font-size: 13.5px; line-height: 1.8; margin: 0; }
+  .diary-end { font-family: var(--sys-mono); font-size: 9.5px; letter-spacing: .08em; color: var(--ink-25); margin: 0; }
+  /* 页脚 slug:日记内容只占上半页。大面积留白是这套风格的正面主张,
+     但页脚还是要有一行,把空白圈成版心之外的页边距,而不是「没排完」。 */
+  .sheet-foot {
+    position: absolute; left: 20px; right: 20px; bottom: 74px;
+    display: flex; justify-content: space-between; align-items: center;
+    border-top: 2px solid var(--ink); padding-top: 7px;
+    font-family: var(--sys-mono); font-size: 8.5px; letter-spacing: .16em;
+    text-transform: uppercase; color: var(--ink-60);
+  }
+  /* 日记页右下角的海报构成:红半圆从页边切进来,纯装饰,不承载数值 */
+  .diary-geo { position: absolute; right: -30px; bottom: 96px; width: 110px; height: 55px; background: var(--red); border-radius: 110px 110px 0 0; rotate: 180deg; z-index: 0; }
+
+  /* tabbar:2px 黑线托底,选中项顶上有一条红色小横标(形状编码,不是发光的块) */
+  .tabbar { position: absolute; left: 0; right: 0; bottom: 0; height: 62px; padding-bottom: 6px; display: flex; background-color: var(--paper); border-top: 2px solid var(--ink); }
+  .tab {
+    flex: 1; border: none; background: none; display: flex; flex-direction: column;
+    align-items: center; justify-content: center; gap: 5px; position: relative;
+    font-family: var(--sys-mono); font-size: 9px; letter-spacing: .1em; color: var(--ink-60);
+  }
+  .tab::before { content: ''; position: absolute; top: 0; left: 50%; translate: -50% 0; width: 18px; height: 4px; background: var(--red); opacity: 0; }
+  .tab svg { width: 17px; height: 17px; fill: currentColor; }
+  .tab svg .cut { fill: var(--paper); }
+  .tab.active { color: var(--ink); font-weight: 700; }
+  .tab.active::before { opacity: 1; }
+  .tab:active { opacity: .7; }
+
+  /* 「它」:场景照是一块矩形图版,平放在版面上,无描边无材质;
+     图版说明是一行 mono,黄三角当说明的项目符号 */
+  .screen-pet { padding: 46px 20px 74px; display: flex; flex-direction: column; height: 100%; }
+  .plate { position: relative; margin-top: 13px; }
+  .plate-img { position: relative; height: 236px; overflow: hidden; display: flex; align-items: flex-end; justify-content: center; background-color: var(--paper-2); }
+  .plate-img img.scene { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+  .plate-img img.pet { position: relative; z-index: 4; width: 120px; height: 120px; object-fit: contain; margin-bottom: 14px; }
+  /* 图版左上角切进来的蓝色四分之一圆:海报构成,压在照片上但在宠物之外 */
+  .plate-img .quarter { width: 64px; height: 64px; border-radius: 0 0 64px 0; z-index: 3; }
+  .plate-cap {
+    display: flex; justify-content: space-between; align-items: baseline;
+    border-bottom: 2px solid var(--ink); padding: 7px 0 6px;
+    font-family: var(--sys-mono); font-size: 8.5px; letter-spacing: .12em; text-transform: uppercase; color: var(--ink-60);
+  }
+  .plate-cap b { color: var(--blue); font-weight: 700; }
+  .pic-caption { font-size: 12.5px; color: var(--ink-60); margin: 12px 0 0; display: flex; align-items: center; gap: 8px; }
+  .pic-caption i { width: 0; height: 0; border-left: 5px solid transparent; border-right: 5px solid transparent; border-bottom: 9px solid var(--yellow); flex-shrink: 0; }
+  .kv { display: flex; justify-content: space-between; align-items: baseline; border-top: 2px solid var(--ink); border-bottom: 2px solid var(--ink); padding: 12px 0; margin-top: auto; }
+  .kv .k { font-family: var(--sys-mono); font-size: 9.5px; letter-spacing: .14em; text-transform: uppercase; color: var(--ink-60); }
+  .kv .v { font-size: 12.5px; font-weight: 700; }
+  .action-row { display: flex; gap: 10px; margin-top: 14px; }
+  .pbtn { border: none; border-radius: 0; padding: 13px 0; font-family: var(--sys-sans); font-size: 12.5px; font-weight: 700; letter-spacing: .08em; }
+  .pbtn.secondary { flex: 1; background: var(--yellow); color: var(--ink); }
+  .pbtn.primary { flex: 1.3; background: var(--ink); color: var(--paper); }
+  .pbtn.secondary:active { background: var(--red); color: #fff; }
+  .pbtn.primary:active { background: var(--blue); }
+
+  @media (prefers-reduced-motion: reduce) {
+    * { animation: none !important; transition: none !important; }
+  }
+</style>
+</head>
+<body>
+
+<div class="intro">
+  <div class="poster-mark" aria-hidden="true">
+    <span class="pm-sun"></span>
+    <span class="pm-sq"></span>
+    <span class="pm-cir"></span>
+    <span class="pm-tri"></span>
+  </div>
+  <p class="eyebrow"><i></i>方向 C · 它自己的生活 — 瑞士网格 Swiss / Bauhaus</p>
+  <h1>当成一张几何海报来排</h1>
+  <p>米白纸底 + 三原色 + 黑,一共五个颜色。栏网格是真的画出来的,内容全部左对齐到栏;
+    圆、半圆、方、三角是<b>海报的构成元素和分区标记</b>,大而少、精确、纯平面色块,
+    无描边无材质——像丝网印在纸上。<b>和 bento 相反:</b>形状不是容器,版面不铺满;
+    <b>和 terrazzo 相反:</b>形状不碎不密,一屏最多两三个;<b>和 vitrail 相反:</b>没有铅条描边,
+    只有实色平涂和留白。</p>
+</div>
+<div class="rule"></div>
+
+<section class="row row-watch">
+  <h2><i class="mk mk-sq"></i>手表 · 三帧海报</h2>
+  <div class="devices">
+
+    <div class="device-wrap">
+      <div class="watch-frame"><div class="watch-screen">
+        <div class="w-screen">
+          <div class="w-slug"><span>状态 · 外出</span><span>09:41</span></div>
+          <div class="w-plate">
+            <span class="sun" aria-hidden="true"></span>
+            <span class="dot-red" aria-hidden="true"></span>
+            <img class="pet" src="art/warm-idle.png" alt="宠物">
+          </div>
+          <p class="w-headline">它出门了</p>
+          <p class="w-sub">大概傍晚回来</p>
+          <div class="w-foot"><button class="w-btn">看看它</button></div>
+        </div>
+      </div></div>
+      <span class="cap">出门了</span>
+    </div>
+
+    <div class="device-wrap">
+      <div class="watch-frame"><div class="watch-screen">
+        <div class="w-screen">
+          <div class="w-slug"><span>状态 · 已归</span><span class="stamp">New</span></div>
+          <div class="w-plate">
+            <span class="quarter" aria-hidden="true"></span>
+            <span class="sq-ink" aria-hidden="true"></span>
+            <img class="pet" src="art/warm-playful.png" alt="宠物">
+          </div>
+          <p class="w-headline">它回来了</p>
+          <p class="w-sub">带回一颗果子</p>
+          <div class="w-foot"><button class="w-btn">收下</button></div>
+        </div>
+      </div></div>
+      <span class="cap">回来了</span>
+    </div>
+
+    <div class="device-wrap">
+      <div class="watch-frame"><div class="watch-screen">
+        <div class="face">
+          <span class="sq-ink" aria-hidden="true"></span>
+          <p class="face-clock">9:41</p>
+          <div class="face-rule"></div>
+          <div class="compl">
+            <div class="compl-win"><img src="art/warm-idle.png" alt=""></div>
+            <div><div class="t1">出门中</div><div class="t2">傍晚回来</div></div>
+          </div>
+        </div>
+      </div></div>
+      <span class="cap">复杂功能</span>
+    </div>
+
+  </div>
+</section>
+
+<section class="row row-phone">
+  <h2><i class="mk mk-cir"></i>手机 · 三页海报</h2>
+  <div class="devices">
+
+    <div class="device-wrap">
+      <div class="phone-frame"><div class="phone-screen">
+        <div class="island"></div>
+        <div class="p-screen">
+          <div class="p-top">
+            <p class="p-slug"><i class="page-code pc-sq"></i>图鉴 · 第 01 页</p>
+            <h1 class="p-title">它带回来的</h1>
+            <p class="p-sub">7 样 · 还有很多没见过</p>
+            <div class="hr"></div>
+          </div>
+          <div class="p-body">
+            <div class="grid">
+              <div class="slot hero"><span class="no">01</span><img src="art/items/berry.png" alt="一颗果子"><span class="stamp">New</span></div>
+              <div class="slot"><span class="no">02</span><img src="art/items/leaf.png" alt="一片叶子"></div>
+              <div class="slot"><span class="no">03</span><img src="art/items/stone.png" alt="一块石头"></div>
+              <div class="slot"><span class="no">04</span><img src="art/items/feather.png" alt="一根羽毛"></div>
+              <div class="slot"><span class="no">05</span><img src="art/items/shell.png" alt="一枚贝壳"></div>
+              <div class="slot"><span class="no">06</span><img src="art/items/flower.png" alt="一朵花"></div>
+              <div class="slot"><span class="no">07</span><img src="art/items/bottle.png" alt="一个小瓶子"></div>
+              <div class="slot locked"><span class="no">08</span><i class="dash"></i></div>
+              <div class="slot locked"><span class="no">09</span><i class="dash"></i></div>
+            </div>
+            <div class="block">
+              <div class="block-head">
+                <span class="block-label">套装 · 林线</span>
+                <span class="block-val">4<small>/6</small></span>
+              </div>
+              <div class="seg"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i></i><i></i></div>
+              <p class="block-desc">集齐解锁新的散步路线,缺的两样在湖边</p>
+            </div>
+            <div class="received">
+              <div class="win"><img src="art/items/berry.png" alt=""></div>
+              <div class="txt">
+                <strong>刚收到:一颗果子</strong>
+                <span>它说路边捡的,不太确定能不能吃</span>
+              </div>
+              <span class="stamp">New</span>
+            </div>
+          </div>
+          <nav class="tabbar">
+            <button class="tab active"><svg viewBox="0 0 24 24"><rect x="4" y="4" width="7" height="7"/><rect x="13" y="4" width="7" height="7"/><rect x="4" y="13" width="7" height="7"/><rect x="13" y="13" width="7" height="7"/></svg>图鉴</button>
+            <button class="tab"><svg viewBox="0 0 24 24"><rect x="5" y="3.5" width="14" height="17"/><rect class="cut" x="8.5" y="8.5" width="7" height="1.4"/><rect class="cut" x="8.5" y="12.5" width="7" height="1.4"/></svg>日记</button>
+            <button class="tab"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><circle class="cut" cx="12" cy="12" r="2.4"/></svg>它</button>
+          </nav>
+        </div>
+      </div></div>
+      <span class="cap">图鉴</span>
+    </div>
+
+    <div class="device-wrap">
+      <div class="phone-frame"><div class="phone-screen">
+        <div class="island"></div>
+        <div class="p-screen">
+          <div class="diary-geo" aria-hidden="true"></div>
+          <div class="p-top">
+            <p class="p-slug"><i class="page-code pc-cir"></i>日记 · 第 02 页</p>
+            <h1 class="p-title">它写的</h1>
+            <p class="p-sub">它自己的视角,不是你的记录</p>
+            <div class="hr"></div>
+          </div>
+          <div class="p-body">
+            <div class="diary-row">
+              <time>10-11 傍晚</time>
+              <p>今天走得比平常远。你好像也走了不少,我们大概错过了。带了一颗果子回来。</p>
+            </div>
+            <div class="diary-row">
+              <time>10-10 下午</time>
+              <p>窗台那边太阳很好,躺了一会儿。你一直没回来。</p>
+            </div>
+            <p class="diary-end">再往前就翻不到了 · 它也没打算全记住</p>
+            <div class="sheet-foot"><span>本页完</span><span>02 / 03</span></div>
+          </div>
+          <nav class="tabbar">
+            <button class="tab"><svg viewBox="0 0 24 24"><rect x="4" y="4" width="7" height="7"/><rect x="13" y="4" width="7" height="7"/><rect x="4" y="13" width="7" height="7"/><rect x="13" y="13" width="7" height="7"/></svg>图鉴</button>
+            <button class="tab active"><svg viewBox="0 0 24 24"><rect x="5" y="3.5" width="14" height="17"/><rect class="cut" x="8.5" y="8.5" width="7" height="1.4"/><rect class="cut" x="8.5" y="12.5" width="7" height="1.4"/></svg>日记</button>
+            <button class="tab"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><circle class="cut" cx="12" cy="12" r="2.4"/></svg>它</button>
+          </nav>
+        </div>
+      </div></div>
+      <span class="cap">日记</span>
+    </div>
+
+    <div class="device-wrap">
+      <div class="phone-frame"><div class="phone-screen">
+        <div class="island"></div>
+        <div class="p-screen">
+          <div class="screen-pet">
+            <p class="p-slug"><i class="page-code pc-tri"></i>它 · 第 03 页</p>
+            <h1 class="p-title">小团</h1>
+            <p class="p-sub">在家 · 刚回来</p>
+            <div class="plate">
+              <div class="plate-img">
+                <span class="quarter" aria-hidden="true"></span>
+                <img class="scene" src="art/scene-room.jpg" alt="">
+                <img class="pet" src="art/warm-calm.png" alt="宠物">
+              </div>
+              <div class="plate-cap"><span>图版 · 室内 窝边</span><span>状态 <b>在家</b></span></div>
+            </div>
+            <p class="pic-caption"><i aria-hidden="true"></i>对着什么发呆</p>
+            <div class="kv">
+              <span class="k">下次出门</span>
+              <span class="v">明天早上 · 它自己决定的</span>
+            </div>
+            <div class="action-row">
+              <button class="pbtn secondary">给点心</button>
+              <button class="pbtn primary">摸摸</button>
+            </div>
+          </div>
+          <nav class="tabbar">
+            <button class="tab"><svg viewBox="0 0 24 24"><rect x="4" y="4" width="7" height="7"/><rect x="13" y="4" width="7" height="7"/><rect x="4" y="13" width="7" height="7"/><rect x="13" y="13" width="7" height="7"/></svg>图鉴</button>
+            <button class="tab"><svg viewBox="0 0 24 24"><rect x="5" y="3.5" width="14" height="17"/><rect class="cut" x="8.5" y="8.5" width="7" height="1.4"/><rect class="cut" x="8.5" y="12.5" width="7" height="1.4"/></svg>日记</button>
+            <button class="tab active"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><circle class="cut" cx="12" cy="12" r="2.4"/></svg>它</button>
+          </nav>
+        </div>
+      </div></div>
+      <span class="cap">它</span>
+    </div>
+
+  </div>
+</section>
+
+</body>
+</html>

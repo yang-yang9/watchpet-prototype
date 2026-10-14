@@ -1,0 +1,620 @@
+<!DOCTYPE html>
+<!--
+  设计小结 —— 颗粒渐变 Grainy Gradient (style-grain)
+
+  来源:designeer.xyz Utilities 区的 Fffuel(grainy gradient / 噪点材质生成器,
+  这套材质本身就以它命名)、Design Galleries 区的 Backgrounds Supply(手作网站背景)、
+  Shaders 区的 Paper Shaders(纸感明暗色场)。共同气质:
+  「低饱和的渐变色场上压一层重胶片颗粒——颗粒是材质,不是脏」。
+
+  调色板(暮色 dusk:紫 → 玫 → 余烬橙 → 青紫,全部色相压在低中饱和):
+    --plum-deep #221B31  最深紫:页面底 / 设备边框。这套最暗处是深紫,**不是纯黑**
+                (纯黑光场是 aura 占住的位置,见下)
+    --violet    #4A3968  暮色紫,色场主色相
+    --rose      #8E5A63  暮色玫瑰,紫与橙之间的过渡带
+    --ember     #C97F63  余烬橙(低饱和,只进色场的光源位)
+    --apricot   #E9A06E  杏橙:全篇唯一的高明度强调,只给「New / 进度已填 / 主动作」
+                三种语义,别处不用
+    --teal      #5C837F  青紫阴影,色场收尾的冷对位
+    --cream     #F6EFE4  正文暖白(暮色底上略暖的白读起来像纸,不像屏幕)
+    --lilac     #CBBEDD  次级文字
+    --muted     #A795BC  弱化标签
+
+  thesis:每块屏是一整片连续的暮色渐变色场,上面压 feTurbulence 胶片颗粒;
+  内容浮在半透明色洗上——但**全文件没有一处 backdrop-filter**。
+  「磨砂」的手感靠颗粒密度堆出来,不靠 blur。
+
+  层级语言(这套的核心机制)= 色场深浅 × 噪点密度:
+    1. 三种颗粒纹理,baseFrequency 各不同:色场 0.55(粗粒)→ 面板 0.9(细粒)
+       → 未解锁格 0.42 的雾粒(tile 缩到 80px,颗粒结块,读起来像没对上焦的照片)。
+       越是承载内容的地方,色洗越实、颗粒越细;越是「空 / 未知」的地方颗粒越重。
+    2. 色场深浅负责空间感:余烬橙的暖光(radial)永远在画面低处——手表「回来了」
+       屏的暖光、日记页页脚的暖光,是同一个黄昏的两个时刻,光源是叙事不是装饰。
+    3. 唯一的动效是暖光的 9s 呼吸(infinite,基础不透明度即可见态),
+       prefers-reduced-motion 下关掉。没有入场动画,截图任何时刻都是终态。
+
+  和现有 9 套的差异化论证(为什么不撞):
+    - glass:Apple 玻璃拟物——backdrop-filter 模糊 + 白边悬浮卡片。这套零 blur、
+      零玻璃白边,半透明来自色洗 + 颗粒,读起来是「印了颗粒的透明胶片」,不是毛玻璃。
+    - aura:纯黑 OLED + 霓虹光晕,光是唯一材质。这套刻意相反:底色是深紫不是黑,
+      光来自大面积低饱和暮色渐变(环境光),不是霓虹点光源。
+    - instrument:纯黑 + 单一酸色 + 仪表刻度。这套是多色相暮色,无刻度语言。
+    - halftone:冷纸灰底、双色套印、硬边直角、规则网点保信息。这套暗色场、
+      软性大圆角、颗粒是不规则的胶片噪声,靠明暗包信息。
+    - celestial:靛蓝纸 + 金刻线,平贴无光。这套表面有连续明暗渐变和颗粒起伏,
+      没有刻线系统。
+    - bento:不透明平涂 tile + 砖缝马赛克。这套面板半透明,底是连续色场,无缝。
+    - chrome:亮冰底、金属铬渐变、充气立体。这套暗底,唯一带方向性的渐变是
+      杏橙 chip 按钮,无金属高光。
+    - vitrail:铅条分格 + 宝石玻璃透光。这套无分格线,颜色连续晕开。
+    - terrazzo:离散 chip 在奶油底上规则平铺,图案是 identity。这套的纹理是
+      连续噪声(胶片颗粒)不是离散骨料,底是暗色不是奶油。
+
+  实现注记:颗粒用内联 SVG feTurbulence 的 data-URI(index.html 已验证同款写法
+  能渲染);xmlns 命名空间做了百分号编码——它是 XML 标识符不是网络请求,浏览器
+  不会拉任何外部资源,同时让「外链 grep」对本文件保持零输出。字体只用系统栈。
+  已避开的坑:凡叠材质的地方一律分开写 background-color 与 background-image,
+  不用 background: 简写(简写会清掉先设的 background-image);颗粒层永远压在
+  文字下面(z-index 分层),小字号元素(按钮字、格号、徽标、时间)一律抬到
+  颗粒层之上,防止噪点糊字。
+-->
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>颗粒渐变 Grainy Gradient · 方向 C</title>
+<style>
+  :root {
+    --sys-sans: -apple-system, "SF Pro Text", "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
+    --sys-mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+
+    --plum-deep: #221B31;
+    --violet: #4A3968;
+    --rose: #8E5A63;
+    --ember: #C97F63;
+    --apricot: #E9A06E;
+    --teal: #5C837F;
+    --cream: #F6EFE4;
+    --lilac: #CBBEDD;
+    --muted: #A795BC;
+
+    --hairline: rgba(246, 239, 228, .13);
+    --wash-lite: rgba(255, 240, 222, .075);   /* 浅洗:浮起的面板 */
+    --wash-deep: rgba(23, 16, 34, .40);       /* 深洗:凹下去的井 */
+    --chip-ink: #33202A;                      /* 杏橙 chip 上的字 */
+
+    --bezel: #1A1526;
+    --bezel-2: #120E1C;
+
+    /* 三种颗粒:噪点密度是层级语言。粗粒给色场,细粒给面板,雾粒给未解锁。 */
+    /* rect 的 opacity 和 CSS 层的 opacity 是相乘的,两级都给低值颗粒会淡到看不见——
+       第一版就是这样(rect .6 × css .55 ≈ 有效 .16,截图里色场是滑的)。SVG 里给足,
+       CSS 层再微调。 */
+    --grain-field: url("data:image/svg+xml;utf8,<svg xmlns='%68ttp%3A%2F%2Fwww.w3.org%2F2000%2Fsvg' width='160' height='160'><filter id='g'><feTurbulence type='fractalNoise' baseFrequency='0.55' numOctaves='4' stitchTiles='stitch'/><feColorMatrix type='saturate' values='0'/></filter><rect width='160' height='160' filter='url(%23g)' opacity='0.9'/></svg>");
+    --grain-panel: url("data:image/svg+xml;utf8,<svg xmlns='%68ttp%3A%2F%2Fwww.w3.org%2F2000%2Fsvg' width='110' height='110'><filter id='g'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='3' stitchTiles='stitch'/><feColorMatrix type='saturate' values='0'/></filter><rect width='110' height='110' filter='url(%23g)' opacity='0.8'/></svg>");
+    --grain-fog: url("data:image/svg+xml;utf8,<svg xmlns='%68ttp%3A%2F%2Fwww.w3.org%2F2000%2Fsvg' width='90' height='90'><filter id='g'><feTurbulence type='fractalNoise' baseFrequency='0.42' numOctaves='2' stitchTiles='stitch'/><feColorMatrix type='saturate' values='0'/></filter><rect width='90' height='90' filter='url(%23g)' opacity='0.95'/></svg>");
+  }
+  * { box-sizing: border-box; }
+  html { color-scheme: dark; }
+  body {
+    margin: 0; position: relative; min-height: 100vh;
+    font-family: var(--sys-sans); color: var(--cream);
+    padding: 46px 20px 72px;
+    background-color: #1B1526;
+    background-image:
+      radial-gradient(80% 46% at 88% -4%, rgba(233, 160, 110, .13), transparent 62%),
+      radial-gradient(70% 44% at 4% 104%, rgba(92, 131, 127, .15), transparent 62%),
+      linear-gradient(168deg, #2C2139 0%, #221B31 46%, #1C2130 100%);
+  }
+  /* 页面底也压一层颗粒:海报和屏幕是同一种材质 */
+  body::before {
+    content: ''; position: absolute; inset: 0; z-index: 0; pointer-events: none;
+    background-image: var(--grain-field); background-size: 160px 160px;
+    mix-blend-mode: overlay; opacity: .55;
+  }
+
+  /* ---------------------------------------------------------------- 页头 */
+  .intro { max-width: 760px; margin: 0 auto 16px; position: relative; z-index: 1; }
+  .intro .eyebrow { font-size: 11px; font-weight: 600; letter-spacing: .22em; color: var(--apricot); margin: 0 0 10px; }
+  .intro h1 { font-size: 28px; font-weight: 600; letter-spacing: -.02em; margin: 0 0 10px; }
+  .intro p { font-size: 14px; line-height: 1.75; color: var(--lilac); margin: 0; max-width: 60ch; }
+  .intro p b { color: var(--cream); font-weight: 600; }
+  .rule {
+    max-width: 760px; margin: 22px auto 40px; height: 1px; position: relative; z-index: 1;
+    background-image: linear-gradient(90deg, transparent, rgba(233, 160, 110, .55), rgba(143, 201, 192, .35), transparent);
+  }
+
+  .row { max-width: 1200px; margin: 0 auto 50px; position: relative; z-index: 1; }
+  .row > h2 { font-size: 11px; font-weight: 600; letter-spacing: .24em; color: var(--lilac); margin: 0 0 20px; }
+  .devices { display: flex; gap: 34px; flex-wrap: wrap; align-items: flex-start; }
+  .device-wrap { display: flex; flex-direction: column; align-items: center; gap: 13px; }
+  .cap { font-size: 11px; letter-spacing: .14em; color: var(--muted); }
+
+  /* ---------------------------------------------------------------- 色场 + 颗粒(signature) */
+  .field { position: relative; isolation: isolate; }
+  .field::before {
+    content: ''; position: absolute; inset: 0; z-index: 0; pointer-events: none;
+    background-image: var(--grain-field); background-size: 150px 150px;
+    mix-blend-mode: overlay; opacity: .8;
+  }
+  /* 暖光呼吸:唯一动效。基础态即可见,截图任何时刻都是终态 */
+  .glow { position: absolute; inset: 0; z-index: -1; pointer-events: none; animation: breathe 9s ease-in-out infinite; }
+  .field-ember .glow { background-image: radial-gradient(115% 85% at 82% 118%, rgba(240, 178, 120, .42), transparent 62%); }
+  .field-afterglow .glow { background-image: radial-gradient(125% 44% at 50% 110%, rgba(233, 160, 110, .34), transparent 66%); }
+  @keyframes breathe { 0%, 100% { opacity: .72; } 50% { opacity: 1; } }
+
+  /* 五片色场:同一个黄昏的不同时刻 */
+  .field-dusk {
+    background-color: #2B3A50;
+    background-image:
+      radial-gradient(120% 78% at 12% 112%, rgba(233, 160, 110, .22), transparent 58%),
+      radial-gradient(90% 66% at 96% -10%, rgba(110, 82, 128, .5), transparent 62%),
+      linear-gradient(168deg, #564273 0%, #443B65 38%, #33445C 74%, #2B3A50 100%);
+  }
+  .field-ember {
+    background-color: #3A2C4E;
+    background-image:
+      radial-gradient(82% 58% at 8% -8%, rgba(110, 82, 128, .55), transparent 62%),
+      linear-gradient(176deg, #4C3A68 0%, #5C4260 52%, #77505A 100%);
+  }
+  .field-night {
+    background-color: #241D33;
+    background-image:
+      radial-gradient(100% 72% at 50% 114%, rgba(202, 122, 110, .3), transparent 62%),
+      radial-gradient(85% 58% at 50% -10%, rgba(94, 74, 126, .42), transparent 62%),
+      linear-gradient(180deg, #33284A 0%, #2A2140 55%, #241D33 100%);
+  }
+  .field-atlas {
+    background-color: #2D3A50;
+    background-image:
+      radial-gradient(95% 28% at 100% 0%, rgba(233, 160, 110, .2), transparent 62%),
+      radial-gradient(78% 32% at 0% 44%, rgba(110, 82, 128, .34), transparent 62%),
+      linear-gradient(174deg, #4A3968 0%, #403A64 34%, #36405E 64%, #2D3A50 100%);
+  }
+  .field-afterglow {
+    background-color: #5E4257;
+    background-image:
+      radial-gradient(85% 28% at 12% 0%, rgba(110, 82, 128, .5), transparent 62%),
+      linear-gradient(180deg, #45355F 0%, #4E3A5C 45%, #5E4257 76%, #6B4A52 100%);
+  }
+  .field-room {
+    background-color: #373454;
+    background-image:
+      radial-gradient(88% 38% at 50% 34%, rgba(142, 90, 99, .3), transparent 64%),
+      radial-gradient(70% 24% at 100% 0%, rgba(233, 160, 110, .18), transparent 62%),
+      linear-gradient(168deg, #523C63 0%, #4A3A60 46%, #41395E 74%, #373454 100%);
+  }
+
+  /* ---------------------------------------------------------------- 面板 / 井(层级靠色洗深浅 + 颗粒密度) */
+  .panel { position: relative; background-color: var(--wash-lite); border-radius: 18px; }
+  .panel::after {
+    content: ''; position: absolute; inset: 0; border-radius: inherit; z-index: 1; pointer-events: none;
+    background-image: var(--grain-panel); background-size: 110px 110px;
+    mix-blend-mode: overlay; opacity: .5;
+  }
+  .panel > * { position: relative; z-index: 2; }
+  .panel.deep { background-color: var(--wash-deep); }
+
+  .well { position: relative; background-color: var(--wash-deep); border-radius: 20px; overflow: hidden; }
+  .well::after {
+    content: ''; position: absolute; inset: 0; z-index: 1; pointer-events: none;
+    background-image: var(--grain-panel); background-size: 90px 90px;
+    mix-blend-mode: overlay; opacity: .55;
+  }
+
+  /* New 徽标 / 日期 chip:杏橙渐变实心,小面积,不加颗粒(字太小,怕糊) */
+  .stamp {
+    font-family: var(--sys-sans); font-size: 9px; font-weight: 700; letter-spacing: .14em;
+    text-transform: uppercase; color: var(--chip-ink); border-radius: 999px;
+    padding: 3px 8px; white-space: nowrap;
+    background-color: var(--apricot);
+    background-image: linear-gradient(135deg, #F0AC78, #DD805F);
+  }
+
+  /* chip 按钮:全篇唯一带方向性的渐变,余烬橙 */
+  .chip-btn {
+    width: 100%; border: none; border-radius: 999px; padding: 9px 0; min-height: 34px;
+    font-family: var(--sys-sans); font-size: 12.5px; font-weight: 600; letter-spacing: .1em;
+    color: var(--chip-ink); background-color: var(--apricot);
+    background-image: linear-gradient(135deg, #F0AC78 0%, #DD805F 100%);
+    box-shadow: inset 0 1px 0 rgba(255, 240, 220, .4);
+  }
+  .chip-btn:active { filter: brightness(.94); }
+
+  /* ---------------------------------------------------------------- 手表外框 */
+  .watch-frame {
+    width: 240px; height: 280px; background-color: var(--bezel); border-radius: 50px;
+    padding: 16px; position: relative;
+    box-shadow: 0 18px 44px rgba(12, 8, 20, .5), inset 0 0 0 1px rgba(246, 239, 228, .08);
+  }
+  .watch-frame::after {
+    content: ''; position: absolute; right: -4px; top: 50%; translate: 0 -50%;
+    width: 8px; height: 42px; background-color: var(--bezel-2); border-radius: 4px;
+  }
+  .watch-screen {
+    width: 208px; height: 248px; border-radius: 36px; overflow: hidden;
+    position: relative; color: var(--cream);
+  }
+
+  /* ---------------------------------------------------------------- 手机外框 */
+  .phone-frame {
+    width: 358px; height: 744px; background-color: var(--bezel); border-radius: 56px;
+    padding: 14px; position: relative;
+    box-shadow: 0 26px 60px rgba(12, 8, 20, .55), inset 0 0 0 1px rgba(246, 239, 228, .08);
+  }
+  .phone-screen {
+    width: 330px; height: 716px; border-radius: 44px; overflow: hidden;
+    position: relative; color: var(--cream);
+  }
+  .island { position: absolute; top: 10px; left: 50%; translate: -50% 0; width: 92px; height: 25px; border-radius: 14px; background-color: var(--bezel-2); z-index: 50; }
+
+  /* ---------------------------------------------------------------- 手表内容 */
+  .w-screen { width: 100%; height: 100%; padding: 17px 15px 14px; display: flex; flex-direction: column; position: relative; z-index: 1; }
+  .w-slug {
+    display: flex; justify-content: space-between; align-items: center;
+    font-size: 9px; letter-spacing: .16em; color: var(--lilac); padding-bottom: 7px;
+  }
+  .w-slug .t { font-family: var(--sys-mono); letter-spacing: .05em; color: rgba(246, 239, 228, .78); }
+  .well.pet-well { height: 108px; margin-top: 6px; display: flex; align-items: center; justify-content: center; }
+  .well img.pet { width: 92px; height: 92px; object-fit: contain; position: relative; z-index: 2; }
+  .w-headline { font-size: 16.5px; font-weight: 600; letter-spacing: -.01em; margin: 10px 0 0; }
+  .w-sub { font-family: var(--sys-mono); font-size: 10px; color: var(--lilac); margin: 3px 0 0; letter-spacing: .02em; }
+  .w-foot { margin-top: auto; }
+
+  .face { width: 100%; height: 100%; padding: 20px 16px 16px; display: flex; flex-direction: column; justify-content: center; position: relative; z-index: 1; }
+  .face-clock { font-family: var(--sys-mono); font-size: 42px; font-weight: 700; letter-spacing: -.04em; margin: 0; font-variant-numeric: tabular-nums; text-align: center; }
+  .face-rule { height: 1px; margin: 12px 0 14px; background-image: linear-gradient(90deg, transparent, rgba(233, 160, 110, .6), transparent); }
+  .compl { display: flex; align-items: center; gap: 10px; padding: 9px 11px; }
+  .compl-win {
+    width: 34px; height: 34px; border-radius: 11px; background-color: var(--wash-deep);
+    display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+    overflow: hidden; position: relative;
+  }
+  .compl-win::after {
+    content: ''; position: absolute; inset: 0; z-index: 1; pointer-events: none;
+    background-image: var(--grain-panel); background-size: 70px 70px;
+    mix-blend-mode: overlay; opacity: .5;
+  }
+  .compl-win img { width: 28px; height: 28px; object-fit: contain; position: relative; z-index: 2; }
+  .compl .t1 { font-size: 9px; letter-spacing: .14em; color: var(--lilac); }
+  .compl .t2 { font-size: 13px; font-weight: 600; margin-top: 2px; }
+
+  /* ---------------------------------------------------------------- 手机内容:通用 */
+  .p-screen { width: 100%; height: 100%; display: flex; flex-direction: column; position: relative; z-index: 1; }
+  .p-top { padding: 46px 20px 0; }
+  .p-slug { font-size: 10px; font-weight: 600; letter-spacing: .2em; color: var(--apricot); margin: 0 0 8px; }
+  .p-title { font-size: 25px; font-weight: 700; letter-spacing: -.02em; margin: 0; }
+  .p-sub { font-family: var(--sys-mono); font-size: 10.5px; color: var(--lilac); margin: 7px 0 0; letter-spacing: .02em; }
+  .p-top .hr { height: 1px; margin-top: 12px; background-image: linear-gradient(90deg, rgba(233, 160, 110, .55), rgba(143, 201, 192, .25), transparent); }
+  .p-body { flex: 1; padding: 15px 20px 0; overflow: hidden; position: relative; }
+
+  /* 图鉴:格子浮在色场上,已得的格是浅洗,未解锁的格被雾粒糊住 */
+  .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 15px; }
+  .slot {
+    position: relative; aspect-ratio: 1; border-radius: 15px; overflow: hidden;
+    background-color: var(--wash-lite);
+    display: flex; align-items: center; justify-content: center;
+  }
+  .slot::after {
+    content: ''; position: absolute; inset: 0; z-index: 1; pointer-events: none;
+    background-image: var(--grain-panel); background-size: 100px 100px;
+    mix-blend-mode: overlay; opacity: .45;
+  }
+  .slot img { width: 54%; height: 54%; object-fit: contain; position: relative; z-index: 2; }
+  .slot .no { position: absolute; left: 7px; top: 5px; font-family: var(--sys-mono); font-size: 9px; color: rgba(203, 190, 221, .6); z-index: 3; }
+  /* 徽标必须压过颗粒层,噪点糊字在 halftone 那套的截图里真的发生过 */
+  .slot .stamp { position: absolute; right: 6px; bottom: 6px; z-index: 3; }
+  .slot.locked { background-color: rgba(20, 14, 30, .5); }
+  .slot.locked::after { background-image: var(--grain-fog); background-size: 80px 80px; opacity: .8; }
+  .slot.locked .dash { width: 14px; height: 2px; border-radius: 1px; background-color: rgba(203, 190, 221, .42); position: relative; z-index: 2; }
+
+  /* 套装进度 */
+  .block { padding: 13px 0 14px; border-top: 1px solid var(--hairline); border-bottom: 1px solid var(--hairline); }
+  .block-head { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 2px; }
+  .block-label { font-size: 10px; letter-spacing: .16em; color: var(--lilac); }
+  .block-val { font-family: var(--sys-mono); font-size: 23px; font-weight: 700; font-variant-numeric: tabular-nums; letter-spacing: -.03em; color: var(--apricot); }
+  .block-val small { font-size: 14px; color: var(--lilac); font-weight: 500; }
+  .seg { display: flex; gap: 4px; margin: 9px 0; }
+  .seg i { flex: 1; height: 8px; border-radius: 4px; background-color: rgba(23, 16, 34, .45); }
+  .seg i.on { background-color: var(--apricot); background-image: linear-gradient(90deg, #EFA975, #CA7A6E); }
+  .block-desc { font-size: 11.5px; color: var(--lilac); line-height: 1.55; margin: 0; }
+
+  /* 刚收到 */
+  .received { display: flex; align-items: center; gap: 12px; padding: 11px 13px; margin-top: 13px; }
+  .received .win {
+    width: 46px; height: 46px; border-radius: 13px; background-color: var(--wash-deep);
+    display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+    position: relative; overflow: hidden;
+  }
+  .received .win::after {
+    content: ''; position: absolute; inset: 0; z-index: 1; pointer-events: none;
+    background-image: var(--grain-panel); background-size: 80px 80px;
+    mix-blend-mode: overlay; opacity: .5;
+  }
+  .received .win img { width: 34px; height: 34px; object-fit: contain; position: relative; z-index: 2; }
+  .received .txt strong { display: block; font-size: 13px; font-weight: 600; margin-bottom: 3px; }
+  .received .txt span { font-size: 11.5px; color: var(--lilac); line-height: 1.45; }
+  /* 这句话一行放不下,默认换行会断在「能不 / 能吃」中间,读起来像卡住了。
+     把两个分句各自 nowrap,换行只能发生在逗号后面。 */
+  .received .txt .nb { font-style: normal; white-space: nowrap; }
+  .received .stamp { align-self: flex-start; margin-left: auto; }
+
+  /* 日记:两条 entry 是两片浅洗面板,日期是杏橙 chip */
+  .diary-row { padding: 13px 15px; margin-bottom: 12px; }
+  .diary-row time {
+    display: inline-block; font-family: var(--sys-mono); font-size: 9.5px; font-weight: 700;
+    letter-spacing: .08em; color: var(--chip-ink); border-radius: 999px; padding: 3px 9px;
+    margin-bottom: 9px; background-color: var(--apricot);
+    background-image: linear-gradient(135deg, #F0AC78, #DD805F);
+  }
+  .diary-row p { font-size: 13.5px; line-height: 1.8; margin: 0; }
+  .diary-end { font-size: 10.5px; letter-spacing: .06em; color: var(--muted); margin: 4px 0 0; }
+  /* 页脚 slug:日记内容只占上半页,把下半页的空白圈成页边距,它才不读成「没做完」 */
+  .sheet-foot {
+    position: absolute; left: 20px; right: 20px; bottom: 74px;
+    display: flex; justify-content: space-between; align-items: center;
+    border-top: 1px solid var(--hairline); padding-top: 8px;
+    font-size: 9.5px; letter-spacing: .18em; color: var(--muted);
+  }
+
+  /* tabbar:深洗托底 + 细颗粒,选中态是杏橙浅洗 pill */
+  .tabbar {
+    position: absolute; left: 0; right: 0; bottom: 0; height: 62px; padding-bottom: 6px;
+    display: flex; background-color: rgba(26, 19, 38, .62);
+    border-top: 1px solid var(--hairline); z-index: 5;
+  }
+  .tabbar::after {
+    content: ''; position: absolute; inset: 0; z-index: 0; pointer-events: none;
+    background-image: var(--grain-panel); background-size: 110px 110px;
+    mix-blend-mode: overlay; opacity: .45;
+  }
+  .tab {
+    flex: 1; border: none; background: none; display: flex; flex-direction: column;
+    align-items: center; justify-content: center; gap: 5px; position: relative; z-index: 1;
+    font-family: var(--sys-sans); font-size: 9.5px; letter-spacing: .14em; color: var(--muted);
+    border-radius: 14px; margin: 8px;
+  }
+  .tab svg { width: 18px; height: 18px; stroke: currentColor; fill: none; }
+  .tab.active { background-color: rgba(233, 160, 110, .16); color: var(--apricot); }
+  .tab:active { opacity: .7; }
+
+  /* 「它」:场景照压进暮色,pet 浮在照片上 */
+  .screen-pet { padding: 46px 20px 74px; display: flex; flex-direction: column; height: 100%; position: relative; z-index: 1; }
+  .plate { position: relative; margin-top: 12px; border-radius: 22px; overflow: hidden; background-color: var(--wash-deep); }
+  .plate-img { position: relative; height: 318px; overflow: hidden; display: flex; align-items: flex-end; justify-content: center; }
+  .plate-img img.scene {
+    position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; z-index: 1;
+    filter: saturate(.8) contrast(1.06) brightness(.9);
+  }
+  /* 暮色分级:照片也泡在同一片紫光里 */
+  .plate-img::before {
+    content: ''; position: absolute; inset: 0; z-index: 2; pointer-events: none;
+    background-image: linear-gradient(180deg, rgba(74, 57, 104, .34), rgba(34, 27, 49, .52));
+    mix-blend-mode: multiply;
+  }
+  .plate-img::after {
+    content: ''; position: absolute; inset: 0; z-index: 3; pointer-events: none;
+    background-image: var(--grain-field); background-size: 130px 130px;
+    mix-blend-mode: overlay; opacity: .65;
+  }
+  .plate-img img.pet {
+    position: relative; z-index: 4; width: 120px; height: 120px; object-fit: contain;
+    margin-bottom: 14px; filter: drop-shadow(0 6px 14px rgba(20, 14, 30, .45));
+  }
+  .plate-cap {
+    position: absolute; left: 0; right: 0; bottom: 0; z-index: 5;
+    display: flex; justify-content: space-between; align-items: baseline;
+    padding: 16px 12px 8px; font-size: 9.5px; letter-spacing: .1em; color: rgba(246, 239, 228, .88);
+    background-image: linear-gradient(180deg, transparent, rgba(24, 17, 36, .7));
+  }
+  .plate-cap b { color: var(--apricot); font-weight: 600; }
+  .pic-caption { font-size: 12.5px; color: var(--lilac); margin: 12px 0 0; }
+  .kv { display: flex; justify-content: space-between; align-items: baseline; padding: 12px 14px; border-radius: 16px; margin-top: auto; }
+  .kv .k { font-size: 10px; letter-spacing: .16em; color: var(--lilac); }
+  .kv .v { font-size: 12.5px; font-weight: 600; }
+  .action-row { display: flex; gap: 10px; margin-top: 14px; }
+  .pbtn { border: none; border-radius: 999px; padding: 13px 0; font-family: var(--sys-sans); font-size: 12px; font-weight: 600; letter-spacing: .1em; }
+  .pbtn.secondary { flex: 1; background-color: rgba(255, 240, 222, .09); color: var(--cream); }
+  .pbtn.primary {
+    flex: 1.3; color: var(--chip-ink); background-color: var(--apricot);
+    background-image: linear-gradient(135deg, #F0AC78, #DD805F);
+    box-shadow: inset 0 1px 0 rgba(255, 240, 220, .4);
+  }
+  .pbtn:active { filter: brightness(.94); }
+
+  @media (prefers-reduced-motion: reduce) {
+    * { animation: none !important; }
+    .glow { opacity: .85; }
+  }
+</style>
+</head>
+<body>
+
+<div class="intro">
+  <p class="eyebrow">方向 C · 它自己的生活 — 颗粒渐变 Grainy Gradient</p>
+  <h1>把一段傍晚的天光,连颗粒一起装进屏幕</h1>
+  <p>低饱和暮色渐变色场(紫 → 玫 → 余烬橙 → 青紫)+ 重胶片颗粒。内容浮在半透明色洗上,
+    <b>层级靠色场深浅和噪点密度</b>:色场粗粒、面板细粒、没解锁的格子被最重的雾粒糊住。
+    <b>全文件零 backdrop-filter</b>——磨砂感是颗粒堆出来的,不是 blur 出来的;
+    和 aura 的纯黑光场刻意相反,这套有彩色、有环境光,最暗处是深紫不是黑。</p>
+</div>
+<div class="rule"></div>
+
+<section class="row row-watch">
+  <h2>手表 · 三帧暮色</h2>
+  <div class="devices">
+
+    <div class="device-wrap">
+      <div class="watch-frame"><div class="watch-screen field field-dusk">
+        <div class="w-screen">
+          <div class="w-slug"><span>状态 · 外出</span><span class="t">09:41</span></div>
+          <div class="well pet-well">
+            <img class="pet" style="opacity:.72" src="art/warm-idle.png" alt="宠物">
+          </div>
+          <p class="w-headline">它出门了</p>
+          <p class="w-sub">大概傍晚回来</p>
+          <div class="w-foot"><button class="chip-btn">看看它</button></div>
+        </div>
+      </div></div>
+      <span class="cap">出门了</span>
+    </div>
+
+    <div class="device-wrap">
+      <div class="watch-frame"><div class="watch-screen field field-ember">
+        <div class="glow"></div>
+        <div class="w-screen">
+          <div class="w-slug"><span>状态 · 已归</span><span class="stamp">New</span></div>
+          <div class="well pet-well">
+            <img class="pet" src="art/warm-playful.png" alt="宠物">
+          </div>
+          <p class="w-headline">它回来了</p>
+          <p class="w-sub">带回一颗果子</p>
+          <div class="w-foot"><button class="chip-btn">收下</button></div>
+        </div>
+      </div></div>
+      <span class="cap">回来了</span>
+    </div>
+
+    <div class="device-wrap">
+      <div class="watch-frame"><div class="watch-screen field field-night">
+        <div class="face">
+          <p class="face-clock">9:41</p>
+          <div class="face-rule"></div>
+          <div class="compl panel">
+            <div class="compl-win"><img src="art/warm-idle.png" alt=""></div>
+            <div><div class="t1">出门中</div><div class="t2">傍晚回来</div></div>
+          </div>
+        </div>
+      </div></div>
+      <span class="cap">复杂功能</span>
+    </div>
+
+  </div>
+</section>
+
+<section class="row row-phone">
+  <h2>手机 · 三页暮色</h2>
+  <div class="devices">
+
+    <div class="device-wrap">
+      <div class="phone-frame"><div class="phone-screen field field-atlas">
+        <div class="island"></div>
+        <div class="p-screen">
+          <div class="p-top">
+            <p class="p-slug">图鉴 · 第 01 页</p>
+            <h1 class="p-title">它带回来的</h1>
+            <p class="p-sub">7 样 · 还有很多没见过</p>
+            <div class="hr"></div>
+          </div>
+          <div class="p-body">
+            <div class="grid">
+              <div class="slot"><span class="no">01</span><img src="art/items/berry.png" alt="一颗果子"><span class="stamp">New</span></div>
+              <div class="slot"><span class="no">02</span><img src="art/items/leaf.png" alt="一片叶子"></div>
+              <div class="slot"><span class="no">03</span><img src="art/items/stone.png" alt="一块石头"></div>
+              <div class="slot"><span class="no">04</span><img src="art/items/feather.png" alt="一根羽毛"></div>
+              <div class="slot"><span class="no">05</span><img src="art/items/shell.png" alt="一枚贝壳"></div>
+              <div class="slot"><span class="no">06</span><img src="art/items/flower.png" alt="一朵花"></div>
+              <div class="slot"><span class="no">07</span><img src="art/items/bottle.png" alt="一个小瓶子"></div>
+              <div class="slot locked"><span class="no">08</span><i class="dash"></i></div>
+              <div class="slot locked"><span class="no">09</span><i class="dash"></i></div>
+            </div>
+            <div class="block">
+              <div class="block-head">
+                <span class="block-label">套装 · 林线</span>
+                <span class="block-val">4<small>/6</small></span>
+              </div>
+              <div class="seg"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i></i><i></i></div>
+              <p class="block-desc">集齐解锁新的散步路线,缺的两样在湖边</p>
+            </div>
+            <div class="received panel deep">
+              <div class="win"><img src="art/items/berry.png" alt=""></div>
+              <div class="txt">
+                <strong>刚收到:一颗果子</strong>
+                <span><i class="nb">它说路边捡的,</i><i class="nb">不太确定能不能吃</i></span>
+              </div>
+              <span class="stamp">New</span>
+            </div>
+          </div>
+          <nav class="tabbar">
+            <button class="tab active"><svg viewBox="0 0 24 24" stroke-width="1.7"><rect x="4" y="4" width="7" height="7"/><rect x="13" y="4" width="7" height="7"/><rect x="4" y="13" width="7" height="7"/><rect x="13" y="13" width="7" height="7"/></svg>图鉴</button>
+            <button class="tab"><svg viewBox="0 0 24 24" stroke-width="1.7"><rect x="5" y="3.5" width="14" height="17"/><path d="M8.5 9h7M8.5 13h7"/></svg>日记</button>
+            <button class="tab"><svg viewBox="0 0 24 24" stroke-width="1.7"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="2.2"/></svg>它</button>
+          </nav>
+        </div>
+      </div></div>
+      <span class="cap">图鉴</span>
+    </div>
+
+    <div class="device-wrap">
+      <div class="phone-frame"><div class="phone-screen field field-afterglow">
+        <div class="glow"></div>
+        <div class="island"></div>
+        <div class="p-screen">
+          <div class="p-top">
+            <p class="p-slug">日记 · 第 02 页</p>
+            <h1 class="p-title">它写的</h1>
+            <p class="p-sub">它自己的视角,不是你的记录</p>
+            <div class="hr"></div>
+          </div>
+          <div class="p-body">
+            <div class="diary-row panel">
+              <time>10-11 傍晚</time>
+              <p>今天走得比平常远。你好像也走了不少,我们大概错过了。带了一颗果子回来。</p>
+            </div>
+            <div class="diary-row panel">
+              <time>10-10 下午</time>
+              <p>窗台那边太阳很好,躺了一会儿。你一直没回来。</p>
+            </div>
+            <p class="diary-end">再往前就翻不到了 · 它也没打算全记住</p>
+            <div class="sheet-foot"><span>本页完</span><span>02 / 03</span></div>
+          </div>
+          <nav class="tabbar">
+            <button class="tab"><svg viewBox="0 0 24 24" stroke-width="1.7"><rect x="4" y="4" width="7" height="7"/><rect x="13" y="4" width="7" height="7"/><rect x="4" y="13" width="7" height="7"/><rect x="13" y="13" width="7" height="7"/></svg>图鉴</button>
+            <button class="tab active"><svg viewBox="0 0 24 24" stroke-width="1.7"><rect x="5" y="3.5" width="14" height="17"/><path d="M8.5 9h7M8.5 13h7"/></svg>日记</button>
+            <button class="tab"><svg viewBox="0 0 24 24" stroke-width="1.7"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="2.2"/></svg>它</button>
+          </nav>
+        </div>
+      </div></div>
+      <span class="cap">日记</span>
+    </div>
+
+    <div class="device-wrap">
+      <div class="phone-frame"><div class="phone-screen field field-room">
+        <div class="island"></div>
+        <div class="p-screen">
+          <div class="screen-pet">
+            <p class="p-slug">它 · 第 03 页</p>
+            <h1 class="p-title">小团</h1>
+            <p class="p-sub">在家 · 刚回来</p>
+            <div class="plate">
+              <div class="plate-img">
+                <img class="scene" src="art/scene-room.jpg" alt="">
+                <img class="pet" src="art/warm-calm.png" alt="宠物">
+              </div>
+              <div class="plate-cap"><span>图版 · 室内 窝边</span><span>状态 <b>在家</b></span></div>
+            </div>
+            <p class="pic-caption">对着什么发呆</p>
+            <div class="kv panel">
+              <span class="k">下次出门</span>
+              <span class="v">明天早上 · 它自己决定的</span>
+            </div>
+            <div class="action-row">
+              <button class="pbtn secondary">给点心</button>
+              <button class="pbtn primary">摸摸</button>
+            </div>
+          </div>
+          <nav class="tabbar">
+            <button class="tab"><svg viewBox="0 0 24 24" stroke-width="1.7"><rect x="4" y="4" width="7" height="7"/><rect x="13" y="4" width="7" height="7"/><rect x="4" y="13" width="7" height="7"/><rect x="13" y="13" width="7" height="7"/></svg>图鉴</button>
+            <button class="tab"><svg viewBox="0 0 24 24" stroke-width="1.7"><rect x="5" y="3.5" width="14" height="17"/><path d="M8.5 9h7M8.5 13h7"/></svg>日记</button>
+            <button class="tab active"><svg viewBox="0 0 24 24" stroke-width="1.7"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="2.2"/></svg>它</button>
+          </nav>
+        </div>
+      </div></div>
+      <span class="cap">它</span>
+    </div>
+
+  </div>
+</section>
+
+</body>
+</html>

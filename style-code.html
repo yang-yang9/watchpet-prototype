@@ -1,0 +1,696 @@
+<!DOCTYPE html>
+<!--
+  设计小结 —— 代码编辑器 Code Editor (style-code)
+
+  风格命题:整个 App 是一个打开着的 IDE 窗口。宠物的生活就是一份一直在提交的源文件:
+  窗口 chrome(交通灯 + 文件标签页)、行号槽、多色语法高亮、minimap、闪烁光标一应俱全;
+  日记条目是带时间戳的注释块,收藏品清单是数组字面量。
+  所有面向用户的中文文案原样出现在字符串字面量和注释里——代码是皮,文案是事实,
+  用户不需要会读代码,读到的每一句中文都和别的风格一字不差。
+
+  灵感来源:designeer.xyz Utilities 区的 Ray.so(把代码排成好看的图),
+  Desktop 区的 Warp / Ghostty(终端也编辑器化:深色底、语法色、窗口装饰)。
+  共同气质是「界面就是代码本身」——深底、token 色、等宽字体、窗口控制件。
+
+  调色板(Tokyo Night 一族,深底 + 六种 token 色):
+    --desk   #0C0C11  页面外的「桌面」
+    --chrome #15161E  标题栏 / 文件标签 / 状态栏 / tabbar
+    --bg     #1A1B26  编辑区底色
+    --bg2    #15161D  内嵌面板(图片预览窗、格子)
+    --fg     #C0CAF5  正文
+    --kw     #BB9AF7  关键字·紫     --fn   #7AA2F7  函数名·蓝
+    --str    #9ECE6A  字符串·绿     --num  #FF9E64  数字·橙
+    --type   #7DCFFF  类型·青       --com  #767EB0  注释·灰蓝
+    交通灯红黄绿用 macOS 窗口控制件的原色——那是 chrome,不是数据。
+
+  字体:全篇 --sys-mono(ui-monospace / SF Mono / Menlo / Consolas + CJK 回退)。
+  等宽是这套风格命题的一部分,正文也不出等宽。
+
+  ⚠️ 和 instrument(读数仪表)的刻意区分:
+    - instrument 是**单色**:纯黑 + 一条酸黄绿,没有第二个彩色;气质载体是刻度尺和
+      tabular 读数,读出来是「一台测量设备」。
+    - 这套是**多彩**:紫关键字 / 蓝函数 / 绿字符串 / 橙数字 / 青类型 / 灰蓝注释,
+      一眼是语法高亮的编辑器;气质载体是窗口 chrome(交通灯、文件标签、行号槽、
+      minimap、光标),读出来是「一份打开的源文件」。
+    - 两者共享的只有「深底 + 等宽」这一层皮:instrument 只给数字上 mono,这套全篇
+      mono;instrument 没有任何窗口装饰,这套每个屏幕都是带交通灯的编辑器窗口;
+      instrument 的 signature 是刻度尺,这套的 signature 是语法着色 + 编辑器 chrome。
+
+  数字纪律(和 instrument 同一条红线):屏幕上出现的数字只有客观事实——
+  7 样、4/6、9:41 / 09:41、日记日期 10-11 / 10-10、页码 01 / 02 / 03、
+  数组下标 [0]–[8](就是那 9 个格子的位置)。行号、Ln/Col、minimap 色条是编辑器
+  chrome,不是数据。不造 health: 87 之类的假数值字段。
+
+  动效只有一个:光标闪烁(波谷保留 12% 不透明度,截图落在任何时刻光标都可见)。
+  prefers-reduced-motion 下完全关闭。没有入场动画,不存在终态被截图错过的问题。
+
+  已知 CSS 坑:叠材质的地方一律用 background-color,不用 background: 简写,
+  免得把 background-image 冲掉。
+-->
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>代码编辑器 Code Editor · 方向 C</title>
+<style>
+  :root {
+    --sys-mono: ui-monospace, "SF Mono", Menlo, Consolas, "PingFang SC", "Noto Sans CJK SC", "Microsoft YaHei", monospace;
+
+    --desk: #0C0C11;
+    --chrome: #15161E;
+    --bg: #1A1B26;
+    --bg2: #15161D;
+    --line: #282A3A;
+    --fg: #C0CAF5;
+    --dim: #8B93B8;
+    --com: #767EB0;
+    --kw: #BB9AF7;
+    --fn: #7AA2F7;
+    --str: #9ECE6A;
+    --num: #FF9E64;
+    --type: #7DCFFF;
+    --punc: #8990B3;
+    --ln: #3B4261;
+    --sel: #262D4D;
+    --bezel: #0A0A0E;
+    --tl-r: #FF5F57;
+    --tl-y: #FEBC2E;
+    --tl-g: #28C840;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background-color: var(--desk);
+    font-family: var(--sys-mono);
+    color: var(--fg);
+    padding: 46px 20px 72px;
+  }
+
+  /* ---------------------------------------------------------------- 语法 token(全篇通用) */
+  .k { color: var(--kw); }
+  .f { color: var(--fn); }
+  .s { color: var(--str); }
+  /* 字符串里的中文长句默认会断在「能不 / 能吃」中间。两个分句各自 nowrap,
+     换行只能落在逗号后。 */
+  .nb { font-style: normal; white-space: nowrap; }
+  .n { color: var(--num); font-variant-numeric: tabular-nums; }
+  .t { color: var(--type); }
+  .c { color: var(--com); }
+  .p { color: var(--punc); }
+  .d { color: var(--dim); }
+  .q { color: var(--punc); opacity: .75; font-weight: 400; }
+
+  /* ---------------------------------------------------------------- 页头说明 */
+  .intro { max-width: 760px; margin: 0 auto 16px; position: relative; }
+  .back {
+    display: inline-block; font-size: 11px; color: var(--fn); text-decoration: none;
+    border: 1px solid var(--line); border-radius: 5px; padding: 4px 10px; margin-bottom: 16px;
+    background-color: var(--bg2);
+  }
+  .back:hover { border-color: var(--fn); }
+  .intro .eyebrow { font-size: 11.5px; letter-spacing: .06em; color: var(--com); margin: 0 0 10px; }
+  .intro h1 { font-size: 26px; font-weight: 700; letter-spacing: -.01em; margin: 0 0 12px; color: var(--fg); }
+  .intro h1 .s { font-weight: 700; }
+  .intro p { font-size: 13px; line-height: 1.85; color: var(--dim); margin: 0; max-width: 64ch; }
+  .intro p b { font-weight: 600; }
+  .rule { max-width: 760px; margin: 24px auto 40px; height: 1px; background-color: var(--line); }
+
+  .row { max-width: 1200px; margin: 0 auto 50px; }
+  .row > h2 { font-size: 12px; font-weight: 500; letter-spacing: .08em; color: var(--com); margin: 0 0 20px; }
+  .devices { display: flex; gap: 34px; flex-wrap: wrap; align-items: flex-start; }
+  .device-wrap { display: flex; flex-direction: column; align-items: center; gap: 13px; }
+  .cap { font-size: 11px; letter-spacing: .06em; color: var(--dim); }
+
+  /* ---------------------------------------------------------------- 光标(signature) */
+  .caret {
+    display: inline-block; width: 2px; height: 1.05em; background-color: var(--fg);
+    vertical-align: text-bottom; margin-left: 1px; border-radius: 1px;
+    animation: blink 1.15s steps(1, end) infinite;
+  }
+  /* 波谷不到全透明:截图工具在固定时刻拍,真 blink 有一半概率把光标拍没 */
+  @keyframes blink { 0%, 55% { opacity: 1; } 56%, 100% { opacity: .12; } }
+
+  /* ---------------------------------------------------------------- 窗口 chrome(signature) */
+  .dots { display: flex; gap: 4px; align-items: center; flex-shrink: 0; }
+  .dots i { width: 6px; height: 6px; border-radius: 50%; }
+  .dots i:nth-child(1) { background-color: var(--tl-r); }
+  .dots i:nth-child(2) { background-color: var(--tl-y); }
+  .dots i:nth-child(3) { background-color: var(--tl-g); }
+
+  .badge-new {
+    display: inline-block; font-size: 7px; font-weight: 700; letter-spacing: .1em;
+    color: #101408; background-color: var(--str); padding: 2px 5px; border-radius: 3px;
+    white-space: nowrap; font-family: var(--sys-mono);
+  }
+
+  /* ---------------------------------------------------------------- 手表外框(尺寸与其他风格完全一致) */
+  .watch-frame {
+    width: 240px; height: 280px; background: var(--bezel); border-radius: 50px;
+    padding: 16px; position: relative;
+  }
+  .watch-frame::after {
+    content: ''; position: absolute; right: -4px; top: 50%; translate: 0 -50%;
+    width: 8px; height: 42px; background: #06060A; border-radius: 4px;
+  }
+  .watch-screen {
+    width: 208px; height: 248px; border-radius: 36px; overflow: hidden;
+    background: var(--bg); position: relative; color: var(--fg);
+  }
+
+  /* ---------------------------------------------------------------- 手机外框(尺寸与其他风格完全一致) */
+  .phone-frame {
+    width: 358px; height: 744px; background: var(--bezel); border-radius: 56px;
+    padding: 14px; position: relative;
+  }
+  .phone-screen {
+    width: 330px; height: 716px; border-radius: 44px; overflow: hidden;
+    background: var(--bg); position: relative; color: var(--fg);
+  }
+  .island { position: absolute; top: 10px; left: 50%; translate: -50% 0; width: 92px; height: 25px; border-radius: 14px; background: #06060A; z-index: 50; }
+
+  /* ---------------------------------------------------------------- 手表:迷你编辑器窗口 */
+  .w-win { width: 100%; height: 100%; display: flex; flex-direction: column; background-color: var(--bg); }
+  .w-title {
+    height: 22px; flex-shrink: 0; display: flex; align-items: center; gap: 6px;
+    /* 表屏圆角 36px:标题栏在 y≈11px 处,左右各被圆角曲线啃进约 10px。
+       右边放的是时钟,不留够就被切成「09:4」——所以右内边距要盖过圆角,不是 9px。 */
+    padding: 0 19px 0 9px; background-color: var(--chrome); border-bottom: 1px solid var(--line);
+  }
+  /* 标题栏是 flex row,时间默认也可收缩——表屏只有 208px 宽时它被挤掉最后一位,
+     截图上是「09:4」。要收缩的是文件名,不是时钟。 */
+  .w-file { font-size: 7.5px; color: var(--dim); letter-spacing: .02em; white-space: nowrap; overflow: hidden; min-width: 0; }
+  .w-time { margin-left: auto; flex-shrink: 0; font-size: 8.5px; color: var(--num); font-variant-numeric: tabular-nums; }
+  .w-title .badge-new { margin-left: auto; }
+
+  .w-body { flex: 1; display: flex; flex-direction: column; padding: 7px 10px 10px; overflow: hidden; min-height: 0; }
+  .w-line { display: flex; gap: 5px; font-size: 9px; line-height: 14px; }
+  .w-line .no { width: 9px; text-align: right; color: var(--ln); font-size: 7.5px; line-height: 14px; flex-shrink: 0; }
+  .w-line .code { flex: 1; min-width: 0; }
+  .w-line.hl { background-color: var(--sel); border-radius: 3px; }
+  /* 标题行字号比行高大,引号会浮出线盒——给标题行单独放大行高 */
+  .w-line.head { line-height: 21px; }
+  .w-line.head .no { line-height: 21px; }
+
+  /* 图片 = 编辑器里的资源预览窗,角上是它的 import 路径注释 */
+  .w-preview {
+    position: relative; height: 78px; margin: 5px 0; border: 1px solid var(--line);
+    border-radius: 6px; background-color: var(--bg2);
+    display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+  }
+  .w-preview img.pet { width: 66px; height: 66px; object-fit: contain; }
+  .w-preview .src-tag { position: absolute; left: 6px; bottom: 4px; font-size: 7px; color: var(--com); }
+
+  .w-headline { font-size: 14.5px; font-weight: 700; }
+  .w-btn {
+    margin-top: auto; width: 100%; border: none; border-radius: 6px; flex-shrink: 0;
+    background-color: var(--fn); color: #101018; font-family: var(--sys-mono);
+    font-size: 10.5px; font-weight: 700; padding: 9px 0; min-height: 32px;
+  }
+  .w-btn .p { color: #101018; opacity: .55; }
+  .w-btn:active { filter: brightness(1.15); }
+
+  /* 表盘(复杂功能) */
+  .face { width: 100%; height: 100%; display: flex; flex-direction: column; background-color: var(--bg); }
+  .face-body { flex: 1; display: flex; flex-direction: column; justify-content: center; padding: 8px 16px 14px; }
+  .face-decl { font-size: 9px; color: var(--dim); margin: 0; }
+  .face-clock { font-size: 36px; font-weight: 700; letter-spacing: -.02em; margin: 2px 0 0; font-variant-numeric: tabular-nums; line-height: 1.15; }
+  .face-rule { height: 1px; background-color: var(--line); margin: 11px 0 12px; }
+  .compl {
+    display: flex; align-items: center; gap: 9px; background-color: var(--bg2);
+    border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px;
+  }
+  .compl-win {
+    width: 34px; height: 34px; background-color: var(--bg); border: 1px solid var(--line);
+    border-radius: 6px; display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0; overflow: hidden;
+  }
+  .compl-win img { width: 27px; height: 27px; object-fit: contain; }
+  .compl .t1 { font-size: 9.5px; }
+  .compl .t2 { font-size: 8.5px; color: var(--com); margin-top: 3px; }
+
+  /* ---------------------------------------------------------------- 手机:整屏是一个编辑器窗口 */
+  .p-win { width: 100%; height: 100%; display: flex; flex-direction: column; background-color: var(--bg); position: relative; }
+
+  /* 标题栏:交通灯 + 文件标签页。灵动岛浮在标题栏上,深色 chrome 正好把它接住 */
+  .p-titlebar {
+    flex-shrink: 0; display: flex; align-items: flex-end; gap: 8px;
+    padding: 42px 10px 0; background-color: var(--chrome); border-bottom: 1px solid var(--line);
+  }
+  .p-titlebar .dots { margin-bottom: 9px; }
+  .p-titlebar .dots i { width: 8px; height: 8px; }
+  .ptabs { display: flex; align-items: flex-end; gap: 2px; flex: 1; min-width: 0; }
+  .ptab {
+    display: flex; align-items: center; gap: 5px; padding: 6px 9px 7px;
+    font-size: 9px; color: var(--dim); border-radius: 7px 7px 0 0; white-space: nowrap;
+    border: 1px solid transparent; border-bottom: none;
+  }
+  .ptab .fdot { width: 5px; height: 5px; border-radius: 50%; flex-shrink: 0; }
+  .ptab.active {
+    background-color: var(--bg); color: var(--fg); border-color: var(--line);
+    box-shadow: inset 0 2px 0 var(--fn); margin-bottom: -1px; padding-bottom: 8px;
+  }
+
+  .p-main { flex: 1; position: relative; display: flex; flex-direction: column; overflow: hidden; min-height: 0; }
+  .p-scroll { flex: 1; overflow: hidden; padding: 11px 26px 10px 10px; min-height: 0; }
+
+  .line { display: flex; gap: 6px; font-size: 10.5px; line-height: 17px; }
+  .line .no { width: 17px; text-align: right; color: var(--ln); font-size: 9px; line-height: 17px; flex-shrink: 0; }
+  .line .code { flex: 1; min-width: 0; }
+  .line.hl { background-color: var(--sel); border-radius: 3px; }
+  .line.big { font-size: 18px; font-weight: 700; line-height: 26px; }
+  .line.big .no { line-height: 26px; }
+  .line.sp { height: 9px; }
+  /* 文件结束后的 vim 式 ~ 行:日记页下半的空白靠它读成「文件到此为止」,不是「没排完」。
+     颜色比行号亮一级——缩略尺寸下 ~ 列要是看不见,下半页就又读回「空洞」了 */
+  .line.eof .no { color: #535B82; font-size: 10.5px; }
+  /* diff gutter:最新一条日记是还没提交的改动,行号槽左缘一条绿杠——
+     编辑器的 git 装饰,顺便给页面中段一点颜色 */
+  .line.added { position: relative; }
+  .line.added::before {
+    content: ''; position: absolute; left: 0; top: 2px; bottom: 2px; width: 2px;
+    background-color: var(--str); border-radius: 1px;
+  }
+
+  .line .big-str { font-size: 18px; font-weight: 700; }
+
+  /* 嵌套区:数组/对象内部,左侧一条缩进参考线 */
+  .nest { border-left: 1px solid #23243A; margin-left: 23px; padding-left: 10px; }
+
+  /* minimap(signature):右缘一条缩略色带 + 视口滑块,纯 chrome */
+  .mm {
+    position: absolute; right: 0; top: 0; bottom: 0; width: 18px; z-index: 3;
+    background-color: var(--bg2); border-left: 1px solid var(--line);
+    padding: 6px 3px; overflow: hidden; pointer-events: none;
+  }
+  .mm i { display: block; height: 2px; border-radius: 1px; margin-bottom: 2.5px; background-color: #3A3D55; opacity: .8; }
+  .mm i.k { background-color: var(--kw); }
+  .mm i.f { background-color: var(--fn); }
+  .mm i.s { background-color: var(--str); }
+  .mm i.n { background-color: var(--num); }
+  .mm i.c { background-color: var(--com); }
+  .mm-view {
+    position: absolute; left: 1px; right: 1px; top: 4px; height: 42%;
+    background-color: rgba(192, 202, 245, .07); border: 1px solid rgba(192, 202, 245, .16);
+    border-radius: 2px;
+  }
+
+  /* ---------------------------------------------------------------- 手机:图鉴(items.tsx) */
+  .arr { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin: 7px 0; }
+  .slot {
+    position: relative; background-color: var(--bg2); border: 1px solid var(--line);
+    border-radius: 7px; padding: 8px 4px 6px; display: flex; flex-direction: column;
+    align-items: center; gap: 3px;
+  }
+  .slot .ix { position: absolute; left: 5px; top: 3px; font-size: 7.5px; color: #5A628C; }
+  .slot .ix b { color: var(--type); font-weight: 400; opacity: .85; }
+  .slot img { width: 42px; height: 42px; object-fit: contain; }
+  .slot .nm { font-size: 8px; color: var(--str); white-space: nowrap; }
+  .slot .badge-new { position: absolute; right: 3px; top: 3px; }
+  .slot.locked { border-style: dashed; }
+  .slot.locked .qq { font-size: 13px; color: var(--ln); margin: 12px 0 13px; letter-spacing: .2em; }
+
+  .progress-row { display: flex; align-items: center; gap: 7px; }
+  .bar { display: inline-flex; gap: 2px; }
+  .bar i { width: 11px; height: 9px; border-radius: 2px; background-color: #33344A; }
+  .bar i.on { background-color: var(--fn); }
+  .progress-row .val { font-size: 15px; font-weight: 700; color: var(--num); font-variant-numeric: tabular-nums; }
+
+  .recv { display: flex; gap: 9px; align-items: flex-start; margin: 7px 0 2px; }
+  .recv .thumb {
+    width: 44px; height: 44px; flex-shrink: 0; background-color: var(--bg2);
+    border: 1px solid var(--line); border-radius: 7px;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .recv .thumb img { width: 32px; height: 32px; object-fit: contain; }
+  .recv .txt { flex: 1; min-width: 0; }
+  .recv .r1 { font-size: 11.5px; font-weight: 700; line-height: 17px; }
+  .recv .r2 { font-size: 10px; color: var(--com); line-height: 16px; margin-top: 3px; }
+
+  /* ---------------------------------------------------------------- 手机:日记(diary.log) */
+  .entry { margin: 4px 0 12px; }
+  .entry .stamp-c { font-size: 10px; color: var(--com); line-height: 17px; }
+  .entry .body-s { font-size: 12.5px; line-height: 1.95; color: var(--str); margin: 2px 0 0; }
+  .diary-end { font-size: 9.5px; color: var(--com); }
+
+  /* ---------------------------------------------------------------- 手机:它(pet.tsx) */
+  .scene-pane {
+    margin: 7px 0; border: 1px solid var(--line); border-radius: 9px;
+    overflow: hidden; background-color: var(--bg2);
+  }
+  .scene-img { position: relative; height: 250px; display: flex; align-items: flex-end; justify-content: center; overflow: hidden; }
+  .scene-img img.scene { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+  .scene-img img.pet { position: relative; z-index: 2; width: 118px; height: 118px; object-fit: contain; margin-bottom: 14px; }
+  .scene-tag { position: absolute; left: 8px; top: 7px; z-index: 3; font-size: 7.5px; color: #C8CEE8; background-color: rgba(12, 12, 17, .62); padding: 2.5px 7px; border-radius: 4px; }
+  .scene-cap {
+    display: flex; justify-content: space-between; align-items: baseline;
+    border-top: 1px solid var(--line); padding: 6px 9px; font-size: 8.5px; color: var(--com);
+    background-color: var(--chrome);
+  }
+  .scene-cap b { color: var(--str); font-weight: 700; }
+  .kv-line { border-top: 1px dashed var(--line); border-bottom: 1px dashed var(--line); padding: 9px 0; margin: 9px 0 0; font-size: 11.5px; }
+  .actions { display: flex; gap: 9px; margin: 12px 0 0; }
+  .pbtn {
+    border-radius: 7px; padding: 12px 0; font-family: var(--sys-mono);
+    font-size: 11.5px; font-weight: 700;
+  }
+  .pbtn.secondary { flex: 1; background-color: transparent; border: 1px solid var(--line); color: var(--fg); }
+  .pbtn.primary { flex: 1.25; background-color: var(--fn); border: none; color: #101018; }
+  .pbtn .p { opacity: .55; }
+  .pbtn:active { filter: brightness(1.15); }
+
+  /* ---------------------------------------------------------------- 状态栏 + tabbar */
+  .statusbar {
+    flex-shrink: 0; height: 20px; display: flex; align-items: center; gap: 7px;
+    padding: 0 12px; background-color: var(--chrome); border-top: 1px solid var(--line);
+    font-size: 8px; color: var(--dim); white-space: nowrap; overflow: hidden;
+  }
+  .statusbar .ok { color: var(--str); }
+  .statusbar .right { margin-left: auto; color: var(--com); font-variant-numeric: tabular-nums; }
+
+  .tabbar {
+    flex-shrink: 0; height: 62px; padding-bottom: 6px; display: flex;
+    background-color: var(--chrome); border-top: 1px solid var(--line); z-index: 5;
+  }
+  .tab {
+    flex: 1; border: none; background: none; display: flex; flex-direction: column;
+    align-items: center; justify-content: center; gap: 5px;
+    font-family: var(--sys-mono); font-size: 9px; letter-spacing: .08em; color: var(--dim);
+    position: relative;
+  }
+  .tab svg { width: 18px; height: 18px; stroke: currentColor; fill: none; }
+  /* 选中的 tab 就是一枚激活的文件标签:底色升到编辑区色,顶上一条蓝线,右上角一颗未保存圆点 */
+  .tab.active { background-color: var(--bg); color: var(--fg); box-shadow: inset 0 2px 0 var(--fn); }
+  .tab.active::after {
+    content: ''; position: absolute; top: 7px; right: 26px; width: 5px; height: 5px;
+    border-radius: 50%; background-color: var(--fn);
+  }
+  .tab:active { opacity: .7; }
+
+  @media (prefers-reduced-motion: reduce) {
+    * { animation: none !important; }
+    .caret { opacity: 1; }
+  }
+</style>
+</head>
+<body>
+
+<div class="intro">
+  <a class="back" href="styles.html">← styles.html · 返回风格列表</a>
+  <p class="eyebrow">// 方向 C · 它自己的生活 — 代码编辑器 Code Editor</p>
+  <h1><span class="k">const</span> 日子 <span class="p">=</span> <span class="s"><span class="q">"</span>一份打开着的源文件<span class="q">"</span></span></h1>
+  <p>整个 App 是一个 IDE 窗口:<b class="t">交通灯和文件标签页</b>是 chrome,<b class="f">行号槽</b>、
+    <b class="n">minimap</b> 和一条<b>闪烁的光标</b>都在。日记是带时间戳的注释块,收藏品是数组字面量,
+    宠物图是 import 进来的资源、在预览窗里渲染。所有中文文案原样活在<b class="s">字符串</b>和<b class="c">注释</b>里——
+    代码是皮,读到的每句话和别的风格一字不差。和 instrument 的区别:那是一台<b>单色测量仪表</b>
+    (纯黑 + 酸黄绿、刻度、tabular 读数),这是一份<b class="kw">多彩语法高亮</b>的源文件,层级靠编辑器 chrome,不靠刻度。</p>
+</div>
+<div class="rule"></div>
+
+<section class="row row-watch">
+  <h2>// 手表 · 三帧窗口</h2>
+  <div class="devices">
+
+    <div class="device-wrap">
+      <div class="watch-frame"><div class="watch-screen">
+        <div class="w-win">
+          <div class="w-title">
+            <span class="dots"><i></i><i></i><i></i></span>
+            <span class="w-file">outing.tsx</span>
+            <span class="w-time">09:41</span>
+          </div>
+          <div class="w-body">
+            <div class="w-line"><span class="no">1</span><span class="code"><span class="c">// 状态 · 外出</span></span></div>
+            <div class="w-line"><span class="no">2</span><span class="code"><span class="k">import</span> <span class="s"><span class="q">"</span>./art/warm-idle.png<span class="q">"</span></span></span></div>
+            <div class="w-preview">
+              <img class="pet" style="opacity:.88" src="art/warm-idle.png" alt="宠物">
+              <span class="src-tag">// art/warm-idle.png</span>
+            </div>
+            <div class="w-line head"><span class="no">3</span><span class="code w-headline"><span class="s"><span class="q">"</span>它出门了<span class="q">"</span></span></span></div>
+            <div class="w-line"><span class="no">4</span><span class="code"><span class="c">// 大概傍晚回来</span></span></div>
+            <div class="w-line hl"><span class="no">5</span><span class="code"><span class="caret"></span></span></div>
+            <button class="w-btn">看看它<span class="p">()</span></button>
+          </div>
+        </div>
+      </div></div>
+      <span class="cap">出门了</span>
+    </div>
+
+    <div class="device-wrap">
+      <div class="watch-frame"><div class="watch-screen">
+        <div class="w-win">
+          <div class="w-title">
+            <span class="dots"><i></i><i></i><i></i></span>
+            <span class="w-file">return.tsx</span>
+            <span class="badge-new">New</span>
+          </div>
+          <div class="w-body">
+            <div class="w-line"><span class="no">1</span><span class="code"><span class="c">// 状态 · 已归</span></span></div>
+            <div class="w-line"><span class="no">2</span><span class="code"><span class="k">import</span> <span class="s"><span class="q">"</span>./art/warm-playful.png<span class="q">"</span></span></span></div>
+            <div class="w-preview">
+              <img class="pet" src="art/warm-playful.png" alt="宠物">
+              <span class="src-tag">// art/warm-playful.png</span>
+            </div>
+            <div class="w-line head"><span class="no">3</span><span class="code w-headline"><span class="s"><span class="q">"</span>它回来了<span class="q">"</span></span></span></div>
+            <div class="w-line"><span class="no">4</span><span class="code"><span class="c">// 带回一颗果子</span></span></div>
+            <div class="w-line hl"><span class="no">5</span><span class="code"><span class="caret"></span></span></div>
+            <button class="w-btn">收下<span class="p">()</span></button>
+          </div>
+        </div>
+      </div></div>
+      <span class="cap">回来了</span>
+    </div>
+
+    <div class="device-wrap">
+      <div class="watch-frame"><div class="watch-screen">
+        <div class="face">
+          <div class="w-title">
+            <span class="dots"><i></i><i></i><i></i></span>
+            <span class="w-file">clock.tsx</span>
+          </div>
+          <div class="face-body">
+            <p class="face-decl"><span class="k">const</span> <span class="f">now</span> <span class="p">=</span></p>
+            <p class="face-clock"><span class="s"><span class="q">"</span>9:41<span class="q">"</span></span></p>
+            <div class="face-rule"></div>
+            <div class="compl">
+              <div class="compl-win"><img src="art/warm-idle.png" alt=""></div>
+              <div>
+                <div class="t1"><span class="f">status</span> <span class="p">==</span> <span class="s"><span class="q">"</span>出门中<span class="q">"</span></span></div>
+                <div class="t2">// 傍晚回来</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div></div>
+      <span class="cap">复杂功能</span>
+    </div>
+
+  </div>
+</section>
+
+<section class="row row-phone">
+  <h2>// 手机 · 三页文件</h2>
+  <div class="devices">
+
+    <div class="device-wrap">
+      <div class="phone-frame"><div class="phone-screen">
+        <div class="island"></div>
+        <div class="p-win">
+          <div class="p-titlebar">
+            <span class="dots"><i></i><i></i><i></i></span>
+            <div class="ptabs">
+              <span class="ptab active"><i class="fdot" style="background-color:var(--fn)"></i>items.tsx</span>
+              <span class="ptab"><i class="fdot" style="background-color:var(--num)"></i>diary.log</span>
+              <span class="ptab"><i class="fdot" style="background-color:var(--kw)"></i>pet.tsx</span>
+            </div>
+          </div>
+          <div class="p-main">
+            <div class="p-scroll">
+              <div class="line"><span class="no">1</span><span class="code"><span class="c">// 图鉴 · 第 01 页</span></span></div>
+              <div class="line big"><span class="no">2</span><span class="code"><span class="k" style="font-size:11px;font-weight:400">const</span> <span class="d" style="font-size:11px;font-weight:400">title =</span> <span class="s"><span class="q">"</span>它带回来的<span class="q">"</span></span></span></div>
+              <div class="line"><span class="no">3</span><span class="code"><span class="c">// 7 样 · 还有很多没见过</span></span></div>
+              <div class="line"><span class="no">4</span><span class="code"><span class="k">const</span> <span class="f">items</span> <span class="p">= [</span></span></div>
+              <div class="nest">
+                <div class="arr">
+                  <div class="slot"><span class="ix"><b>[</b>0<b>]</b></span><img src="art/items/berry.png" alt="一颗果子"><span class="nm">一颗果子</span><span class="badge-new">New</span></div>
+                  <div class="slot"><span class="ix"><b>[</b>1<b>]</b></span><img src="art/items/leaf.png" alt="一片叶子"><span class="nm">一片叶子</span></div>
+                  <div class="slot"><span class="ix"><b>[</b>2<b>]</b></span><img src="art/items/stone.png" alt="一块石头"><span class="nm">一块石头</span></div>
+                  <div class="slot"><span class="ix"><b>[</b>3<b>]</b></span><img src="art/items/feather.png" alt="一根羽毛"><span class="nm">一根羽毛</span></div>
+                  <div class="slot"><span class="ix"><b>[</b>4<b>]</b></span><img src="art/items/shell.png" alt="一枚贝壳"><span class="nm">一枚贝壳</span></div>
+                  <div class="slot"><span class="ix"><b>[</b>5<b>]</b></span><img src="art/items/flower.png" alt="一朵花"><span class="nm">一朵花</span></div>
+                  <div class="slot"><span class="ix"><b>[</b>6<b>]</b></span><img src="art/items/bottle.png" alt="一个小瓶子"><span class="nm">一个小瓶子</span></div>
+                  <div class="slot locked"><span class="ix"><b>[</b>7<b>]</b></span><span class="qq">??</span></div>
+                  <div class="slot locked"><span class="ix"><b>[</b>8<b>]</b></span><span class="qq">??</span></div>
+                </div>
+              </div>
+              <div class="line"><span class="no">5</span><span class="code"><span class="p">]</span></span></div>
+              <div class="line"><span class="no">6</span><span class="code"><span class="k">const</span> <span class="f">set</span> <span class="p">= {</span></span></div>
+              <div class="nest">
+                <div class="line"><span class="no">7</span><span class="code"><span class="t">name</span><span class="p">:</span> <span class="s"><span class="q">"</span>套装 · 林线<span class="q">"</span></span><span class="p">,</span></span></div>
+                <div class="line"><span class="no">8</span><span class="code progress-row"><span><span class="t">progress</span><span class="p">:</span> <span class="p">[</span></span><span class="bar"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i></i><i></i></span><span class="p">]</span> <span class="val">4/6</span><span class="p">,</span></span></div>
+                <div class="line"><span class="no">9</span><span class="code"><span class="c">// 集齐解锁新的散步路线,缺的两样在湖边</span></span></div>
+              </div>
+              <div class="line"><span class="no">10</span><span class="code"><span class="p">}</span></span></div>
+              <div class="line"><span class="no">11</span><span class="code"><span class="f">push</span><span class="p">({</span> <span class="t">just</span><span class="p">:</span> <span class="s"><span class="q">"</span>刚收到:一颗果子<span class="q">"</span></span> <span class="p">})</span> <span class="badge-new" style="vertical-align:1px">New</span></span></div>
+              <div class="nest">
+                <div class="recv">
+                  <div class="thumb"><img src="art/items/berry.png" alt=""></div>
+                  <div class="txt">
+                    <div class="line"><span class="no">12</span><span class="code"><span class="t">note</span><span class="p">:</span> <span class="s"><span class="q">"</span><i class="nb">它说路边捡的,</i><i class="nb">不太确定能不能吃</i><span class="q">"</span></span></span></div>
+                  </div>
+                </div>
+              </div>
+              <div class="line hl"><span class="no">13</span><span class="code"><span class="caret"></span></span></div>
+              <div class="line eof"><span class="no">~</span><span class="code"></span></div>
+              <div class="line eof"><span class="no">~</span><span class="code"></span></div>
+              <div class="line eof"><span class="no">~</span><span class="code"></span></div>
+            </div>
+            <div class="mm">
+              <div class="mm-view"></div>
+              <i class="c" style="width:52%"></i><i class="k" style="width:78%"></i><i class="c" style="width:64%"></i><i class="k" style="width:40%"></i><i class="s" style="width:88%"></i><i class="f" style="width:56%"></i><i class="n" style="width:34%"></i><i style="width:72%"></i><i class="s" style="width:48%"></i><i class="c" style="width:84%"></i><i style="width:30%"></i><i class="k" style="width:60%"></i><i class="f" style="width:44%"></i><i class="s" style="width:76%"></i><i class="n" style="width:38%"></i><i style="width:58%"></i><i class="c" style="width:82%"></i><i style="width:26%"></i><i class="s" style="width:66%"></i><i class="k" style="width:46%"></i><i style="width:70%"></i><i class="c" style="width:36%"></i><i class="f" style="width:54%"></i><i style="width:32%"></i>
+            </div>
+          </div>
+          <div class="statusbar">
+            <span class="ok">✓</span><span>items.tsx</span>
+            <span class="right">Ln 13, Col 1</span>
+          </div>
+          <nav class="tabbar">
+            <button class="tab active"><svg viewBox="0 0 24 24" stroke-width="1.7"><rect x="4" y="4" width="7" height="7"/><rect x="13" y="4" width="7" height="7"/><rect x="4" y="13" width="7" height="7"/><rect x="13" y="13" width="7" height="7"/></svg>图鉴</button>
+            <button class="tab"><svg viewBox="0 0 24 24" stroke-width="1.7"><rect x="5" y="3.5" width="14" height="17"/><path d="M8.5 9h7M8.5 13h7"/></svg>日记</button>
+            <button class="tab"><svg viewBox="0 0 24 24" stroke-width="1.7"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="2.2"/></svg>它</button>
+          </nav>
+        </div>
+      </div></div>
+      <span class="cap">图鉴</span>
+    </div>
+
+    <div class="device-wrap">
+      <div class="phone-frame"><div class="phone-screen">
+        <div class="island"></div>
+        <div class="p-win">
+          <div class="p-titlebar">
+            <span class="dots"><i></i><i></i><i></i></span>
+            <div class="ptabs">
+              <span class="ptab"><i class="fdot" style="background-color:var(--fn)"></i>items.tsx</span>
+              <span class="ptab active"><i class="fdot" style="background-color:var(--num)"></i>diary.log</span>
+              <span class="ptab"><i class="fdot" style="background-color:var(--kw)"></i>pet.tsx</span>
+            </div>
+          </div>
+          <div class="p-main">
+            <div class="p-scroll">
+              <div class="line"><span class="no">1</span><span class="code"><span class="c">// 日记 · 第 02 页</span></span></div>
+              <div class="line big"><span class="no">2</span><span class="code"><span class="k" style="font-size:11px;font-weight:400">const</span> <span class="d" style="font-size:11px;font-weight:400">title =</span> <span class="s"><span class="q">"</span>它写的<span class="q">"</span></span></span></div>
+              <div class="line"><span class="no">3</span><span class="code"><span class="c">// 它自己的视角,不是你的记录</span></span></div>
+              <div class="line sp"><span class="no">4</span><span class="code"></span></div>
+              <div class="entry">
+                <div class="line added"><span class="no">5</span><span class="code"><span class="c">/* 10-11 傍晚 */</span></span></div>
+                <div class="line added"><span class="no">6</span><span class="code body-s"><span class="s"><span class="q">"</span>今天走得比平常远。你好像也走了不少,我们大概错过了。带了一颗果子回来。<span class="q">"</span></span></span></div>
+              </div>
+              <div class="line sp"><span class="no">7</span><span class="code"></span></div>
+              <div class="entry">
+                <div class="line"><span class="no">8</span><span class="code"><span class="c">/* 10-10 下午 */</span></span></div>
+                <div class="line"><span class="no">9</span><span class="code body-s"><span class="s"><span class="q">"</span>窗台那边太阳很好,躺了一会儿。你一直没回来。<span class="q">"</span></span></span></div>
+              </div>
+              <div class="line sp"><span class="no">10</span><span class="code"></span></div>
+              <div class="line"><span class="no">11</span><span class="code diary-end"><span class="c">// 再往前就翻不到了 · 它也没打算全记住</span></span></div>
+              <div class="line hl"><span class="no">12</span><span class="code"><span class="caret"></span></span></div>
+              <div class="line eof"><span class="no">~</span><span class="code"></span></div>
+              <div class="line eof"><span class="no">~</span><span class="code"></span></div>
+              <div class="line eof"><span class="no">~</span><span class="code"></span></div>
+              <div class="line eof"><span class="no">~</span><span class="code"></span></div>
+              <div class="line eof"><span class="no">~</span><span class="code"></span></div>
+              <div class="line eof"><span class="no">~</span><span class="code"></span></div>
+              <div class="line eof"><span class="no">~</span><span class="code"></span></div>
+              <div class="line eof"><span class="no">~</span><span class="code"></span></div>
+              <div class="line eof"><span class="no">~</span><span class="code"></span></div>
+              <div class="line eof"><span class="no">~</span><span class="code"></span></div>
+              <div class="line eof"><span class="no">~</span><span class="code"></span></div>
+              <div class="line eof"><span class="no">~</span><span class="code"></span></div>
+              <div class="line eof"><span class="no">~</span><span class="code"></span></div>
+              <div class="line eof"><span class="no">~</span><span class="code"></span></div>
+              <div class="line eof"><span class="no">~</span><span class="code"></span></div>
+              <div class="line eof"><span class="no">~</span><span class="code"></span></div>
+            </div>
+            <div class="mm">
+              <div class="mm-view" style="height:34%"></div>
+              <i class="c" style="width:48%"></i><i class="k" style="width:70%"></i><i class="c" style="width:60%"></i><i style="width:20%"></i><i class="c" style="width:36%"></i><i class="s" style="width:92%"></i><i class="s" style="width:56%"></i><i style="width:18%"></i><i class="c" style="width:36%"></i><i class="s" style="width:80%"></i><i style="width:16%"></i><i class="c" style="width:74%"></i><i style="width:12%"></i><i class="c" style="width:20%"></i><i class="c" style="width:16%"></i><i style="width:10%"></i>
+            </div>
+          </div>
+          <div class="statusbar">
+            <span>本页完</span>
+            <span class="right">02 / 03</span>
+          </div>
+          <nav class="tabbar">
+            <button class="tab"><svg viewBox="0 0 24 24" stroke-width="1.7"><rect x="4" y="4" width="7" height="7"/><rect x="13" y="4" width="7" height="7"/><rect x="4" y="13" width="7" height="7"/><rect x="13" y="13" width="7" height="7"/></svg>图鉴</button>
+            <button class="tab active"><svg viewBox="0 0 24 24" stroke-width="1.7"><rect x="5" y="3.5" width="14" height="17"/><path d="M8.5 9h7M8.5 13h7"/></svg>日记</button>
+            <button class="tab"><svg viewBox="0 0 24 24" stroke-width="1.7"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="2.2"/></svg>它</button>
+          </nav>
+        </div>
+      </div></div>
+      <span class="cap">日记</span>
+    </div>
+
+    <div class="device-wrap">
+      <div class="phone-frame"><div class="phone-screen">
+        <div class="island"></div>
+        <div class="p-win">
+          <div class="p-titlebar">
+            <span class="dots"><i></i><i></i><i></i></span>
+            <div class="ptabs">
+              <span class="ptab"><i class="fdot" style="background-color:var(--fn)"></i>items.tsx</span>
+              <span class="ptab"><i class="fdot" style="background-color:var(--num)"></i>diary.log</span>
+              <span class="ptab active"><i class="fdot" style="background-color:var(--kw)"></i>pet.tsx</span>
+            </div>
+          </div>
+          <div class="p-main">
+            <div class="p-scroll">
+              <div class="line"><span class="no">1</span><span class="code"><span class="c">// 它 · 第 03 页</span></span></div>
+              <div class="line big"><span class="no">2</span><span class="code"><span class="k" style="font-size:11px;font-weight:400">const</span> <span class="d" style="font-size:11px;font-weight:400">name =</span> <span class="s"><span class="q">"</span>小团<span class="q">"</span></span></span></div>
+              <div class="line"><span class="no">3</span><span class="code"><span class="t">state</span><span class="p">:</span> <span class="s"><span class="q">"</span>在家 · 刚回来<span class="q">"</span></span></span></div>
+              <div class="line"><span class="no">4</span><span class="code"><span class="k">return</span> <span class="p">(</span> <span class="c">// art/scene-room.jpg</span></span></div>
+              <div class="nest">
+                <div class="scene-pane">
+                  <div class="scene-img">
+                    <img class="scene" src="art/scene-room.jpg" alt="">
+                    <span class="scene-tag">&lt;Scene /&gt;</span>
+                    <img class="pet" src="art/warm-calm.png" alt="宠物">
+                  </div>
+                  <div class="scene-cap"><span>// 图版 · 室内 窝边</span><span>状态 <b>在家</b></span></div>
+                </div>
+                <div class="line"><span class="no">5</span><span class="code"><span class="c">// 对着什么发呆</span></span></div>
+                <div class="kv-line line"><span class="no">6</span><span class="code"><span class="t">下次出门</span><span class="p">:</span> <span class="s"><span class="q">"</span>明天早上 · 它自己决定的<span class="q">"</span></span></span></div>
+                <div class="actions">
+                  <button class="pbtn secondary">给点心<span class="p">()</span></button>
+                  <button class="pbtn primary">摸摸<span class="p">()</span></button>
+                </div>
+              </div>
+              <div class="line"><span class="no">7</span><span class="code"><span class="p">)</span></span></div>
+              <div class="line hl"><span class="no">8</span><span class="code"><span class="caret"></span></span></div>
+              <div class="line eof"><span class="no">~</span><span class="code"></span></div>
+              <div class="line eof"><span class="no">~</span><span class="code"></span></div>
+              <div class="line eof"><span class="no">~</span><span class="code"></span></div>
+              <div class="line eof"><span class="no">~</span><span class="code"></span></div>
+            </div>
+            <div class="mm">
+              <div class="mm-view" style="height:56%"></div>
+              <i class="c" style="width:44%"></i><i class="k" style="width:66%"></i><i class="s" style="width:52%"></i><i class="k" style="width:38%"></i><i class="c" style="width:80%"></i><i style="width:90%"></i><i style="width:86%"></i><i class="s" style="width:34%"></i><i class="c" style="width:46%"></i><i class="t" style="width:72%"></i><i class="s" style="width:58%"></i><i class="f" style="width:42%"></i><i class="k" style="width:30%"></i><i style="width:14%"></i><i class="c" style="width:18%"></i><i style="width:10%"></i>
+            </div>
+          </div>
+          <div class="statusbar">
+            <span class="ok">✓</span><span>pet.tsx</span>
+            <span class="right">Ln 8, Col 1</span>
+          </div>
+          <nav class="tabbar">
+            <button class="tab"><svg viewBox="0 0 24 24" stroke-width="1.7"><rect x="4" y="4" width="7" height="7"/><rect x="13" y="4" width="7" height="7"/><rect x="4" y="13" width="7" height="7"/><rect x="13" y="13" width="7" height="7"/></svg>图鉴</button>
+            <button class="tab"><svg viewBox="0 0 24 24" stroke-width="1.7"><rect x="5" y="3.5" width="14" height="17"/><path d="M8.5 9h7M8.5 13h7"/></svg>日记</button>
+            <button class="tab active"><svg viewBox="0 0 24 24" stroke-width="1.7"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="2.2"/></svg>它</button>
+          </nav>
+        </div>
+      </div></div>
+      <span class="cap">它</span>
+    </div>
+
+  </div>
+</section>
+
+</body>
+</html>

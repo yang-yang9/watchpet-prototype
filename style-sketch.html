@@ -1,0 +1,571 @@
+<!DOCTYPE html>
+<!--
+  设计小结 —— 白板手绘 Whiteboard Sketch (style-sketch)
+
+  风格命题:整块界面是一面白板。白底 + 细点阵网格(dot grid)铺满屏幕当板面,
+  所有框线都是马克笔手绘的抖线(不对称 border-radius 如 255px 15px 225px 15px/
+  15px 225px 15px 255px + 双层描边微错位),蓝/橙/绿三支马克笔做强调、
+  波浪下划线、手绘箭头(内联 SVG 抖线 path)连接元素,浅黄便利贴(微旋转)
+  承载「刚收到」这类即时提示。
+
+  灵感来源:designeer.xyz Whiteboard 区的 Excalidraw 和 tldraw——干净利落的
+  手绘线框 UI、半透明马克笔填充、随手箭头批注;以及 Utilities 区的 Drawably。
+  字体不引外部手写体(本机无外网,CDN 也过不了门禁):圆润系统字体栈
+  (ui-rounded / SF Pro Rounded / PingFang SC)+ 元素微旋转补出手写松弛感。
+
+  ⚠️ 和已下线的 storybook / scrapbook 的区分,先说清楚免得被当成同一个东西:
+    - 那两套是**纸质手作**:牛皮纸暖底、童话插画、剪贴拼贴、胶带图钉满天飞,
+      气质是「手工相册」。
+    - 这套是**工具产品感**:纸面是白板不是牛皮纸,底色冷白带点阵网格;线条是
+      Excalidraw 式单色细描边 + 半透明马克笔填充;信息密度和排布逻辑仍是
+      产品 UI(图鉴网格、套装进度、tabbar),手绘只发生在描边和批注层。
+      胶带全篇只有一处(场景照贴板),克制使用,没有剪纸纹理、没有暖色底。
+  两者都「有手的感觉」,但一个在做手作拼贴,一个在白板上画产品草图。
+
+  Signature elements:
+    1. 抖线框 .sk —— 不对称 border-radius 双层描边,每层转角参数不同、微错位,
+       读起来是一笔没画齐的马克笔框。
+    2. 便利贴 .note —— 浅黄、微旋转、右下投影,承载「刚收到」。
+    3. 手绘箭头/星星 —— 内联 SVG 抖线,连接元素、圈重点;纯装饰,
+       不绑定任何发明的数值(产品红线:不显示内部性格/健康数值;
+       屏上数字只有客观事实:7 样、4/6、9:41/09:41、日期)。
+-->
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>白板手绘 Whiteboard Sketch · 方向 C</title>
+<style>
+  :root {
+    --sys-round: ui-rounded, -apple-system, "SF Pro Rounded", "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
+
+    --board: #FCFCFA;      /* 白板面,冷白。刻意不暖——暖纸是 scrapbook 的位置 */
+    --board-2: #F2F3EF;    /* 略深的板面,给凹陷区 */
+    --grid: #D5D8DD;       /* 点阵网格的点 */
+    --ink: #23262B;        /* 黑色马克笔 */
+    --ink-60: #6C7178;
+    --ink-35: #A9AEB5;
+    --blue: #1971C2;       /* Excalidraw 蓝 */
+    --orange: #E8890C;     /* 马克笔橙 */
+    --green: #2F9E44;      /* 马克笔绿 */
+    --note: #FFF3B0;       /* 便利贴黄 */
+    --bezel: #2A2C31;
+
+    /* 点阵网格。⚠️ 必须走 background-image + background-color 分开写,
+       background: 简写会把点阵盖掉(已知 CSS 坑) */
+    --dot: radial-gradient(circle at center, var(--grid) 0 1px, transparent 1.3px);
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background-color: var(--board);
+    background-image: var(--dot);
+    background-size: 22px 22px;
+    font-family: var(--sys-round);
+    color: var(--ink);
+    padding: 46px 20px 72px;
+  }
+
+  /* ---------------------------------------------------------------- 页头 */
+  .intro { max-width: 760px; margin: 0 auto 16px; position: relative; }
+  .intro .eyebrow {
+    font-size: 12px; letter-spacing: .1em; color: var(--blue);
+    margin: 0 0 10px; rotate: -0.5deg; font-weight: 600;
+  }
+  .intro h1 { font-size: 28px; font-weight: 700; letter-spacing: -.01em; margin: 0 0 12px; rotate: -0.3deg; }
+  .intro p { font-size: 14px; line-height: 1.8; color: var(--ink-60); margin: 0; max-width: 60ch; }
+  .intro p b { color: var(--ink); font-weight: 700; }
+  .back {
+    display: inline-block; margin-top: 16px; font-size: 12.5px; color: var(--blue);
+    text-decoration: none; rotate: -0.6deg;
+    border-bottom: 2px solid rgba(25,113,194,.4);
+  }
+  /* 马克笔划重点:半透明色条压在文字下半 */
+  .swipe { background-image: linear-gradient(transparent 56%, rgba(232,137,12,.32) 56% 92%, transparent 92%); padding: 0 2px; }
+  .swipe-b { background-image: linear-gradient(transparent 56%, rgba(25,113,194,.22) 56% 92%, transparent 92%); padding: 0 2px; }
+  /* 波浪下划线:马克笔补的一笔 */
+  .wavy-o { text-decoration: underline wavy var(--orange); text-underline-offset: 5px; text-decoration-thickness: 1.6px; }
+  .wavy-b { text-decoration: underline wavy var(--blue); text-underline-offset: 5px; text-decoration-thickness: 1.6px; }
+  .wavy-g { text-decoration: underline wavy var(--green); text-underline-offset: 4px; text-decoration-thickness: 1.6px; }
+
+  .rule { max-width: 760px; margin: 26px auto 40px; height: 0; border-top: 2.4px solid var(--ink); border-radius: 60% 40% 55% 45%; rotate: -0.15deg; opacity: .85; }
+
+  .row { max-width: 1200px; margin: 0 auto 56px; position: relative; }
+  .row > h2 {
+    font-size: 13px; font-weight: 700; letter-spacing: .12em; color: var(--ink-60);
+    margin: 0 0 22px; rotate: -0.5deg; display: inline-block;
+  }
+  .row > h2::after {
+    content: ''; display: block; height: 5px; margin-top: 2px;
+    border-bottom: 2px solid rgba(25,113,194,.5); border-radius: 50% 50% 40% 60%;
+  }
+  .devices { display: flex; gap: 34px; flex-wrap: wrap; align-items: flex-start; }
+  .device-wrap { display: flex; flex-direction: column; align-items: center; gap: 14px; }
+  .cap { font-size: 12px; letter-spacing: .08em; color: var(--ink-60); rotate: -0.7deg; }
+
+  /* ---------------------------------------------------------------- 抖线框(signature 1) */
+  /* 双层描边:主层转角参数一套,::after 副层另一套并且 inset 错位,
+     读起来是一笔没画齐的马克笔框。--sk-c 换笔色,副层用 opacity 变淡 */
+  /* ⚠️ 半径必须比盒子小一个量级:经典配方 255px 15px 225px 15px/… 在 90px 的小格上
+     会被浏览器按比例缩成「叶子形」,对角穿出一条大弧(截图里真出现过)。
+     小而不均的圆角 + 双层错位描边才是 Excalidraw 的干净抖线。 */
+  .sk {
+    --sk-c: var(--ink);
+    position: relative;
+    border: 2px solid var(--sk-c);
+    border-radius: 12px 5px 14px 6px / 6px 14px 5px 12px;
+  }
+  .sk::after {
+    content: ''; position: absolute; inset: -3.5px; pointer-events: none;
+    border: 1.4px solid var(--sk-c); opacity: .42; rotate: .4deg;
+    border-radius: 6px 14px 5px 12px / 12px 5px 14px 6px;
+  }
+  .sk-blue { --sk-c: var(--blue); }
+  .sk-orange { --sk-c: var(--orange); }
+  .sk-green { --sk-c: var(--green); }
+  /* 马克笔半透明填充,Excalidraw 式 */
+  .fill-b { background-color: rgba(25,113,194,.10); }
+  .fill-o { background-color: rgba(232,137,12,.12); }
+  .fill-g { background-color: rgba(47,158,68,.10); }
+
+  /* 微旋转档位:手绘没有一条线是正的,但别转出屏幕边界 */
+  .r-1 { rotate: -0.8deg; } .r1 { rotate: 0.7deg; }
+  .r-2 { rotate: -1.6deg; } .r2 { rotate: 1.4deg; }
+
+  /* ---------------------------------------------------------------- 便利贴(signature 2) */
+  .note {
+    background-color: var(--note);
+    border-radius: 3px 12px 4px 10px / 10px 3px 12px 4px;
+    box-shadow: 2px 3px 0 rgba(35,38,43,.14);
+    rotate: -1.4deg;
+    animation: stick .5s ease both;
+  }
+  @keyframes stick {
+    from { translate: 0 -8px; rotate: -5deg; opacity: 0; }
+    to   { translate: 0 0;    rotate: -1.4deg; opacity: 1; }
+  }
+
+  /* ---------------------------------------------------------------- 手绘箭头/星星(signature 3) */
+  .doodle { fill: none; stroke-linecap: round; stroke-linejoin: round; }
+  /* 入场时笔迹画出来:基础态就是终态(dashoffset 0),动画只负责从 L 描到 0,
+     截图工具只等固定时间,reduced-motion 关掉动画也直接是终态 */
+  .draw { stroke-dasharray: 260; stroke-dashoffset: 0; animation: draw 1s ease both; }
+  @keyframes draw { from { stroke-dashoffset: 260; } to { stroke-dashoffset: 0; } }
+
+  /* ---------------------------------------------------------------- 手表外框(尺寸与其他风格一致) */
+  .watch-frame {
+    width: 240px; height: 280px; background: var(--bezel); border-radius: 50px;
+    padding: 16px; position: relative;
+  }
+  .watch-frame::after {
+    content: ''; position: absolute; right: -4px; top: 50%; translate: 0 -50%;
+    width: 8px; height: 42px; background: #1B1D21; border-radius: 4px;
+  }
+  .watch-screen {
+    width: 208px; height: 248px; border-radius: 36px; overflow: hidden;
+    background-color: var(--board); background-image: var(--dot); background-size: 12px 12px;
+    position: relative; color: var(--ink);
+  }
+
+  /* ---------------------------------------------------------------- 手机外框(尺寸与其他风格一致) */
+  .phone-frame {
+    width: 358px; height: 744px; background: var(--bezel); border-radius: 56px;
+    padding: 14px; position: relative;
+  }
+  .phone-screen {
+    width: 330px; height: 716px; border-radius: 44px; overflow: hidden;
+    background-color: var(--board); background-image: var(--dot); background-size: 15px 15px;
+    position: relative; color: var(--ink);
+  }
+  .island { position: absolute; top: 10px; left: 50%; translate: -50% 0; width: 92px; height: 25px; border-radius: 14px; background: #1B1D21; z-index: 50; }
+
+  /* ---------------------------------------------------------------- 手表内容 */
+  .w-screen { width: 100%; height: 100%; padding: 16px 14px 13px; display: flex; flex-direction: column; position: relative; }
+  .w-slug {
+    display: flex; justify-content: space-between; align-items: center;
+    font-size: 9.5px; letter-spacing: .06em; color: var(--ink-60);
+    padding-bottom: 6px; margin-bottom: 9px; rotate: -0.4deg;
+    border-bottom: 2px solid var(--ink);
+  }
+  .w-slug .mini-note {
+    font-size: 9px; font-weight: 700; color: var(--ink); background-color: var(--note);
+    padding: 1.5px 7px; rotate: -3deg; box-shadow: 1px 1.5px 0 rgba(35,38,43,.16);
+    border-radius: 2px 7px 3px 6px / 6px 2px 7px 3px;
+  }
+  .w-plate {
+    position: relative; height: 100px; display: flex; align-items: center; justify-content: center;
+  }
+  .w-plate img.pet { width: 88px; height: 88px; object-fit: contain; position: relative; z-index: 2; rotate: -1.5deg; }
+  .w-plate .star { position: absolute; z-index: 3; width: 15px; height: 15px; }
+  .w-plate .star.s1 { top: 7px; right: 14px; rotate: 8deg; }
+  .w-plate .star.s2 { bottom: 9px; left: 12px; width: 11px; height: 11px; rotate: -14deg; }
+  .w-headline { font-size: 16.5px; font-weight: 700; margin: 12px 0 0; rotate: -0.5deg; }
+  .w-sub { font-size: 11px; color: var(--ink-60); margin: 4px 0 0; rotate: -0.3deg; }
+  .w-foot { margin-top: auto; }
+  .w-btn {
+    width: 100%; font-family: var(--sys-round); font-size: 12.5px; font-weight: 700; letter-spacing: .1em;
+    color: var(--blue); border: 2px solid var(--blue);
+    border-radius: 12px 5px 14px 6px / 6px 14px 5px 12px;
+    padding: 8px 0; min-height: 34px; background-color: rgba(25,113,194,.10);
+    rotate: -0.4deg; position: relative;
+  }
+  .w-btn::after {
+    content: ''; position: absolute; inset: -3px; pointer-events: none;
+    border: 1.3px solid var(--blue); opacity: .4;
+    border-radius: 6px 14px 5px 12px / 12px 5px 14px 6px;
+  }
+  .w-btn:active { translate: 0 1px; }
+
+  .face { width: 100%; height: 100%; padding: 22px 15px 16px; display: flex; flex-direction: column; justify-content: center; }
+  .face-clock { font-size: 42px; font-weight: 700; letter-spacing: -.02em; margin: 0; font-variant-numeric: tabular-nums; rotate: -0.8deg; }
+  .face-rule { height: 0; border-top: 2.2px dashed var(--ink-35); margin: 12px 0 14px; rotate: -0.2deg; }
+  .compl { display: flex; align-items: center; gap: 10px; padding: 8px 10px; rotate: -0.5deg; }
+  .compl-win { width: 34px; height: 34px; background-color: var(--board); display: flex; align-items: center; justify-content: center; flex-shrink: 0; overflow: hidden; position: relative; z-index: 2; }
+  .compl-win img { width: 28px; height: 28px; object-fit: contain; rotate: -2deg; }
+  .compl .t1 { font-size: 9px; letter-spacing: .08em; color: var(--ink-60); }
+  .compl .t2 { font-size: 13px; font-weight: 700; margin-top: 2px; }
+
+  /* ---------------------------------------------------------------- 手机内容:通用 */
+  .p-screen { width: 100%; height: 100%; display: flex; flex-direction: column; position: relative; }
+  .p-top { padding: 46px 20px 0; }
+  .p-slug { font-size: 10.5px; letter-spacing: .1em; color: var(--blue); margin: 0 0 8px; rotate: -0.5deg; font-weight: 600; }
+  .p-title { font-size: 24px; font-weight: 700; letter-spacing: -.01em; margin: 0; rotate: -0.4deg; }
+  .p-sub { font-size: 11.5px; color: var(--ink-60); margin: 8px 0 0; rotate: -0.3deg; }
+  .p-top .hr { height: 0; border-top: 2.2px solid var(--ink); margin-top: 13px; rotate: -0.15deg; border-radius: 55% 45% 60% 40%; opacity: .85; }
+  .p-body { flex: 1; padding: 12px 20px 0; overflow: hidden; }
+
+  /* 图鉴:每格一只独立的手绘框,不是共享边线的表格 */
+  .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 2px; }
+  .slot {
+    position: relative; aspect-ratio: 1.05;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .slot img { width: 54%; height: 54%; object-fit: contain; position: relative; z-index: 2; }
+  .slot:nth-child(3n+1) img { rotate: -3deg; }
+  .slot:nth-child(3n+2) img { rotate: 2deg; }
+  .slot:nth-child(3n) img { rotate: -1.5deg; }
+  .slot .no { position: absolute; left: 6px; top: 4px; font-size: 8.5px; color: var(--ink-35); letter-spacing: .04em; z-index: 2; rotate: -2deg; }
+  .slot.locked { border-style: dashed; }
+  .slot.locked .q { font-size: 17px; font-weight: 700; color: var(--ink-35); rotate: -4deg; }
+  /* New 徽标:一小块歪贴的橙色便利签。z-index 要压过一切叠层——截图里被盖过 */
+  .slot .tag {
+    position: absolute; right: -4px; top: -7px; z-index: 5;
+    font-size: 8.5px; font-weight: 700; color: var(--ink); background-color: var(--note);
+    padding: 1.5px 6px; rotate: 5deg; box-shadow: 1px 1.5px 0 rgba(35,38,43,.18);
+    border-radius: 2px 7px 3px 6px / 6px 2px 7px 3px;
+  }
+  .link-arrow { display: flex; justify-content: center; margin: 4px 0 0; }
+  .link-arrow svg { width: 74px; height: 22px; }
+
+  /* 套装进度:6 个手绘小方格,勾是绿马克笔画的 */
+  .block { padding: 10px 12px 11px; rotate: -0.3deg; }
+  .block-head { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 2px; }
+  .block-label { font-size: 11px; letter-spacing: .08em; color: var(--ink-60); font-weight: 600; }
+  .block-val { font-size: 22px; font-weight: 700; font-variant-numeric: tabular-nums; letter-spacing: -.02em; }
+  .block-val small { font-size: 13px; color: var(--ink-60); font-weight: 500; }
+  .checks { display: flex; gap: 7px; margin: 8px 0; }
+  .checks i {
+    flex: 1; height: 15px; border: 1.8px solid var(--ink);
+    border-radius: 5px 9px 6px 8px / 8px 5px 9px 6px;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .checks i:nth-child(even) { rotate: 1.2deg; }
+  .checks i:nth-child(odd) { rotate: -1deg; }
+  .checks i svg { width: 13px; height: 13px; }
+  .block-desc { font-size: 11.5px; color: var(--ink-60); line-height: 1.6; margin: 0; }
+
+  /* 刚收到:一张真的便利贴 */
+  .received { display: flex; align-items: center; gap: 11px; margin-top: 10px; padding: 9px 12px; }
+  .received .win { width: 42px; height: 42px; background-color: rgba(255,255,255,.55); display: flex; align-items: center; justify-content: center; flex-shrink: 0; border-radius: 4px 10px 5px 9px / 9px 4px 10px 5px; }
+  .received .win img { width: 33px; height: 33px; object-fit: contain; rotate: -3deg; }
+  .received .txt strong { display: block; font-size: 13px; font-weight: 700; margin-bottom: 3px; }
+  .received .txt span { font-size: 11px; color: #6B6440; line-height: 1.5; }
+  .received .new { margin-left: auto; align-self: flex-start; font-size: 10px; font-weight: 700; color: var(--orange); rotate: 3deg; white-space: nowrap; }
+
+  /* 日记:日期是歪贴的小标签,行间是虚线 */
+  .diary-row { padding: 0 0 16px; }
+  .diary-row + .diary-row { border-top: 2px dashed var(--ink-35); padding-top: 15px; }
+  .diary-row time {
+    display: inline-block; font-size: 10px; letter-spacing: .06em; color: var(--blue);
+    padding: 3px 9px; margin-bottom: 9px; rotate: -1.2deg; font-weight: 700;
+  }
+  .diary-row p { font-size: 13.5px; line-height: 1.85; margin: 0; rotate: -0.2deg; }
+  .diary-end { font-size: 10.5px; letter-spacing: .04em; color: var(--ink-35); margin: 4px 0 0; rotate: -0.4deg; }
+  /* 日记下方的留白:白板上随手的一笔涂鸦把它圈成「故意空着」,
+     纯装饰,不绑定任何数值 */
+  .board-doodle { display: flex; justify-content: center; margin: 84px 0 0; rotate: -2deg; opacity: .8; }
+  .board-doodle svg { width: 190px; height: 64px; }
+  /* 页脚批注:日记内容只占上半页,下半页的空白如果什么都没有就读成「没画完」。
+     白板本来就有页脚批注,把空白圈进版面之外,它才读成留白 */
+  .sheet-foot {
+    position: absolute; left: 20px; right: 20px; bottom: 74px;
+    display: flex; justify-content: space-between; align-items: center;
+    border-top: 2px solid var(--ink-35); padding-top: 7px;
+    font-size: 9.5px; letter-spacing: .1em; color: var(--ink-35); rotate: -0.2deg;
+  }
+
+  /* tabbar:一条手绘横线托底,选中项蓝字 + 波浪下划线 */
+  .tabbar { position: absolute; left: 0; right: 0; bottom: 0; height: 62px; padding-bottom: 6px; display: flex; background-color: var(--board); border-top: 2.2px solid var(--ink); z-index: 5; }
+  .tab {
+    flex: 1; border: none; background: none; display: flex; flex-direction: column;
+    align-items: center; justify-content: center; gap: 4px;
+    font-family: var(--sys-round); font-size: 10px; letter-spacing: .08em; color: var(--ink-60);
+  }
+  .tab svg { width: 19px; height: 19px; stroke: var(--ink-60); fill: none; stroke-linecap: round; stroke-linejoin: round; }
+  .tab.active { color: var(--blue); }
+  .tab.active svg { stroke: var(--blue); stroke-width: 2.1; }
+  .tab.active span { text-decoration: underline wavy var(--blue); text-underline-offset: 3px; text-decoration-thickness: 1.4px; }
+  .tab:active { opacity: .7; }
+
+  /* 「它」:场景照用胶带贴在白板上——全篇唯一一处胶带,克制 */
+  .screen-pet { padding: 46px 20px 74px; display: flex; flex-direction: column; height: 100%; }
+  .plate { position: relative; margin-top: 14px; padding: 6px; rotate: -0.4deg; }
+  .tape {
+    position: absolute; top: -10px; left: 50%; translate: -50% 0; width: 62px; height: 17px;
+    background-color: rgba(150,156,166,.3); rotate: -2.5deg; z-index: 6;
+    border-left: 1px dashed rgba(255,255,255,.5); border-right: 1px dashed rgba(255,255,255,.5);
+  }
+  .plate-img { position: relative; height: 292px; overflow: hidden; display: flex; align-items: flex-end; justify-content: center; background-color: var(--board-2); border-radius: 8px 3px 7px 4px; }
+  .plate-img img.scene { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+  .plate-img img.pet { position: relative; z-index: 4; width: 116px; height: 116px; object-fit: contain; margin-bottom: 14px; rotate: -1.5deg; }
+  .plate-cap {
+    display: flex; justify-content: space-between; align-items: baseline;
+    padding: 7px 4px 1px; font-size: 9.5px; letter-spacing: .06em; color: var(--ink-60);
+  }
+  .plate-cap b { color: var(--green); font-weight: 700; }
+  .pic-caption { font-size: 12.5px; color: var(--ink-60); margin: 9px 0 0; rotate: -0.4deg; }
+  .kv { display: flex; justify-content: space-between; align-items: baseline; padding: 11px 13px; margin-top: auto; rotate: -0.3deg; }
+  .kv .k { font-size: 10.5px; letter-spacing: .08em; color: var(--ink-60); font-weight: 600; }
+  .kv .v { font-size: 12.5px; font-weight: 700; }
+  .action-row { display: flex; gap: 12px; margin-top: 15px; }
+  .pbtn {
+    border: 2px solid var(--ink); padding: 12px 0; font-family: var(--sys-round);
+    font-size: 12.5px; font-weight: 700; letter-spacing: .1em; position: relative;
+    border-radius: 12px 5px 14px 6px / 6px 14px 5px 12px;
+  }
+  .pbtn::after {
+    content: ''; position: absolute; inset: -3.5px; pointer-events: none;
+    border: 1.3px solid var(--ink); opacity: .4;
+    border-radius: 6px 14px 5px 12px / 12px 5px 14px 6px;
+  }
+  .pbtn.secondary { flex: 1; background-color: transparent; color: var(--ink); rotate: -0.5deg; }
+  .pbtn.primary { flex: 1.3; background-color: rgba(25,113,194,.12); border-color: var(--blue); color: var(--blue); rotate: 0.5deg; }
+  .pbtn.primary::after { border-color: var(--blue); }
+  .pbtn:active { translate: 0 1px; }
+
+  @media (prefers-reduced-motion: reduce) { * { animation: none !important; } }
+</style>
+</head>
+<body>
+
+<div class="intro">
+  <svg class="doodle" viewBox="0 0 26 26" stroke="#E8890C" stroke-width="2" style="position:absolute; right:-6px; top:-14px; width:24px; height:24px; rotate:12deg;" aria-hidden="true"><path d="M13 3.4 L14.9 9.8 L21.4 9.4 L16.4 13.7 L18.5 20.2 L13 16.4 L7.5 20.2 L9.6 13.7 L4.6 9.4 L11.1 9.8 Z"/></svg>
+  <p class="eyebrow">方向 C · 它自己的生活 — 白板手绘 Whiteboard Sketch</p>
+  <h1>当成一面<span class="wavy-o">白板</span>来画</h1>
+  <p>白底点阵网格当板面,框线全是<b>马克笔手绘的抖线</b>(双层描边微错位),
+    蓝/橙/绿三支笔做强调,波浪下划线圈重点,<b>手绘箭头</b>连接元素,
+    浅黄便利贴微旋转着承载「刚收到」。
+    <b>和已下线的 storybook/scrapbook 的区别:</b>那是暖色纸质的手作拼贴,
+    这套是 Excalidraw 式的<b>工具产品草图</b>——纸面是白板不是牛皮纸,
+    排布仍是产品 UI,胶带全篇只有一处。手写感不引外部字体:圆润系统字体 + 微旋转。</p>
+  <a class="back" href="styles.html">← 返回风格对照</a>
+</div>
+<div class="rule"></div>
+
+<section class="row row-watch">
+  <h2>手表 · 三帧白板</h2>
+  <div class="devices">
+
+    <div class="device-wrap">
+      <div class="watch-frame"><div class="watch-screen">
+        <div class="w-screen">
+          <div class="w-slug"><span>状态 · 外出</span><span>09:41</span></div>
+          <div class="w-plate sk fill-b r-1">
+            <img class="pet" src="art/warm-idle.png" alt="宠物">
+          </div>
+          <p class="w-headline">它出门了</p>
+          <p class="w-sub">大概傍晚回来</p>
+          <div class="w-foot"><button class="w-btn">看看它</button></div>
+        </div>
+      </div></div>
+      <span class="cap">出门了</span>
+    </div>
+
+    <div class="device-wrap">
+      <div class="watch-frame"><div class="watch-screen">
+        <div class="w-screen">
+          <div class="w-slug"><span>状态 · 已归</span><span class="mini-note">New</span></div>
+          <div class="w-plate sk fill-g r1">
+            <img class="pet" src="art/warm-playful.png" alt="宠物">
+            <svg class="star s1 doodle" viewBox="0 0 24 24" stroke="#E8890C" stroke-width="2.2" aria-hidden="true"><path d="M12 3.4 L13.9 9.8 L20.4 9.4 L15.4 13.7 L17.5 20.2 L12 16.4 L6.5 20.2 L8.6 13.7 L3.6 9.4 L10.1 9.8 Z"/></svg>
+            <svg class="star s2 doodle" viewBox="0 0 24 24" stroke="#1971C2" stroke-width="2.6" aria-hidden="true"><path d="M12 3.4 L13.9 9.8 L20.4 9.4 L15.4 13.7 L17.5 20.2 L12 16.4 L6.5 20.2 L8.6 13.7 L3.6 9.4 L10.1 9.8 Z"/></svg>
+          </div>
+          <p class="w-headline">它回来了</p>
+          <p class="w-sub">带回一颗果子</p>
+          <div class="w-foot"><button class="w-btn">收下</button></div>
+        </div>
+      </div></div>
+      <span class="cap">回来了</span>
+    </div>
+
+    <div class="device-wrap">
+      <div class="watch-frame"><div class="watch-screen">
+        <div class="face">
+          <p class="face-clock">9:41</p>
+          <div class="face-rule"></div>
+          <div class="compl sk sk-green r-1">
+            <div class="compl-win"><img src="art/warm-idle.png" alt=""></div>
+            <div><div class="t1">出门中</div><div class="t2">傍晚回来</div></div>
+          </div>
+        </div>
+      </div></div>
+      <span class="cap">复杂功能</span>
+    </div>
+
+  </div>
+</section>
+
+<section class="row row-phone">
+  <h2>手机 · 三页白板</h2>
+  <div class="devices">
+
+    <div class="device-wrap">
+      <div class="phone-frame"><div class="phone-screen">
+        <div class="island"></div>
+        <div class="p-screen">
+          <div class="p-top">
+            <p class="p-slug">图鉴 · 第 01 页</p>
+            <h1 class="p-title">它带回来的</h1>
+            <p class="p-sub"><span class="swipe-b">7 样</span> · 还有很多没见过</p>
+            <div class="hr"></div>
+          </div>
+          <div class="p-body">
+            <div class="grid">
+              <div class="slot sk r-1"><span class="no">01</span><img src="art/items/berry.png" alt="一颗果子"><span class="tag">New</span></div>
+              <div class="slot sk r1"><span class="no">02</span><img src="art/items/leaf.png" alt="一片叶子"></div>
+              <div class="slot sk r-1"><span class="no">03</span><img src="art/items/stone.png" alt="一块石头"></div>
+              <div class="slot sk r1"><span class="no">04</span><img src="art/items/feather.png" alt="一根羽毛"></div>
+              <div class="slot sk r-1"><span class="no">05</span><img src="art/items/shell.png" alt="一枚贝壳"></div>
+              <div class="slot sk r1"><span class="no">06</span><img src="art/items/flower.png" alt="一朵花"></div>
+              <div class="slot sk r-1"><span class="no">07</span><img src="art/items/bottle.png" alt="一个小瓶子"></div>
+              <div class="slot sk locked r1"><span class="no">08</span><i class="q">?</i></div>
+              <div class="slot sk locked r-1"><span class="no">09</span><i class="q">?</i></div>
+            </div>
+            <div class="link-arrow">
+              <svg class="doodle draw" viewBox="0 0 74 24" stroke="#1971C2" stroke-width="2" aria-hidden="true"><path d="M8 4 C 24 15, 44 17, 62 8"/><path d="M62 8 L52.5 6.5 M62 8 L57.5 17"/></svg>
+            </div>
+            <div class="block sk r1">
+              <div class="block-head">
+                <span class="block-label">套装 · 林线</span>
+                <span class="block-val">4<small>/6</small></span>
+              </div>
+              <div class="checks">
+                <i><svg class="doodle" viewBox="0 0 16 16" stroke="#2F9E44" stroke-width="2.6" aria-hidden="true"><path d="M3.2 8.4 L6.4 11.8 L12.9 3.9"/></svg></i>
+                <i><svg class="doodle" viewBox="0 0 16 16" stroke="#2F9E44" stroke-width="2.6" aria-hidden="true"><path d="M3 8.2 L6.6 12 L13 4.2"/></svg></i>
+                <i><svg class="doodle" viewBox="0 0 16 16" stroke="#2F9E44" stroke-width="2.6" aria-hidden="true"><path d="M3.4 8.6 L6.3 11.6 L12.7 3.8"/></svg></i>
+                <i><svg class="doodle" viewBox="0 0 16 16" stroke="#2F9E44" stroke-width="2.6" aria-hidden="true"><path d="M3.1 8.3 L6.5 11.9 L13.1 4.1"/></svg></i>
+                <i></i>
+                <i></i>
+              </div>
+              <p class="block-desc">集齐解锁新的散步路线,<span class="swipe">缺的两样在湖边</span></p>
+            </div>
+            <div class="received note">
+              <div class="win"><img src="art/items/berry.png" alt=""></div>
+              <div class="txt">
+                <strong>刚收到:一颗果子</strong>
+                <span>它说路边捡的,不太确定能不能吃</span>
+              </div>
+              <span class="new wavy-o">New</span>
+            </div>
+          </div>
+          <nav class="tabbar">
+            <button class="tab active"><svg viewBox="0 0 24 24" stroke-width="1.8"><path d="M4.2 4.4 L10.8 4.1 L11.1 10.9 L4.4 11.2 Z M13.2 4.2 L19.9 4.5 L19.6 11 L13 10.8 Z M4.3 13.2 L11 13 L11.2 19.8 L4.5 20 Z M13.1 13.1 L19.8 13.3 L20 19.7 L13.3 19.9 Z"/></svg><span>图鉴</span></button>
+            <button class="tab"><svg viewBox="0 0 24 24" stroke-width="1.8"><path d="M5.4 3.6 L18.6 3.9 L18.9 20.6 L5.1 20.4 Z M8.6 9.2 L15.4 9 M8.5 13.1 L15.6 13.3"/></svg><span>日记</span></button>
+            <button class="tab"><svg viewBox="0 0 24 24" stroke-width="1.8"><path d="M12 4.1 C16.4 4 20 7.6 19.9 12 C19.8 16.4 16.3 20 12 19.9 C7.6 19.8 4 16.3 4.1 12 C4.2 7.7 7.7 4.2 12 4.1 Z M12 9.9 C13.2 9.8 14.2 10.8 14.1 12 C14 13.2 13 14.1 12 14.1 C10.9 14 9.9 13.1 10 12 C10.1 10.9 10.9 10 12 9.9 Z"/></svg><span>它</span></button>
+          </nav>
+        </div>
+      </div></div>
+      <span class="cap">图鉴</span>
+    </div>
+
+    <div class="device-wrap">
+      <div class="phone-frame"><div class="phone-screen">
+        <div class="island"></div>
+        <div class="p-screen">
+          <div class="p-top">
+            <p class="p-slug">日记 · 第 02 页</p>
+            <h1 class="p-title">它写的</h1>
+            <p class="p-sub">它自己的视角,不是你的记录</p>
+            <div class="hr"></div>
+          </div>
+          <div class="p-body">
+            <div class="diary-row">
+              <time class="sk sk-blue fill-b">10-11 傍晚</time>
+              <p>今天走得比平常远。你好像也走了不少,我们大概错过了。带了一颗果子回来。</p>
+            </div>
+            <div class="diary-row">
+              <time class="sk sk-blue fill-b">10-10 下午</time>
+              <p>窗台那边太阳很好,躺了一会儿。你一直没回来。</p>
+            </div>
+            <p class="diary-end">再往前就翻不到了 · 它也没打算全记住</p>
+            <div class="board-doodle" aria-hidden="true">
+              <svg class="doodle" viewBox="0 0 190 64" stroke="#A9AEB5" stroke-width="1.8">
+                <path class="draw" d="M10 44 C 32 18, 52 56, 76 34 C 92 20, 104 48, 126 30"/>
+                <path d="M126 30 L115 28 M126 30 L121 40"/>
+                <path d="M156 12 l 3 8.8 l 9.2 -0.9 l -6.9 6.2 l 2.7 9 l -8 -5.1 l -8 5.1 l 2.7 -9 l -6.9 -6.2 l 9.2 0.9 Z" stroke="#E8890C" stroke-width="2"/>
+                <path d="M168 46 c 5 -9, 15 -7, 13 0 c -2 7, -13 7, -13 0 Z"/>
+              </svg>
+            </div>
+            <div class="sheet-foot"><span>本页完</span><span>02 / 03</span></div>
+          </div>
+          <nav class="tabbar">
+            <button class="tab"><svg viewBox="0 0 24 24" stroke-width="1.8"><path d="M4.2 4.4 L10.8 4.1 L11.1 10.9 L4.4 11.2 Z M13.2 4.2 L19.9 4.5 L19.6 11 L13 10.8 Z M4.3 13.2 L11 13 L11.2 19.8 L4.5 20 Z M13.1 13.1 L19.8 13.3 L20 19.7 L13.3 19.9 Z"/></svg><span>图鉴</span></button>
+            <button class="tab active"><svg viewBox="0 0 24 24" stroke-width="1.8"><path d="M5.4 3.6 L18.6 3.9 L18.9 20.6 L5.1 20.4 Z M8.6 9.2 L15.4 9 M8.5 13.1 L15.6 13.3"/></svg><span>日记</span></button>
+            <button class="tab"><svg viewBox="0 0 24 24" stroke-width="1.8"><path d="M12 4.1 C16.4 4 20 7.6 19.9 12 C19.8 16.4 16.3 20 12 19.9 C7.6 19.8 4 16.3 4.1 12 C4.2 7.7 7.7 4.2 12 4.1 Z M12 9.9 C13.2 9.8 14.2 10.8 14.1 12 C14 13.2 13 14.1 12 14.1 C10.9 14 9.9 13.1 10 12 C10.1 10.9 10.9 10 12 9.9 Z"/></svg><span>它</span></button>
+          </nav>
+        </div>
+      </div></div>
+      <span class="cap">日记</span>
+    </div>
+
+    <div class="device-wrap">
+      <div class="phone-frame"><div class="phone-screen">
+        <div class="island"></div>
+        <div class="p-screen">
+          <div class="screen-pet">
+            <p class="p-slug">它 · 第 03 页</p>
+            <h1 class="p-title">小团</h1>
+            <p class="p-sub">在家 · 刚回来</p>
+            <div class="plate sk">
+              <div class="tape"></div>
+              <div class="plate-img">
+                <img class="scene" src="art/scene-room.jpg" alt="">
+                <img class="pet" src="art/warm-calm.png" alt="宠物">
+              </div>
+              <div class="plate-cap"><span>图版 · 室内 窝边</span><span>状态 <b>在家</b></span></div>
+            </div>
+            <p class="pic-caption">对着<span class="swipe">什么</span>发呆</p>
+            <div class="kv sk sk-green fill-g">
+              <span class="k">下次出门</span>
+              <span class="v">明天早上 · 它自己决定的</span>
+            </div>
+            <div class="action-row">
+              <button class="pbtn secondary">给点心</button>
+              <button class="pbtn primary">摸摸</button>
+            </div>
+          </div>
+          <nav class="tabbar">
+            <button class="tab"><svg viewBox="0 0 24 24" stroke-width="1.8"><path d="M4.2 4.4 L10.8 4.1 L11.1 10.9 L4.4 11.2 Z M13.2 4.2 L19.9 4.5 L19.6 11 L13 10.8 Z M4.3 13.2 L11 13 L11.2 19.8 L4.5 20 Z M13.1 13.1 L19.8 13.3 L20 19.7 L13.3 19.9 Z"/></svg><span>图鉴</span></button>
+            <button class="tab"><svg viewBox="0 0 24 24" stroke-width="1.8"><path d="M5.4 3.6 L18.6 3.9 L18.9 20.6 L5.1 20.4 Z M8.6 9.2 L15.4 9 M8.5 13.1 L15.6 13.3"/></svg><span>日记</span></button>
+            <button class="tab active"><svg viewBox="0 0 24 24" stroke-width="1.8"><path d="M12 4.1 C16.4 4 20 7.6 19.9 12 C19.8 16.4 16.3 20 12 19.9 C7.6 19.8 4 16.3 4.1 12 C4.2 7.7 7.7 4.2 12 4.1 Z M12 9.9 C13.2 9.8 14.2 10.8 14.1 12 C14 13.2 13 14.1 12 14.1 C10.9 14 9.9 13.1 10 12 C10.1 10.9 10.9 10 12 9.9 Z"/></svg><span>它</span></button>
+          </nav>
+        </div>
+      </div></div>
+      <span class="cap">它</span>
+    </div>
+
+  </div>
+</section>
+
+</body>
+</html>
